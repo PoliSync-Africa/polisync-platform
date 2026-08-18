@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
 
-// Authentication status
+const authController = require("../controllers/authController");
+
+// Status
 router.get("/", (req, res) => {
   res.json({
     status: "success",
@@ -9,28 +11,9 @@ router.get("/", (req, res) => {
   });
 });
 
-// Register
-router.post("/register", (req, res) => {
-  res.json({
-    success: true,
-    message: "Registration endpoint created"
-  });
-});
-
-// Login
-router.post("/login", (req, res) => {
-  res.json({
-    success: true,
-    message: "Login endpoint created"
-  });
-});
-
-// Forgot Password
-router.post("/forgot-password", (req, res) => {
-  res.json({
-    success: true,
-    message: "Password reset endpoint created"
-  });
-});
+// Authentication Routes
+router.post("/register", authController.register);
+router.post("/login", authController.login);
+router.post("/forgot-password", authController.forgotPassword);
 
 module.exports = router;
