@@ -58,6 +58,22 @@ const ResultSchema = new mongoose.Schema(
     evidenceImage: {
       type: String,
       default: ""
+    },
+
+    gpsLocation: {
+      latitude: Number,
+      longitude: Number
+    },
+
+    deviceId: {
+      type: String,
+      default: ""
+    },
+
+    submissionStatus: {
+      type: String,
+      enum: ["Pending", "Verified", "Flagged"],
+      default: "Pending"
     }
   },
   {
