@@ -1,4 +1,4 @@
-import LoginCard from "../components/LoginCard";
+{`import LoginCard from "../components/LoginCard";
 
 export default function Home() {
   return (
@@ -15,4 +15,4 @@ export default function Home() {
       <LoginCard />
     </main>
   );
-}
+}`}
