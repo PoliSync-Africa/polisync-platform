@@ -2,7 +2,7 @@
 
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import GhanaInteractiveMap from "../components/GhanaInteractiveMap";
+import GISMap from "../components/GISMap";
 import RegionCard from "../components/RegionCard";
 import ConstituencyPanel from "../components/ConstituencyPanel";
 import NetworkStatus from "../components/NetworkStatus";
@@ -33,7 +33,7 @@ export default function WarRoomPage() {
               marginTop: 24
             }}
           >
-            <GhanaInteractiveMap />
+            <GISMap />
 
             <div style={{ display: "grid", gap: 20 }}>
               <NetworkStatus />
