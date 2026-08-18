@@ -1,5 +1,5 @@
 const http = require("http");
-
+const indexRoutes = require("./routes/index");
 const PORT = 5000;
 
 const server = http.createServer((req, res) => {
