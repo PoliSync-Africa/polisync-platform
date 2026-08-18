@@ -5,13 +5,16 @@ const CountrySchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
-      unique: true
+      unique: true,
+      trim: true
     },
 
     code: {
       type: String,
       required: true,
-      uppercase: true
+      unique: true,
+      uppercase: true,
+      trim: true
     },
 
     capital: {
@@ -25,6 +28,21 @@ const CountrySchema = new mongoose.Schema(
     },
 
     defaultElectionAuthority: {
+      type: String,
+      default: ""
+    },
+
+    continent: {
+      type: String,
+      default: "Africa"
+    },
+
+    flagEmoji: {
+      type: String,
+      default: ""
+    },
+
+    dialingCode: {
       type: String,
       default: ""
     },
