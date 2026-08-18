@@ -1,18 +1,23 @@
 export default function Logo() {
   return (
-    <div style={{ textAlign: "center", marginBottom: "24px" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center"
+      }}
+    >
       <div
         style={{
-          width: "72px",
-          height: "72px",
+          width: "80px",
+          height: "80px",
           borderRadius: "20px",
-          background: "#0A2540",
-          color: "#D4AF37",
+          background: "#1B365D",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          color: "#ffffff",
           fontSize: "32px",
-          margin: "0 auto 12px",
           fontWeight: "bold"
         }}
       >
@@ -21,23 +26,14 @@ export default function Logo() {
 
       <h1
         style={{
-          margin: 0,
-          fontSize: "28px",
-          color: "#0A2540"
+          marginTop: "12px",
+          marginBottom: "0",
+          color: "#1B365D",
+          fontSize: "24px"
         }}
       >
-        POLISYNC AFRICA
+        PoliSync Africa
       </h1>
-
-      <p
-        style={{
-          marginTop: "8px",
-          color: "#555",
-          fontSize: "14px"
-        }}
-      >
-        Secure Political Intelligence Platform
-      </p>
     </div>
   );
 }
