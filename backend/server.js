@@ -26,3 +26,9 @@ app.use("/health", healthRoutes);
 app.listen(PORT, () => {
   console.log(`POLISYNC server running on port ${PORT}`);
 });
+
+
+const geoRoutes = require("./routes/geoRoutes");
+
+app.use("/api/geo", geoRoutes);
+q
