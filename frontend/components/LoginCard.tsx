@@ -1,3 +1,4 @@
+
 import Logo from "./Logo";
 import InputField from "./InputField";
 import PasswordField from "./PasswordField";
@@ -8,33 +9,101 @@ export default function LoginCard() {
   return (
     <div
       style={{
+        width: "100%",
         maxWidth: "420px",
-        margin: "40px auto",
-        padding: "24px",
-        borderRadius: "20px",
-        border: "1px solid #ddd",
-        background: "#fff"
+        background: "#ffffff",
+        borderRadius: "24px",
+        padding: "32px",
+        boxShadow: "0 20px 50px rgba(0,0,0,0.12)"
       }}
     >
-      <Logo />
+      <div style={{ textAlign: "center", marginBottom: "24px" }}>
+        <Logo />
 
-      <InputField
-        label="Email"
-        placeholder="Enter your email"
-        type="email"
-      />
+        <h2
+          style={{
+            marginTop: "16px",
+            marginBottom: "8px",
+            fontSize: "28px",
+            color: "#1B365D"
+          }}
+        >
+          Welcome Back
+        </h2>
 
-      <PasswordField />
+        <p style={{ color: "#666" }}>
+          Sign in to your PoliSync Africa account
+        </p>
+      </div>
 
-      <div
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <InputField label="Email Address" placeholder="Enter your email" />
+
+        <PasswordField />
+
+        <div style={{ textAlign: "right" }}>
+          <a
+            href="#"
+            style={{
+              color: "#0A84FF",
+              textDecoration: "none",
+              fontSize: "14px"
+            }}
+          >
+            Forgot Password?
+          </a>
+        </div>
+
+        <button
+          style={{
+            background: "#1B365D",
+            color: "#fff",
+            border: "none",
+            padding: "14px",
+            borderRadius: "12px",
+            fontSize: "16px",
+            cursor: "pointer"
+          }}
+        >
+          Login
+        </button>
+
+        <button
+          style={{
+            background: "#F3F4F6",
+            color: "#1B365D",
+            border: "1px solid #ddd",
+            padding: "14px",
+            borderRadius: "12px",
+            fontSize: "16px",
+            cursor: "pointer"
+          }}
+        >
+          Create Account
+        </button>
+      </div>
+
+      <div style={{ marginTop: "24px" }}>
+        <SocialLoginButtons />
+      </div>
+
+      <div style={{ marginTop: "24px" }}>
+        <ThemeSelector />
+      </div>
+
+      <p
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: "20px",
-          fontSize: "14px"
+          marginTop: "20px",
+          textAlign: "center",
+          color: "#888",
+          fontSize: "13px"
         }}
       >
-        <label>
+        Secure Political Intelligence Platform for Africa
+      </p>
+    </div>
+  );
+}        <label>
           <input type="checkbox" /> Remember Me
         </label>
 
