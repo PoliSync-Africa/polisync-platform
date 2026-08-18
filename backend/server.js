@@ -1,20 +1,15 @@
-const http = require("http");
+const express = require("express");
+
+const app = express();
 const indexRoutes = require("./routes/index");
-const PORT = 5000;
 
-const server = http.createServer((req, res) => {
-  res.writeHead(200, {
-    "Content-Type": "application/json"
-  });
+const PORT = process.env.PORT || 5000;
 
-  res.end(
-    JSON.stringify({
-      app: "POLISYNC AFRICA",
-      status: "Authentication Server Running"
-    })
-  );
-});
+app.use(express.json());
 
-server.listen(PORT, () => {
+// Main route
+app.use("/", indexRoutes);
+
+app.listen(PORT, () => {
   console.log(`POLISYNC server running on port ${PORT}`);
 });
