@@ -1,0 +1,14 @@
+const fs = require("fs");
+const path = require("path");
+
+function loadGeoJSON(relativePath) {
+  const file = path.join(__dirname, "..", relativePath);
+
+  const raw = fs.readFileSync(file, "utf8");
+
+  return JSON.parse(raw);
+}
+
+module.exports = {
+  loadGeoJSON
+};
