@@ -10,3 +10,6 @@ router.post("/assistant", askAssistant);
 router.post("/briefing", generateBriefing);
 
 module.exports = router;
+
+const aiRoutes = require("./routes/aiRoutes");
+app.use("/api/ai", aiRoutes);
