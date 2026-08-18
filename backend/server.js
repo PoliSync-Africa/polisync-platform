@@ -6,6 +6,7 @@ const app = express();
 const indexRoutes = require("./routes/index");
 const authRoutes = require("./routes/auth");
 const resultsRoutes = require("./routes/results");
+const electionRoutes = require("./routes/elections");
 
 const PORT = process.env.PORT || 5000;
 
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use("/", indexRoutes);
 app.use("/auth", authRoutes);
 app.use("/results", resultsRoutes);
+app.use("/elections", electionRoutes);
 
 app.listen(PORT, () => {
   console.log(`POLISYNC server running on port ${PORT}`);
