@@ -1,19 +1,14 @@
-const databaseConfig = {
-  name: "POLISYNC_AFRICA",
-  provider: "MongoDB",
-  status: "Not Connected Yet",
-  collections: [
-    "users",
-    "political_parties",
-    "members",
-    "candidates",
-    "elections",
-    "polling_stations",
-    "results",
-    "research",
-    "meetings",
-    "finance"
-  ]
+const mongoose = require("mongoose");
+
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGODB_URI);
+
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+    process.exit(1);
+  }
 };
 
-module.exports = databaseConfig;
+module.exports = connectDB;
