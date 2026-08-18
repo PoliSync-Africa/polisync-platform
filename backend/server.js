@@ -32,3 +32,9 @@ const geoRoutes = require("./routes/geoRoutes");
 
 app.use("/api/geo", geoRoutes);
 q
+
+
+
+const gisRoutes = require("./routes/gisRoutes");
+
+app.use("/api/gis", gisRoutes);
