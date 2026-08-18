@@ -1,35 +1,36 @@
+
 type InputFieldProps = {
   label: string;
   placeholder: string;
-  type?: string;
 };
 
 export default function InputField({
   label,
-  placeholder,
-  type = "text",
+  placeholder
 }: InputFieldProps) {
   return (
-    <div style={{ marginBottom: "18px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       <label
         style={{
-          display: "block",
-          marginBottom: "6px",
-          fontWeight: "600"
+          fontSize: "14px",
+          fontWeight: 600,
+          color: "#1B365D"
         }}
       >
         {label}
       </label>
 
       <input
-        type={type}
+        type="email"
         placeholder={placeholder}
         style={{
-          width: "100%",
           padding: "14px",
-          borderRadius: "10px",
-          border: "1px solid #ccc",
-          fontSize: "16px"
+          borderRadius: "12px",
+          border: "1px solid #D1D5DB",
+          fontSize: "15px",
+          outline: "none",
+          width: "100%",
+          boxSizing: "border-box"
         }}
       />
     </div>
