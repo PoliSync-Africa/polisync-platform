@@ -1,42 +1,56 @@
+
 "use client";
 
 import { useState } from "react";
 
 export default function PasswordField() {
-  const [show, setShow] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div style={{ marginBottom: "18px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       <label
         style={{
-          display: "block",
-          marginBottom: "6px",
-          fontWeight: "600"
+          fontSize: "14px",
+          fontWeight: 600,
+          color: "#1B365D"
         }}
       >
         Password
       </label>
 
-      <div style={{ display: "flex", gap: "8px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          border: "1px solid #D1D5DB",
+          borderRadius: "12px",
+          overflow: "hidden"
+        }}
+      >
         <input
-          type={show ? "text" : "password"}
-          placeholder="Enter password"
+          type={showPassword ? "text" : "password"}
+          placeholder="Enter your password"
           style={{
             flex: 1,
             padding: "14px",
-            borderRadius: "10px",
-            border: "1px solid #ccc"
+            border: "none",
+            outline: "none",
+            fontSize: "15px"
           }}
         />
 
         <button
-          onClick={() => setShow(!show)}
+          onClick={() => setShowPassword(!showPassword)}
           style={{
-            padding: "14px",
-            borderRadius: "10px"
+            background: "transparent",
+            border: "none",
+            padding: "0 14px",
+            cursor: "pointer",
+            color: "#1B365D",
+            fontWeight: 600
           }}
         >
-          {show ? "Hide" : "Show"}
+          {showPassword ? "Hide" : "Show"}
         </button>
       </div>
     </div>
