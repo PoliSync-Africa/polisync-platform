@@ -1,0 +1,10 @@
+{
+  "name": "polisync-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "description": "POLISYNC AFRICA Frontend",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build"
+  }
+}
