@@ -1,29 +1,43 @@
 const express = require("express");
+const {
+  submitResult,
+  getElectionResults,
+  verifyResult
+} = require("../controllers/resultController");
+
+const { protect, authorize } = require("../middleware/authMiddleware");
+
 const router = express.Router();
 
-const { protect, authorize } = require("../middleware/auth");
-const resultsController = require("../controllers/resultsController");
-
-// API Status
-router.get("/", (req, res) => { 
+router.get("/", (req, res) => {
   res.json({
     status: "success",
-    message: "Election Results API Ready"
+    message: "Results routes ready"
   });
 });
 
-// Dashboard
-router.get("/dashboard", resultsController.dashboard);
-
-// View Results
-router.get("/all", resultsController.getResults);
-
-// Secure Submission
 router.post(
   "/submit",
   protect,
-  authorize("polling_agent", "party_admin", "super_admin"),
-  resultsController.submitResult
+  authorize("polling_station_agent", "constituency_officer"),
+  submitResult
+);
+
+router.get(
+  "/election/:electionId",
+  protect,
+  getElectionResults
+);
+
+router.patch(
+  "/verify/:id",
+  protect,
+  authorize(
+    "regional_admin",
+    "country_admin",
+    "super_admin"
+  ),
+  verifyResult
 );
 
 module.exports = router;
