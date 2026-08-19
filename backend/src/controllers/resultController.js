@@ -22,7 +22,6 @@ exports.submitResult = async (req, res) => {
       });
     }
 
-    // Ensure the election belongs to the logged-in organization
     const election = await Election.findOne({
       _id: electionId,
       organizationId: req.user.organizationId
@@ -42,8 +41,6 @@ exports.submitResult = async (req, res) => {
       });
     }
 
-    // Prevent duplicate submission for the same organization,
-    // election and polling station
     const existingResult = await Result.findOne({
       organizationId: req.user.organizationId,
       electionId,
@@ -90,7 +87,7 @@ exports.submitResult = async (req, res) => {
   }
 };
 
-// Get Results for an Election
+// Get Results for One Election
 exports.getElectionResults = async (req, res) => {
   try {
     const election = await Election.findOne({
@@ -123,6 +120,94 @@ exports.getElectionResults = async (req, res) => {
       success: true,
       count: results.length,
       data: results
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Get All Results for Current Organization
+exports.getResults = async (req, res) => {
+  try {
+    const results = await Result.find({
+      organizationId: req.user.organizationId
+    })
+      .populate(
+        "pollingStationId",
+        "code name country region district constituency electoralArea"
+      )
+      .populate(
+        "submittedBy",
+        "firstName lastName role"
+      )
+      .populate(
+        "electionId",
+        "title type country electionDate status"
+      )
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      count: results.length,
+      data: results
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Organization Dashboard
+exports.dashboard = async (req, res) => {
+  try {
+    const results = await Result.find({
+      organizationId: req.user.organizationId
+    }).lean();
+
+    const national = {};
+    const regions = {};
+    const constituencies = {};
+
+    let totalValidVotes = 0;
+    let rejectedVotes = 0;
+    let totalBallots = 0;
+
+    results.forEach((result) => {
+      totalValidVotes += result.totalValidVotes || 0;
+      rejectedVotes += result.rejectedVotes || 0;
+      totalBallots += result.totalBallots || 0;
+
+      (result.candidateResults || []).forEach((candidate) => {
+        national[candidate.candidateId] =
+          national[candidate.candidateId] || {
+            candidateId: candidate.candidateId,
+            candidateName: candidate.candidateName,
+            party: candidate.party,
+            votes: 0
+          };
+
+        national[candidate.candidateId].votes += candidate.votes || 0;
+      });
+    });
+
+    const pollingStationsReported = results.length;
+
+    res.json({
+      success: true,
+      pollingStationsReported,
+      totalValidVotes,
+      rejectedVotes,
+      totalBallots,
+      national: Object.values(national).sort(
+        (a, b) => b.votes - a.votes
+      ),
+      regions,
+      constituencies
     });
   } catch (error) {
     res.status(500).json({
