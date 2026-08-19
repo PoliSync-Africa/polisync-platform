@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
@@ -44,6 +44,7 @@ const userSchema = new mongoose.Schema(
       enum: [
         "super_admin",
         "country_admin",
+        "party_admin",
         "regional_admin",
         "constituency_officer",
         "electoral_area_coordinator",
