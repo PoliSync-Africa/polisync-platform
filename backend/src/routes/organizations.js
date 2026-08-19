@@ -1,4 +1,5 @@
 const express = require("express");
+
 const {
   createOrganization,
   getOrganizations,
@@ -6,7 +7,10 @@ const {
   updateOrganization
 } = require("../controllers/organizationController");
 
-const { protect, authorize } = require("../middleware/authMiddleware");
+const {
+  protect,
+  authorize
+} = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
@@ -19,12 +23,21 @@ router.get("/", (req, res) => {
 });
 
 // List organizations
-router.get("/all", protect, getOrganizations);
+router.get(
+  "/all",
+  protect,
+  getOrganizations
+);
 
 // Get one organization
-router.get("/:id", protect, getOrganizationById);
+router.get(
+  "/:id",
+  protect,
+  getOrganizationById
+);
 
 // Create organization
+// Only Super Admin can create an organization
 router.post(
   "/create",
   protect,
@@ -33,10 +46,12 @@ router.post(
 );
 
 // Update organization
+// Super Admin can update any organization.
+// Party Admin can update only their own organization.
 router.patch(
   "/:id",
   protect,
-  authorize("super_admin"),
+  authorize("super_admin", "party_admin"),
   updateOrganization
 );
 
