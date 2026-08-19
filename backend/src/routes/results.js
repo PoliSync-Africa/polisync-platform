@@ -1,8 +1,13 @@
 const express = require("express");
+
 const router = express.Router();
 
-const { protect, authorize } = require("../middleware/auth");
-const resultsController = require("../controllers/resultsController");
+const {
+  protect,
+  authorize
+} = require("../middleware/authMiddleware");
+
+const resultsController = require("../controllers/resultController");
 
 // API Status
 router.get("/", (req, res) => {
@@ -13,17 +18,50 @@ router.get("/", (req, res) => {
 });
 
 // Dashboard
-router.get("/dashboard", resultsController.dashboard);
+router.get(
+  "/dashboard",
+  protect,
+  resultsController.dashboard
+);
 
-// View Results
-router.get("/all", resultsController.getResults);
+// View All Results
+router.get(
+  "/all",
+  protect,
+  resultsController.getResults
+);
+
+// View Results for One Election
+router.get(
+  "/election/:electionId",
+  protect,
+  resultsController.getElectionResults
+);
 
 // Secure Submission
 router.post(
   "/submit",
   protect,
-  authorize("polling_agent", "party_admin", "super_admin"),
+  authorize(
+    "polling_station_agent",
+    "party_admin",
+    "regional_admin",
+    "country_admin",
+    "super_admin"
+  ),
   resultsController.submitResult
+);
+
+// Verify Result
+router.patch(
+  "/verify/:id",
+  protect,
+  authorize(
+    "regional_admin",
+    "country_admin",
+    "super_admin"
+  ),
+  resultsController.verifyResult
 );
 
 module.exports = router;
