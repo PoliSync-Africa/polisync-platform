@@ -4,6 +4,7 @@ exports.createElection = async (req, res) => {
   try {
     const election = await Election.create({
       ...req.body,
+      organizationId: req.user.organizationId,
       createdBy: req.user._id
     });
 
@@ -22,7 +23,9 @@ exports.createElection = async (req, res) => {
 
 exports.getElections = async (req, res) => {
   try {
-    const elections = await Election.find()
+    const elections = await Election.find({
+      organizationId: req.user.organizationId
+    })
       .populate("createdBy", "firstName lastName role")
       .sort({ electionDate: 1 });
 
@@ -41,8 +44,10 @@ exports.getElections = async (req, res) => {
 
 exports.getElectionById = async (req, res) => {
   try {
-    const election = await Election.findById(req.params.id)
-      .populate("createdBy", "firstName lastName role");
+    const election = await Election.findOne({
+      _id: req.params.id,
+      organizationId: req.user.organizationId
+    }).populate("createdBy", "firstName lastName role");
 
     if (!election) {
       return res.status(404).json({
@@ -65,10 +70,17 @@ exports.getElectionById = async (req, res) => {
 
 exports.updateElectionStatus = async (req, res) => {
   try {
-    const election = await Election.findByIdAndUpdate(
-      req.params.id,
-      { status: req.body.status },
-      { new: true }
+    const election = await Election.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        organizationId: req.user.organizationId
+      },
+      {
+        status: req.body.status
+      },
+      {
+        new: true
+      }
     );
 
     if (!election) {
