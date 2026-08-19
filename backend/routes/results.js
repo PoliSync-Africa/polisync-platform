@@ -5,7 +5,7 @@ const { protect, authorize } = require("../middleware/auth");
 const resultsController = require("../controllers/resultsController");
 
 // API Status
-router.get("/", (req, res) => {
+router.get("/", (req, res) => { 
   res.json({
     status: "success",
     message: "Election Results API Ready"
