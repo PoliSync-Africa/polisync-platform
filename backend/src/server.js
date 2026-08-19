@@ -9,13 +9,13 @@ async function startServer() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
 
-    console.log("MongoDB Connected");
+    console.log("✅ MongoDB Connected");
 
     app.listen(PORT, () => {
-      console.log(`POLISYNC AFRICA Backend running on port ${PORT}`);
+      console.log(`🚀 POLISYNC AFRICA Backend running on port ${PORT}`);
     });
   } catch (error) {
-    console.error("Database connection failed:", error.message);
+    console.error("❌ Database connection failed:", error.message);
     process.exit(1);
   }
 }
