@@ -1,11 +1,11 @@
- const mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
+    // Organization is optional for Super Admin and Country Admin
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
-      required: true,
       index: true
     },
 
@@ -34,11 +34,6 @@ const userSchema = new mongoose.Schema(
       trim: true
     },
 
-    password: {
-      type: String,
-      required: true
-    },
-
     role: {
       type: String,
       enum: [
@@ -54,25 +49,30 @@ const userSchema = new mongoose.Schema(
       default: "observer"
     },
 
+    // Country is controlled by the authentication/authorization layer
     country: {
       type: String,
-      required: true
+      trim: true
     },
 
     region: {
-      type: String
+      type: String,
+      trim: true
     },
 
     constituency: {
-      type: String
+      type: String,
+      trim: true
     },
 
     electoralArea: {
-      type: String
+      type: String,
+      trim: true
     },
 
     pollingStation: {
-      type: String
+      type: String,
+      trim: true
     },
 
     isActive: {
