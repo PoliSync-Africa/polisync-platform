@@ -1,12 +1,20 @@
 const express = require("express");
 const cors = require("cors");
-const resultsRoutes = require("./routes/results");
+
 const authRoutes = require("./routes/auth");
-const healthRoutes = require("./routes/const electionsRoutes = require("./routes/elections");
-const app = const adminRoutes = require("./routes/admin");
+const healthRoutes = require("./routes/health");
+const resultsRoutes = require("./routes/results");
+const electionsRoutes = require("./routes/elections");
+const organizationRoutes = require("./routes/organizations");
+const adminRoutes = require("./routes/admin");
+
+const app = express();
+
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use("/elections", electionsRoutes);
+
+// Root API
 app.get("/", (req, res) => {
   res.json({
     name: "POLISYNC AFRICA API",
@@ -15,8 +23,12 @@ app.get("/", (req, res) => {
   });
 });
 
+// Routes
 app.use("/auth", authRoutes);
 app.use("/health", healthRoutes);
 app.use("/results", resultsRoutes);
+app.use("/elections", electionsRoutes);
+app.use("/organizations", organizationRoutes);
 app.use("/admin", adminRoutes);
+
 module.exports = app;
