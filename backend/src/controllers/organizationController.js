@@ -19,7 +19,9 @@ exports.createOrganization = async (req, res) => {
 
 exports.getOrganizations = async (req, res) => {
   try {
-    const organizations = await Organization.find().sort({ name: 1 });
+    const organizations = await Organization.find().sort({
+      createdAt: -1
+    });
 
     res.json({
       success: true,
@@ -59,24 +61,73 @@ exports.getOrganizationById = async (req, res) => {
 
 exports.updateOrganization = async (req, res) => {
   try {
-    const organization = await Organization.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
+    const { id } = req.params;
 
-    if (!organization) {
-      return res.status(404).json({
-        success: false,
-        message: "Organization not found."
+    // Super Admin can update any organization
+    if (req.user.role === "super_admin") {
+      const organization = await Organization.findByIdAndUpdate(
+        id,
+        req.body,
+        {
+          new: true,
+          runValidators: true
+        }
+      );
+
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          message: "Organization not found."
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: "Organization updated successfully.",
+        data: organization
       });
     }
 
-    res.json({
-      success: true,
-      message: "Organization updated successfully.",
-      data: organization
+    // Party Admin can update only their own organization
+    if (req.user.role === "party_admin") {
+      if (
+        !req.user.organizationId ||
+        req.user.organizationId.toString() !== id
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only update your own organization."
+        });
+      }
+
+      const organization = await Organization.findByIdAndUpdate(
+        id,
+        req.body,
+        {
+          new: true,
+          runValidators: true
+        }
+      );
+
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          message: "Organization not found."
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: "Organization updated successfully.",
+        data: organization
+      });
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: "Access denied."
     });
+
   } catch (error) {
     res.status(500).json({
       success: false,
