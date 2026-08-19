@@ -5,118 +5,94 @@ const candidateResultSchema = new mongoose.Schema(
     candidateId: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
+
     candidateName: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
-    party: {
-      type: String,
-      required: true,
-      trim: true
-    },
+
     votes: {
       type: Number,
       required: true,
-      min: 0
-    }
+      min: 0,
+    },
   },
-  { _id: false }
+  {
+    _id: false,
+  }
 );
 
 const resultSchema = new mongoose.Schema(
   {
-    organizationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
-      required: true,
-      index: true
-    },
-
     electionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Election",
       required: true,
-      index: true
     },
 
     pollingStationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "PollingStation",
       required: true,
-      index: true
     },
 
     submittedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true
+      required: true,
     },
 
     candidateResults: {
       type: [candidateResultSchema],
       validate: [
         (value) => value.length > 0,
-        "At least one candidate result is required."
-      ]
+        "At least one candidate result is required",
+      ],
     },
 
     totalValidVotes: {
       type: Number,
       required: true,
-      min: 0
+      min: 0,
     },
 
     rejectedVotes: {
       type: Number,
       default: 0,
-      min: 0
+      min: 0,
     },
 
     totalBallots: {
       type: Number,
       required: true,
-      min: 0
+      min: 0,
     },
 
     verificationStatus: {
       type: String,
-      enum: ["pending", "verified", "rejected"],
-      default: "pending"
-    },
-
-    evidence: {
-      pinkSheetUrl: String,
-      additionalPhotos: [String]
+      enum: ["pending", "verified", "rejected", "disputed"],
+      default: "pending",
     },
 
     submittedAt: {
       type: Date,
-      default: Date.now
+      default: Date.now,
     },
 
     verifiedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
+      ref: "User",
     },
 
-    verifiedAt: Date
+    verifiedAt: {
+      type: Date,
+    },
   },
   {
-    timestamps: true
-  }
-);
-
-resultSchema.index(
-  {
-    organizationId: 1,
-    electionId: 1,
-    pollingStationId: 1
-  },
-  {
-    unique: true
+    timestamps: true,
   }
 );
 
