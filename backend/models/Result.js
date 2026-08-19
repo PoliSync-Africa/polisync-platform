@@ -1,52 +1,52 @@
 const mongoose = require("mongoose");
 
-const ResultSchema = new mongoose.Schema(
+const candidateResultSchema = new mongoose.Schema(
   {
-    electionYear: {
-      type: Number,
-      required: true
-    },
-
-    electionType: {
+    candidateId: {
       type: String,
-      enum: ["Presidential", "Parliamentary", "Local"],
-      required: true
+      required: true,
+      trim: true
     },
-
-    pollingStationCode: {
+    candidateName: {
       type: String,
-      required: true
+      required: true,
+      trim: true
     },
-
-    pollingStationName: {
+    party: {
       type: String,
-      required: true
+      required: true,
+      trim: true
     },
-
-    constituency: {
-      type: String,
-      required: true
-    },
-
-    region: {
-      type: String,
-      required: true
-    },
-
     votes: {
-      type: Map,
-      of: Number,
-      default: {}
+      type: Number,
+      required: true,
+      min: 0
+    }
+  },
+  { _id: false }
+);
+
+const resultSchema = new mongoose.Schema(
+  {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      index: true
     },
 
-    rejectedVotes: {
-      type: Number,
-      default: 0
+    electionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Election",
+      required: true,
+      index: true
     },
 
-    totalVotes: {
-      type: Number,
-      required: true
+    pollingStationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PollingStation",
+      required: true,
+      index: true
     },
 
     submittedBy: {
@@ -55,30 +55,69 @@ const ResultSchema = new mongoose.Schema(
       required: true
     },
 
-    evidenceImage: {
-      type: String,
-      default: ""
+    candidateResults: {
+      type: [candidateResultSchema],
+      validate: [
+        (value) => value.length > 0,
+        "At least one candidate result is required."
+      ]
     },
 
-    gpsLocation: {
-      latitude: Number,
-      longitude: Number
+    totalValidVotes: {
+      type: Number,
+      required: true,
+      min: 0
     },
 
-    deviceId: {
-      type: String,
-      default: ""
+    rejectedVotes: {
+      type: Number,
+      default: 0,
+      min: 0
     },
 
-    submissionStatus: {
+    totalBallots: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+
+    verificationStatus: {
       type: String,
-      enum: ["Pending", "Verified", "Flagged"],
-      default: "Pending"
-    }
+      enum: ["pending", "verified", "rejected"],
+      default: "pending"
+    },
+
+    evidence: {
+      pinkSheetUrl: String,
+      additionalPhotos: [String]
+    },
+
+    submittedAt: {
+      type: Date,
+      default: Date.now
+    },
+
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+
+    verifiedAt: Date
   },
   {
     timestamps: true
   }
 );
 
-module.exports = mongoose.model("Result", ResultSchema);
+resultSchema.index(
+  {
+    organizationId: 1,
+    electionId: 1,
+    pollingStationId: 1
+  },
+  {
+    unique: true
+  }
+);
+
+module.exports = mongoose.model("Result", resultSchema);
