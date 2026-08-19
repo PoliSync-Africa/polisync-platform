@@ -5,11 +5,19 @@ const app = require("./app");
 
 const PORT = process.env.PORT || 5000;
 
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch(() => console.log("MongoDB connection failed"));
+async function startServer() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
 
-app.listen(PORT, () => {
-  console.log(`POLISYNC AFRICA Backend running on port ${PORT}`);
-});
+    console.log("MongoDB Connected");
+
+    app.listen(PORT, () => {
+      console.log(`POLISYNC AFRICA Backend running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+    process.exit(1);
+  }
+}
+
+startServer();
