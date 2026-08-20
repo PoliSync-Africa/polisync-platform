@@ -2,11 +2,9 @@ name: Backend CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   backend-test:
@@ -27,7 +25,7 @@ jobs:
           node-version: 24
 
       - name: Install backend dependencies
-        run: npm ci
+        run: npm install
 
       - name: Check server syntax
         run: node --check src/server.js
