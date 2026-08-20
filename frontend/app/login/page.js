@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -13,18 +12,26 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          email,
-          password
-        })
-      });
+      const response = await fetch(
+        "https://YOUR-BACKEND-URL.onrender.com/api/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        }
+      );
 
       const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Login failed");
+        return;
+      }
 
       alert(data.message || "Login successful");
 
@@ -32,11 +39,16 @@ export default function LoginPage() {
         localStorage.setItem("polisyncToken", data.token);
       }
 
+      if (data.user?.role) {
+        localStorage.setItem("polisyncRole", data.user.role);
+      }
+
+      window.location.href = "/dashboard";
     } catch (error) {
       alert("Unable to connect to server.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -46,7 +58,9 @@ export default function LoginPage() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "linear-gradient(180deg,#041E1A,#0B3D2E)"
+        background:
+          "linear-gradient(180deg,#041E1A 0%,#0B3D2E 100%)",
+        padding: 20,
       }}
     >
       <form
@@ -58,13 +72,14 @@ export default function LoginPage() {
           backdropFilter: "blur(12px)",
           padding: 35,
           borderRadius: 20,
-          color: "white"
+          color: "white",
         }}
       >
         <h1
           style={{
             textAlign: "center",
-            color: "#D4AF37"
+            color: "#D4AF37",
+            marginBottom: 10,
           }}
         >
           POLISYNC Login
@@ -73,14 +88,14 @@ export default function LoginPage() {
         <p
           style={{
             textAlign: "center",
-            opacity: .8
+            opacity: 0.8,
+            marginBottom: 30,
           }}
         >
           Secure access to Africa's Political Operating System
         </p>
 
         <label>Email</label>
-
         <input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -91,7 +106,6 @@ export default function LoginPage() {
         />
 
         <label>Password</label>
-
         <input
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -112,7 +126,9 @@ export default function LoginPage() {
         <div
           style={{
             textAlign: "center",
-            marginTop: 18
+            marginTop: 18,
+            opacity: 0.8,
+            cursor: "pointer",
           }}
         >
           Forgot Password?
@@ -130,7 +146,9 @@ const inputStyle = {
   borderRadius: 10,
   border: "1px solid rgba(255,255,255,.2)",
   background: "rgba(255,255,255,.08)",
-  color: "white"
+  color: "white",
+  outline: "none",
+  boxSizing: "border-box",
 };
 
 const buttonStyle = {
@@ -142,5 +160,5 @@ const buttonStyle = {
   borderRadius: 12,
   fontWeight: "bold",
   fontSize: 17,
-  cursor: "pointer"
+  cursor: "pointer",
 };
