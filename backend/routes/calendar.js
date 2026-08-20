@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 
 const CalendarEvent = require("../models/CalendarEvent");
+const User = require("../models/User");
 
 const router = express.Router();
 
@@ -72,6 +73,7 @@ router.get("/", async (req, res) => {
       .populate("createdBy", "fullName email role")
       .populate("updatedBy", "fullName email role")
       .populate("organization")
+      .populate("attendees.user", "fullName email role")
       .sort({ startAt: 1 });
 
     return res.status(200).json({
@@ -111,7 +113,8 @@ router.get("/:id", async (req, res) => {
       .populate("organizer", "fullName email role")
       .populate("createdBy", "fullName email role")
       .populate("updatedBy", "fullName email role")
-      .populate("organization");
+      .populate("organization")
+      .populate("attendees.user", "fullName email role");
 
     if (!event) {
       return res.status(404).json({
@@ -236,7 +239,8 @@ router.post("/", async (req, res) => {
     const populatedEvent = await CalendarEvent.findById(event._id)
       .populate("organizer", "fullName email role")
       .populate("createdBy", "fullName email role")
-      .populate("organization");
+      .populate("organization")
+      .populate("attendees.user", "fullName email role");
 
     return res.status(201).json({
       success: true,
@@ -249,6 +253,267 @@ router.post("/", async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "Failed to create calendar event.",
+      error: error.message,
+    });
+  }
+});
+
+/*
+|--------------------------------------------------------------------------
+| POST /api/calendar/:id/invitations
+| Invite users to a calendar event
+|--------------------------------------------------------------------------
+*/
+router.post("/:id/invitations", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userIds = [] } = req.body;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid calendar event ID.",
+      });
+    }
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Provide at least one user ID.",
+      });
+    }
+
+    const invalidIds = userIds.filter(
+      (userId) => !isValidObjectId(userId)
+    );
+
+    if (invalidIds.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "One or more user IDs are invalid.",
+      });
+    }
+
+    const event = await CalendarEvent.findById(id);
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Calendar event not found.",
+      });
+    }
+
+    const users = await User.find({
+      _id: { $in: userIds },
+    }).select("fullName email role");
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No valid users were found.",
+      });
+    }
+
+    const existingUserIds = event.attendees
+      .filter((attendee) => attendee.user)
+      .map((attendee) => attendee.user.toString());
+
+    const newAttendees = [];
+
+    for (const user of users) {
+      const userId = user._id.toString();
+
+      if (userId === event.organizer.toString()) {
+        continue;
+      }
+
+      if (existingUserIds.includes(userId)) {
+        continue;
+      }
+
+      newAttendees.push({
+        user: user._id,
+        email: user.email,
+        name: user.fullName,
+        role: user.role,
+        response: "pending",
+      });
+    }
+
+    event.attendees.push(...newAttendees);
+
+    await event.save();
+
+    const updatedEvent = await CalendarEvent.findById(event._id)
+      .populate("organizer", "fullName email role")
+      .populate("attendees.user", "fullName email role");
+
+    return res.status(200).json({
+      success: true,
+      message: `${newAttendees.length} invitation(s) added successfully.`,
+      invitationsAdded: newAttendees.length,
+      event: updatedEvent,
+    });
+  } catch (error) {
+    console.error("INVITE ATTENDEES ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to invite attendees.",
+      error: error.message,
+    });
+  }
+});
+
+/*
+|--------------------------------------------------------------------------
+| PATCH /api/calendar/:id/attendees/:userId/response
+| Accept, decline or mark invitation tentative
+|--------------------------------------------------------------------------
+*/
+router.patch(
+  "/:id/attendees/:userId/response",
+  async (req, res) => {
+    try {
+      const { id, userId } = req.params;
+      const { response } = req.body;
+
+      if (!isValidObjectId(id)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid calendar event ID.",
+        });
+      }
+
+      if (!isValidObjectId(userId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid user ID.",
+        });
+      }
+
+      const allowedResponses = [
+        "pending",
+        "accepted",
+        "declined",
+        "tentative",
+      ];
+
+      if (!allowedResponses.includes(response)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid response. Use pending, accepted, declined or tentative.",
+        });
+      }
+
+      const event = await CalendarEvent.findById(id);
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: "Calendar event not found.",
+        });
+      }
+
+      const attendee = event.attendees.find(
+        (item) =>
+          item.user &&
+          item.user.toString() === userId
+      );
+
+      if (!attendee) {
+        return res.status(404).json({
+          success: false,
+          message: "User is not an attendee of this event.",
+        });
+      }
+
+      attendee.response = response;
+
+      await event.save();
+
+      const updatedEvent = await CalendarEvent.findById(event._id)
+        .populate("organizer", "fullName email role")
+        .populate("attendees.user", "fullName email role");
+
+      return res.status(200).json({
+        success: true,
+        message: `Invitation response updated to ${response}.`,
+        event: updatedEvent,
+      });
+    } catch (error) {
+      console.error("UPDATE INVITATION RESPONSE ERROR:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to update invitation response.",
+        error: error.message,
+      });
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| DELETE /api/calendar/:id/invitations/:userId
+| Remove an attendee from an event
+|--------------------------------------------------------------------------
+*/
+router.delete("/:id/invitations/:userId", async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid calendar event ID.",
+      });
+    }
+
+    if (!isValidObjectId(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID.",
+      });
+    }
+
+    const event = await CalendarEvent.findById(id);
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Calendar event not found.",
+      });
+    }
+
+    const originalLength = event.attendees.length;
+
+    event.attendees = event.attendees.filter(
+      (attendee) =>
+        !attendee.user ||
+        attendee.user.toString() !== userId
+    );
+
+    if (event.attendees.length === originalLength) {
+      return res.status(404).json({
+        success: false,
+        message: "Attendee not found.",
+      });
+    }
+
+    await event.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Attendee removed successfully.",
+    });
+  } catch (error) {
+    console.error("REMOVE ATTENDEE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove attendee.",
       error: error.message,
     });
   }
@@ -294,7 +559,8 @@ router.put("/:id", async (req, res) => {
       .populate("organizer", "fullName email role")
       .populate("createdBy", "fullName email role")
       .populate("updatedBy", "fullName email role")
-      .populate("organization");
+      .populate("organization")
+      .populate("attendees.user", "fullName email role");
 
     if (!event) {
       return res.status(404).json({
