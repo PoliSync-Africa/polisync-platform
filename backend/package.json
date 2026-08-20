@@ -1,11 +1,14 @@
 {
   "name": "polisync-africa-backend",
   "version": "1.0.0",
-  "description": "Enterprise-grade political technology platform for Africa",
+  "description": "Enterprise-grade political operating system backend for POLISYNC Africa",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js"
+  },
+  "engines": {
+    "node": "22.x"
   },
   "dependencies": {
     "express": "^4.21.2",
