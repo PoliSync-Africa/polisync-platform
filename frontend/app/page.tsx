@@ -1,20 +1,22 @@
+import LoginCard from "../components/LoginCard";
+import WeatherWidget from "../app/components/WeatherWidget";
+
 export default function Home() {
   return (
     <main
       style={{
         minHeight: "100vh",
         display: "flex",
-        alignItems: "center",
         justifyContent: "center",
+        alignItems: "center",
+        gap: "32px",
+        padding: "24px",
         background: "#0f172a",
-        color: "white",
-        fontFamily: "sans-serif",
+        flexWrap: "wrap",
       }}
     >
-      <div style={{ textAlign: "center" }}>
-        <h1>POLISYNC AFRICA</h1>
-        <p>Africa's Political Technology Platform</p>
-      </div>
+      <LoginCard />
+      <WeatherWidget />
     </main>
   );
 }
