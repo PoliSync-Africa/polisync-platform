@@ -7,6 +7,11 @@ const app = require("./app");
 const calendarRoutes = require("../routes/calendar");
 const notificationRoutes = require("../routes/notifications");
 
+// Smart Calendar reminder scheduler
+const {
+  startReminderScheduler,
+} = require("../services/reminderScheduler");
+
 const PORT = process.env.PORT || 5000;
 
 /*
@@ -38,10 +43,28 @@ async function startServer() {
     console.log("✅ MongoDB Connected");
 
     app.listen(PORT, () => {
-      console.log(`🚀 POLISYNC AFRICA Backend running on port ${PORT}`);
+      console.log(
+        `🚀 POLISYNC AFRICA Backend running on port ${PORT}`
+      );
+
+      /*
+      |--------------------------------------------------------------------------
+      | Start Smart Calendar Reminder Scheduler
+      |--------------------------------------------------------------------------
+      */
+
+      startReminderScheduler();
+
+      console.log(
+        "🔔 Smart Calendar Reminder Scheduler started"
+      );
     });
   } catch (error) {
-    console.error("❌ Database connection failed:", error.message);
+    console.error(
+      "❌ Database connection failed:",
+      error.message
+    );
+
     process.exit(1);
   }
 }
