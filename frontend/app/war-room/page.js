@@ -1,76 +1,100 @@
 "use client";
 
-import WeatherWidget from "../../components/WeatherWidget";
+import GhanaMap from "../../components/GhanaMap";
 
-export default function WarRoomPage() {
+const cards = [
+  {
+    title: "Polling Stations",
+    value: "40,975+",
+    icon: "🗳️",
+    color: "#0A2540",
+  },
+  {
+    title: "Field Agents",
+    value: "Live",
+    icon: "👥",
+    color: "#0A7F5A",
+  },
+  {
+    title: "Incidents",
+    value: "0 Active",
+    icon: "🚨",
+    color: "#B91C1C",
+  },
+  {
+    title: "Weather Alerts",
+    value: "Nationwide",
+    icon: "🌤️",
+    color: "#1D4ED8",
+  },
+];
+
+export default function WarRoom() {
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: "#0B1020",
+        background: "#07111F",
         color: "white",
         padding: "24px",
       }}
     >
-      <h1
-        style={{
-          fontSize: "32px",
-          fontWeight: "bold",
-          marginBottom: "8px",
-        }}
-      >
-        PoliSync War Room
+      <h1 style={{ fontSize: "32px", marginBottom: "8px" }}>
+        Election Command Center
       </h1>
 
-      <p
-        style={{
-          color: "#A1A1AA",
-          marginBottom: "24px",
-        }}
-      >
-        Live election monitoring, field intelligence, and campaign coordination.
+      <p style={{ color: "#BFD7EA", marginBottom: "24px" }}>
+        Real-time political intelligence across Ghana.
       </p>
-
-      <WeatherWidget />
 
       <div
         style={{
-          marginTop: "24px",
           display: "grid",
+          gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))",
           gap: "16px",
+          marginBottom: "24px",
         }}
       >
-        <div
-          style={{
-            background: "#111827",
-            padding: "16px",
-            borderRadius: "12px",
-          }}
-        >
-          <h3>Field Operations</h3>
-          <p>Monitor reports from polling stations and field agents.</p>
-        </div>
+        {cards.map((card) => (
+          <div
+            key={card.title}
+            style={{
+              background: card.color,
+              borderRadius: "16px",
+              padding: "20px",
+            }}
+          >
+            <div style={{ fontSize: "28px" }}>{card.icon}</div>
+            <h3 style={{ marginTop: "12px" }}>{card.title}</h3>
+            <h2>{card.value}</h2>
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr",
+          gap: "24px",
+        }}
+      >
+        <GhanaMap />
 
         <div
           style={{
-            background: "#111827",
-            padding: "16px",
-            borderRadius: "12px",
+            background: "#0F1E33",
+            borderRadius: "20px",
+            padding: "20px",
           }}
         >
-          <h3>Election Dashboard</h3>
-          <p>Track live vote collation and constituency performance.</p>
-        </div>
+          <h3>Live Intelligence Feed</h3>
 
-        <div
-          style={{
-            background: "#111827",
-            padding: "16px",
-            borderRadius: "12px",
-          }}
-        >
-          <h3>Rapid Response</h3>
-          <p>Coordinate verified incident reports across all admin levels.</p>
+          <div style={{ marginTop: "18px" }}>
+            <p>🟢 System online</p>
+            <p>🌤 Weather monitoring active</p>
+            <p>🗺 Region selection enabled</p>
+            <p>📊 Waiting for election data</p>
+          </div>
         </div>
       </div>
     </main>
