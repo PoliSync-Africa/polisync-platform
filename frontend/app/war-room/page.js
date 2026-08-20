@@ -1,67 +1,78 @@
 "use client";
 
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
-import GISMap from "../components/GISMap";
-import RegionCard from "../components/RegionCard";
-import ConstituencyPanel from "../components/ConstituencyPanel";
-import NetworkStatus from "../components/NetworkStatus";
-import WeatherWidget from "../components/WeatherWidget";
-import ReportingTicker from "../components/ReportingTicker";
-import SupportBubble from "../components/SupportBubble";
+import WeatherWidget from "../../components/WeatherWidget";
 
 export default function WarRoomPage() {
   return (
-    <div style={{ display: "flex", background: "#EEF2F7" }}>
-      <Sidebar />
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#0B1020",
+        color: "white",
+        padding: "24px",
+      }}
+    >
+      <h1
+        style={{
+          fontSize: "32px",
+          fontWeight: "bold",
+          marginBottom: "8px",
+        }}
+      >
+        PoliSync War Room
+      </h1>
 
-      <div style={{ flex: 1 }}>
-        <Topbar />
+      <p
+        style={{
+          color: "#A1A1AA",
+          marginBottom: "24px",
+        }}
+      >
+        Live election monitoring, field intelligence, and campaign coordination.
+      </p>
 
-        <div style={{ padding: 30 }}>
-          <h1 style={{ color: "#0B3D2E" }}>
-            War Room 360
-          </h1>
+      <WeatherWidget />
 
-          <ReportingTicker />
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr",
-              gap: 24,
-              marginTop: 24
-            }}
-          >
-            <GISMap />
-
-            <div style={{ display: "grid", gap: 20 }}>
-              <NetworkStatus />
-              <WeatherWidget />
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-              gap: 20,
-              marginTop: 24
-            }}
-          >
-            <RegionCard region="Bono East" reporting={92} alerts={2} />
-            <RegionCard region="Ashanti" reporting={89} alerts={5} />
-            <RegionCard region="Greater Accra" reporting={95} alerts={1} />
-            <RegionCard region="Northern" reporting={78} alerts={6} />
-          </div>
-
-          <div style={{ marginTop: 24 }}>
-            <ConstituencyPanel />
-          </div>
+      <div
+        style={{
+          marginTop: "24px",
+          display: "grid",
+          gap: "16px",
+        }}
+      >
+        <div
+          style={{
+            background: "#111827",
+            padding: "16px",
+            borderRadius: "12px",
+          }}
+        >
+          <h3>Field Operations</h3>
+          <p>Monitor reports from polling stations and field agents.</p>
         </div>
 
-        <SupportBubble />
+        <div
+          style={{
+            background: "#111827",
+            padding: "16px",
+            borderRadius: "12px",
+          }}
+        >
+          <h3>Election Dashboard</h3>
+          <p>Track live vote collation and constituency performance.</p>
+        </div>
+
+        <div
+          style={{
+            background: "#111827",
+            padding: "16px",
+            borderRadius: "12px",
+          }}
+        >
+          <h3>Rapid Response</h3>
+          <p>Coordinate verified incident reports across all admin levels.</p>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
