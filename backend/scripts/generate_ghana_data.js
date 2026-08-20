@@ -2,33 +2,31 @@ const fs = require("fs");
 const path = require("path");
 
 const DATA_DIR = path.join(__dirname, "../../database/data");
+const SOURCE_DIR = path.join(__dirname, "../../database/source");
 
-// ---------- Utility Functions ----------
+// ---------- Utilities ----------
 
-function ensureDataDirectory() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function ensureDirectory(dir) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 }
 
-function loadJSON(fileName) {
-  const filePath = path.join(DATA_DIR, fileName);
+function loadJSON(dir, file) {
+  const filePath = path.join(dir, file);
 
   if (!fs.existsSync(filePath)) {
-    return [];
+    throw new Error(`Missing file: ${filePath}`);
   }
 
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-function saveJSON(fileName, data) {
-  const filePath = path.join(DATA_DIR, fileName);
-
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-
-function log(title, value) {
-  console.log(`${title}: ${value}`);
+function saveJSON(file, data) {
+  fs.writeFileSync(
+    path.join(DATA_DIR, file),
+    JSON.stringify(data, null, 2)
+  );
 }
 
 // ---------- Validation ----------
@@ -40,74 +38,70 @@ function validateRegions(regions) {
     if (ids.has(region.id)) {
       throw new Error(`Duplicate region ID: ${region.id}`);
     }
-
     ids.add(region.id);
   }
-
-  return true;
 }
 
-// ---------- Data Generators ----------
+// ---------- Constituency Generator ----------
 
-function generateDistricts(regions) {
-  console.log("District generator ready.");
-  console.log(
-    "Official Electoral Commission district dataset will populate this file."
-  );
+function generateConstituencies() {
+  const source = loadJSON(SOURCE_DIR, "ghana_constituencies.json");
 
+  let id = 1;
+  const output = [];
+
+  for (const region of source.regions) {
+    for (const constituency of region.constituencies) {
+      output.push({
+        id: id++,
+        region_id: region.region_id,
+        name: constituency
+      });
+    }
+  }
+
+  return output;
+}
+
+// ---------- Future Generators ----------
+
+function generateDistricts() {
   return [];
 }
 
-function generateConstituencies(regions, districts) {
-  console.log("Constituency generator ready.");
-  console.log(
-    "Official Electoral Commission constituency dataset will populate this file."
-  );
-
-  return [];
-}
-
-function generatePollingStations(regions, districts, constituencies) {
-  console.log("Polling station generator ready.");
-  console.log(
-    "Official Electoral Commission polling station dataset will populate this file."
-  );
-
+function generatePollingStations() {
   return [];
 }
 
 // ---------- Main ----------
 
 function run() {
-  ensureDataDirectory();
+  ensureDirectory(DATA_DIR);
+  ensureDirectory(SOURCE_DIR);
 
-  console.log("========================================");
+  console.log("====================================");
   console.log("POLISYNC AFRICA DATA GENERATOR");
-  console.log("========================================");
+  console.log("====================================");
 
-  const regions = loadJSON("regions.json");
+  const regions = loadJSON(DATA_DIR, "regions.json");
 
   validateRegions(regions);
 
-  const districts = generateDistricts(regions);
+  const districts = generateDistricts();
   saveJSON("districts.json", districts);
 
-  const constituencies = generateConstituencies(regions, districts);
+  const constituencies = generateConstituencies();
   saveJSON("constituencies.json", constituencies);
 
-  const pollingStations = generatePollingStations(
-    regions,
-    districts,
-    constituencies
-  );
+  const pollingStations = generatePollingStations();
   saveJSON("polling_stations.json", pollingStations);
 
-  console.log("----------------------------------------");
-  log("Regions", regions.length);
-  log("Districts", districts.length);
-  log("Constituencies", constituencies.length);
-  log("Polling Stations", pollingStations.length);
-  console.log("----------------------------------------");
+  console.log("------------------------------------");
+  console.log(`Regions: ${regions.length}`);
+  console.log(`Districts: ${districts.length}`);
+  console.log(`Constituencies: ${constituencies.length}`);
+  console.log(`Polling Stations: ${pollingStations.length}`);
+  console.log("------------------------------------");
   console.log("Generation completed successfully.");
 }
 
