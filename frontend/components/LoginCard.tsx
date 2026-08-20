@@ -1,4 +1,3 @@
-
 import Logo from "./Logo";
 import InputField from "./InputField";
 import PasswordField from "./PasswordField";
@@ -14,7 +13,7 @@ export default function LoginCard() {
         background: "#ffffff",
         borderRadius: "24px",
         padding: "32px",
-        boxShadow: "0 20px 50px rgba(0,0,0,0.12)"
+        boxShadow: "0 20px 50px rgba(0,0,0,0.12)",
       }}
     >
       <div style={{ textAlign: "center", marginBottom: "24px" }}>
@@ -25,7 +24,7 @@ export default function LoginCard() {
             marginTop: "16px",
             marginBottom: "8px",
             fontSize: "28px",
-            color: "#1B365D"
+            color: "#1B365D",
           }}
         >
           Welcome Back
@@ -36,8 +35,12 @@ export default function LoginCard() {
         </p>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        <InputField label="Email Address" placeholder="Enter your email" />
+      <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+        <InputField
+          label="Email Address"
+          placeholder="Enter your email"
+          type="email"
+        />
 
         <PasswordField />
 
@@ -47,22 +50,37 @@ export default function LoginCard() {
             style={{
               color: "#0A84FF",
               textDecoration: "none",
-              fontSize: "14px"
+              fontSize: "14px",
             }}
           >
             Forgot Password?
           </a>
         </div>
 
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "14px",
+            color: "#555",
+          }}
+        >
+          <input type="checkbox" />
+          Remember Me
+        </label>
+
         <button
           style={{
-            background: "#1B365D",
-            color: "#fff",
-            border: "none",
-            padding: "14px",
+            width: "100%",
+            padding: "16px",
             borderRadius: "12px",
+            background: "#0A2540",
+            color: "#ffffff",
+            border: "none",
+            fontWeight: "bold",
             fontSize: "16px",
-            cursor: "pointer"
+            cursor: "pointer",
           }}
         >
           Login
@@ -70,13 +88,14 @@ export default function LoginCard() {
 
         <button
           style={{
+            width: "100%",
+            padding: "16px",
+            borderRadius: "12px",
             background: "#F3F4F6",
             color: "#1B365D",
             border: "1px solid #ddd",
-            padding: "14px",
-            borderRadius: "12px",
             fontSize: "16px",
-            cursor: "pointer"
+            cursor: "pointer",
           }}
         >
           Create Account
@@ -96,40 +115,11 @@ export default function LoginCard() {
           marginTop: "20px",
           textAlign: "center",
           color: "#888",
-          fontSize: "13px"
+          fontSize: "13px",
         }}
       >
         Secure Political Intelligence Platform for Africa
       </p>
-    </div>
-  );
-}        <label>
-          <input type="checkbox" /> Remember Me
-        </label>
-
-        <a href="#">Forgot Password?</a>
-      </div>
-
-      <button
-        style={{
-          width: "100%",
-          padding: "16px",
-          borderRadius: "10px",
-          background: "#0A2540",
-          color: "#fff",
-          border: "none",
-          fontWeight: "bold",
-          marginBottom: "18px"
-        }}
-      >
-        Login
-      </button>
-
-      <SocialLoginButtons />
-
-      <hr style={{ margin: "24px 0" }} />
-
-      <ThemeSelector />
     </div>
   );
 }
