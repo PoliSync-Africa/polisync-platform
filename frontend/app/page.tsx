@@ -1,5 +1,6 @@
 import LoginCard from "../components/LoginCard";
 import WeatherWidget from "../components/WeatherWidget";
+import GhanaMap from "../components/GhanaMap";
 
 export default function Home() {
   return (
@@ -17,6 +18,7 @@ export default function Home() {
     >
       <LoginCard />
       <WeatherWidget />
+      <GhanaMap />
     </main>
   );
 }
