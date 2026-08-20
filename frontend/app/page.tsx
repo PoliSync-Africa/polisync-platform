@@ -1,5 +1,5 @@
 import LoginCard from "../components/LoginCard";
-import WeatherWidget from "../app/components/WeatherWidget";
+import WeatherWidget from "../components/WeatherWidget";
 
 export default function Home() {
   return (
@@ -7,12 +7,12 @@ export default function Home() {
       style={{
         minHeight: "100vh",
         display: "flex",
-        justifyContent: "center",
+        flexDirection: "column",
         alignItems: "center",
-        gap: "32px",
-        padding: "24px",
+        justifyContent: "center",
         background: "#0f172a",
-        flexWrap: "wrap",
+        padding: "24px",
+        gap: "24px",
       }}
     >
       <LoginCard />
