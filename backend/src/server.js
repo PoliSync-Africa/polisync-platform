@@ -21,9 +21,8 @@ const PORT = process.env.PORT || 5000;
 */
 
 
-app.use("/api/geo", geoRoutes);
-app.use("/api/gis", gisRoutes);
-/*
+
+ /* 
 |--------------------------------------------------------------------------
 | Notifications API
 |--------------------------------------------------------------------------
@@ -35,8 +34,8 @@ app.get("/health", (req, res) => {
     status: "healthy"
   });
 });
-app.use("/api/notifications", notificationRoutes);
-/*
+
+
 ==============================
 404 Handler
 ==============================
