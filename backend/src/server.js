@@ -4,8 +4,7 @@ const mongoose = require("mongoose");
 const app = require("./app");
 
 // Smart Calendar routes
-const calendarRoutes = require("./routes/calendarRoutes");
-const notificationRoutes = require("./routes/notificationRoutes");
+
 const geoRoutes = require("./routes/geoRoutes");
 const gisRoutes = require("./routes/gisRoutes");
 // Smart Calendar reminder scheduler
@@ -21,7 +20,7 @@ const PORT = process.env.PORT || 5000;
 |--------------------------------------------------------------------------
 */
 
-app.use("/api/calendar", calendarRoutes);
+
 app.use("/api/geo", geoRoutes);
 app.use("/api/gis", gisRoutes);
 /*
