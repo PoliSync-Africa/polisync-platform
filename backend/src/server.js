@@ -37,7 +37,33 @@ app.get("/health", (req, res) => {
   });
 });
 app.use("/api/notifications", notificationRoutes);
+/*
+==============================
+404 Handler
+==============================
+*/
 
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found."
+  });
+});
+
+/*
+==============================
+Error Handler
+==============================
+*/
+
+app.use((err, req, res, next) => {
+  console.error(err);
+
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error"
+  });
+});
 /*
 |--------------------------------------------------------------------------
 | Start Server
