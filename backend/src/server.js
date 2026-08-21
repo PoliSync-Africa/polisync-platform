@@ -37,8 +37,7 @@ app.get("/health", (req, res) => {
   });
 });
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/geo", geoRoutes);
-app.use("/api/gis", gisRoutes);
+app.
 /*
 |--------------------------------------------------------------------------
 | Start Server
