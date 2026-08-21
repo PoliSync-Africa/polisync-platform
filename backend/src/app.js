@@ -68,12 +68,7 @@ if (notificationRoutes) {
    404 Handler
 ============================ */
 
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found."
-  });
-});
+
 
 /* ============================
    Error Handler
