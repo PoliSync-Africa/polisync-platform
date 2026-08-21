@@ -30,7 +30,7 @@ try {
 
 let notificationRoutes;
 try {
-  notificationRoutes = require("./routes/notifications");
+notificationRoutes = require("./routes/notifications");
 } catch {}
 let geoRoutes;
 try {
