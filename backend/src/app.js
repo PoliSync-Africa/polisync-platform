@@ -17,11 +17,21 @@ app.use(express.urlencoded({ extended: true }));
 
 const authRoutes = require("./routes/auth");
 const organizationRoutes = require("./routes/organization");
-const electionRoutes = require("./routes/election");
-const pollingStationRoutes = require("./routes/pollingStation");
-const resultRoutes = require("./routes/result");
-const calendarRoutes = require("./routes/calendar");
-const notificationRoutes = require("./routes/notifications");
+const electionRoutes = require("./routes/elections");
+const pollingStationRoutes = require("./routes/pollingStations");
+const resultRoutes = require("./routes/results");
+
+/* Optional routes */
+
+let calendarRoutes;
+try {
+  calendarRoutes = require("./routes/calendar");
+} catch {}
+
+let notificationRoutes;
+try {
+  notificationRoutes = require("./routes/notifications");
+} catch {}
 
 /* ============================
    Health Check
@@ -45,8 +55,14 @@ app.use("/api/organizations", organizationRoutes);
 app.use("/api/elections", electionRoutes);
 app.use("/api/polling-stations", pollingStationRoutes);
 app.use("/api/results", resultRoutes);
-app.use("/api/calendar", calendarRoutes);
-app.use("/api/notifications", notificationRoutes);
+
+if (calendarRoutes) {
+  app.use("/api/calendar", calendarRoutes);
+}
+
+if (notificationRoutes) {
+  app.use("/api/notifications", notificationRoutes);
+}
 
 /* ============================
    404 Handler
