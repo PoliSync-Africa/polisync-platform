@@ -72,9 +72,17 @@ if (notificationRoutes) {
   app.use("/api/notifications", notificationRoutes);
 }
 
-/* ============================
+if (geoRoutes) {
+  app.use("/api/geo", geoRoutes);
+}
+
+if (gisRoutes) {
+  app.use("/api/gis", gisRoutes);
+}
+
+/* ======================
    404 Handler
-============================ */
+====================== */
 
 
 
