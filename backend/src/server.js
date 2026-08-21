@@ -28,7 +28,13 @@ app.use("/api/calendar", calendarRoutes);
 | Notifications API
 |--------------------------------------------------------------------------
 */
-
+app.get("/health", (req, res) => {
+  res.json({
+    success: true,
+    app: "POLISYNC AFRICA Backend",
+    status: "healthy"
+  });
+});
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/geo", geoRoutes);
 app.use("/api/gis", gisRoutes);
