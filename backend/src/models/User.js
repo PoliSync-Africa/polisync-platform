@@ -3,52 +3,94 @@ const bcrypt = require("bcryptjs");
 
 const UserSchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      default: null,
+    },
+
     firstName: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
+
     lastName: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
+
     email: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
-      trim: true
+      trim: true,
     },
+
+    phone: {
+      type: String,
+      default: "",
+    },
+
     password: {
       type: String,
       required: true,
-      minlength: 6,
-      select: false
     },
+
     role: {
       type: String,
       enum: [
-        "polling_station_agent",
+        "super_admin",
+        "country_admin",
         "party_admin",
         "regional_admin",
-        "country_admin",
-        "super_admin"
+        "constituency_officer",
+        "electoral_area_coordinator",
+        "polling_station_agent",
+        "observer",
       ],
-      default: "polling_station_agent"
+      default: "polling_station_agent",
     },
-    organizationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
-      default: null
+
+    country: {
+      type: String,
+      required: true,
     },
+
+    region: {
+      type: String,
+      default: "",
+    },
+
+    constituency: {
+      type: String,
+      default: "",
+    },
+
+    electoralArea: {
+      type: String,
+      default: "",
+    },
+
+    pollingStation: {
+      type: String,
+      default: "",
+    },
+
+    lastLogin: {
+      type: Date,
+      default: null,
+    },
+
     isActive: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   {
-    timestamps: true
+    timestamps: true,
   }
 );
 
