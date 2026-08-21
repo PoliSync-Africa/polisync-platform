@@ -4,10 +4,10 @@ const mongoose = require("mongoose");
 const app = require("./app");
 
 // Smart Calendar routes
-const calendarRoutes = require("../routes/calendar");
-const notificationRoutes = require("../routes/notifications");
-const geoRoutes = require("../routes/geoRoutes");
-const gisRoutes = require("../routes/gisRoutes");
+const calendarRoutes = require("./routes/calendarRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const geoRoutes = require("./routes/geoRoutes");
+const gisRoutes = require("./routes/gisRoutes");
 // Smart Calendar reminder scheduler
 const {
   startReminderScheduler,
