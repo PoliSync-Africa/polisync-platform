@@ -1,26 +1,18 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
-const userSchema = new mongoose.Schema(
+const UserSchema = new mongoose.Schema(
   {
-    // Organization is optional for Super Admin and Country Admin
-    organizationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
-      index: true
-    },
-
     firstName: {
       type: String,
       required: true,
       trim: true
     },
-
     lastName: {
       type: String,
       required: true,
       trim: true
     },
-
     email: {
       type: String,
       required: true,
@@ -28,60 +20,31 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true
     },
-
-    phone: {
+    password: {
       type: String,
-      trim: true
+      required: true,
+      minlength: 6,
+      select: false
     },
-
     role: {
       type: String,
       enum: [
-        "super_admin",
-        "country_admin",
+        "polling_station_agent",
         "party_admin",
         "regional_admin",
-        "constituency_officer",
-        "electoral_area_coordinator",
-        "polling_station_agent",
-        "observer"
+        "country_admin",
+        "super_admin"
       ],
-      default: "observer"
+      default: "polling_station_agent"
     },
-
-    // Country is controlled by the authentication/authorization layer
-    country: {
-      type: String,
-      trim: true
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      default: null
     },
-
-    region: {
-      type: String,
-      trim: true
-    },
-
-    constituency: {
-      type: String,
-      trim: true
-    },
-
-    electoralArea: {
-      type: String,
-      trim: true
-    },
-
-    pollingStation: {
-      type: String,
-      trim: true
-    },
-
     isActive: {
       type: Boolean,
       default: true
-    },
-
-    lastLogin: {
-      type: Date
     }
   },
   {
@@ -89,4 +52,17 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("User", userSchema);
+UserSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+UserSchema.methods.matchPassword = async function (enteredPassword) {
+  return bcrypt.compare(enteredPassword, this.password);
+};
+
+module.exports =
+  mongoose.models.User || mongoose.model("User", UserSchema);
