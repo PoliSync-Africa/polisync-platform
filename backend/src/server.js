@@ -6,7 +6,8 @@ const app = require("./app");
 // Smart Calendar routes
 const calendarRoutes = require("../routes/calendar");
 const notificationRoutes = require("../routes/notifications");
-
+const geoRoutes = require("../routes/geoRoutes");
+const gisRoutes = require("../routes/gisRoutes");
 // Smart Calendar reminder scheduler
 const {
   startReminderScheduler,
@@ -29,7 +30,8 @@ app.use("/api/calendar", calendarRoutes);
 */
 
 app.use("/api/notifications", notificationRoutes);
-
+app.use("/api/geo", geoRoutes);
+app.use("/api/gis", gisRoutes);
 /*
 |--------------------------------------------------------------------------
 | Start Server
