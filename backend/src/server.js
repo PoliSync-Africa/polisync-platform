@@ -22,7 +22,8 @@ const PORT = process.env.PORT || 5000;
 */
 
 app.use("/api/calendar", calendarRoutes);
-
+app.use("/api/geo", geoRoutes);
+app.use("/api/gis", gisRoutes);
 /*
 |--------------------------------------------------------------------------
 | Notifications API
