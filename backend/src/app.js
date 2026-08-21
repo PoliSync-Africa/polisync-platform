@@ -32,7 +32,15 @@ let notificationRoutes;
 try {
   notificationRoutes = require("./routes/notifications");
 } catch {}
+let geoRoutes;
+try {
+  geoRoutes = require("./routes/geoRoutes");
+} catch {}
 
+let gisRoutes;
+try {
+  gisRoutes = require("./routes/gisRoutes");
+} catch {}
 /* ============================
    Health Check
 ============================ */
