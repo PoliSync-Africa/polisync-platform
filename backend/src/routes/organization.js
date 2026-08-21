@@ -1,5 +1,5 @@
 const express = require("express");
-const router = express.Router(); 
+const router = express.Router();
 
 const organizationController = require("../controllers/organizationController");
 const { protect } = require("../middleware/auth");
@@ -7,13 +7,13 @@ const { protect } = require("../middleware/auth");
 // Create organization
 router.post("/", protect, organizationController.createOrganization);
 
-// Get current organization
-router.get("/", protect, organizationController.getOrganization);
+// Get all organizations
+router.get("/", protect, organizationController.getOrganizations);
+
+// Get organization by ID
+router.get("/:id", protect, organizationController.getOrganizationById);
 
 // Update organization
-router.put("/", protect, organizationController.updateOrganization);
-
-// Organization dashboard
-router.get("/dashboard", protect, organizationController.dashboard);
+router.put("/:id", protect, organizationController.updateOrganization);
 
 module.exports = router;
