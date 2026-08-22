@@ -1,6 +1,6 @@
-/* ==========================================
-   POLISYNC AFRICA OFFICIAL LOGO ANIMATION
-   ========================================== */
+/* ==========================================================
+   POLISYNC AFRICA • OFFICIAL CINEMATIC LOGO ANIMATION
+   ========================================================== */
 
 .polisync-logo-wrapper {
   display: flex;
@@ -20,7 +20,7 @@
     polisyncGlow 6s ease-in-out infinite;
 }
 
-/* One animation controls both swing and float */
+/* Swing + Float combined */
 
 @keyframes polisyncMotion {
   0% {
@@ -44,21 +44,22 @@
   }
 }
 
-/* Gold glow */
+/* Gold shimmer */
 
 @keyframes polisyncGlow {
-  0%,100% {
+  0%,
+  100% {
     filter:
       brightness(1)
-      drop-shadow(0 12px 24px rgba(212,175,55,.30))
-      drop-shadow(0 0 16px rgba(16,185,129,.18));
+      drop-shadow(0 12px 24px rgba(212, 175, 55, 0.3))
+      drop-shadow(0 0 16px rgba(16, 185, 129, 0.18));
   }
 
   50% {
     filter:
       brightness(1.12)
-      drop-shadow(0 20px 40px rgba(212,175,55,.60))
-      drop-shadow(0 0 28px rgba(16,185,129,.35));
+      drop-shadow(0 20px 40px rgba(212, 175, 55, 0.6))
+      drop-shadow(0 0 28px rgba(16, 185, 129, 0.35));
   }
 }
 
