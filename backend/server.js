@@ -1,40 +1,39 @@
 const express = require("express");
-const connectDB = require("./config/database");
+const mongoose = require("mongoose");
+const cors = require("cors");
+require("dotenv").config();
+
+const authRoutes = require("./routes/auth");
 
 const app = express();
 
-const indexRoutes = require("./routes/index");
-const authRoutes = require("./routes/auth");
-const resultsRoutes = require("./routes/results");
-const electionRoutes = require("./routes/elections");
-const adminRoutes = require("./routes/admin");
-const healthRoutes = require("./routes/health");
-
-const PORT = process.env.PORT || 5000;
-
-connectDB();
-
+// Middleware
+app.use(cors());
 app.use(express.json());
 
-app.use("/", indexRoutes);
-app.use("/auth", authRoutes);
-app.use("/results", resultsRoutes);
-app.use("/elections", electionRoutes);
-app.use("/admin", adminRoutes);
-app.use("/health", healthRoutes);
+// API Routes
+app.use("/api/auth", authRoutes);
 
-app.listen(PORT, () => {
-  console.log(`POLISYNC server running on port ${PORT}`);
+// Health Check
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "PoliSync Africa Backend Running"
+  });
 });
 
+// MongoDB Connection
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log("MongoDB Connected");
 
-const geoRoutes = require("./routes/geoRoutes");
+    const PORT = process.env.PORT || 5000;
 
-app.use("/api/geo", geoRoutes);
-q
-
-
-
-const gisRoutes = require("./routes/gisRoutes");
-
-app.use("/api/gis", gisRoutes);
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("MongoDB Connection Error:", err.message);
+  });
