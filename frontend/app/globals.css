@@ -1,67 +1,82 @@
-/* =========================================
-   POLISYNC AFRICA CINEMATIC LOGO
-   ========================================= */
+/* ==========================================================
+   POLISYNC AFRICA • OFFICIAL CINEMATIC LOGO ANIMATION
+   Replace the old logo animation section with this.
+   ========================================================== */
 
-.polisync-logo-wrapper{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  margin-bottom:24px;
-  perspective:1200px;
+.polisync-logo-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 24px;
+  perspective: 1400px;
+  overflow: visible;
 }
 
-.polisync-logo{
-  width:240px;
-  height:auto;
-  transform-origin:center top;
+.polisync-logo {
+  width: 240px;
+  height: auto;
+  transform-origin: center top;
+  will-change: transform, filter;
   animation:
-    logoSwing 6s ease-in-out infinite,
-    logoFloat 4s ease-in-out infinite,
-    goldShimmer 8s linear infinite;
+    polisyncSwing 6s ease-in-out infinite,
+    polisyncFloat 4s ease-in-out infinite,
+    polisyncGlow 8s ease-in-out infinite;
   filter:
-    drop-shadow(0 12px 24px rgba(212,175,55,.35))
-    drop-shadow(0 0 30px rgba(16,185,129,.18));
+    drop-shadow(0 14px 28px rgba(212,175,55,0.35))
+    drop-shadow(0 0 18px rgba(16,185,129,0.18));
 }
 
-@keyframes logoSwing{
-  0%   {transform:rotate(-7deg);}
-  25%  {transform:rotate(-3deg);}
-  50%  {transform:rotate(7deg);}
-  75%  {transform:rotate(3deg);}
-  100% {transform:rotate(-7deg);}
+/* Slow left-right pendulum */
+@keyframes polisyncSwing {
+  0%   { transform: rotate(-7deg); }
+  25%  { transform: rotate(-3deg); }
+  50%  { transform: rotate(7deg); }
+  75%  { transform: rotate(3deg); }
+  100% { transform: rotate(-7deg); }
 }
 
-@keyframes logoFloat{
-  0%,100%{margin-top:0;}
-  50%{margin-top:-8px;}
+/* Gentle floating motion */
+@keyframes polisyncFloat {
+  0%,100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: 0 -8px;
+  }
 }
 
-@keyframes goldShimmer{
-  0%{
+/* Gold shimmer + emerald glow */
+@keyframes polisyncGlow {
+  0% {
     filter:
       brightness(1)
-      drop-shadow(0 12px 24px rgba(212,175,55,.30));
+      saturate(1)
+      drop-shadow(0 12px 24px rgba(212,175,55,0.30))
+      drop-shadow(0 0 18px rgba(16,185,129,0.18));
   }
 
-  50%{
+  50% {
     filter:
-      brightness(1.08)
-      drop-shadow(0 16px 36px rgba(212,175,55,.55));
+      brightness(1.12)
+      saturate(1.12)
+      drop-shadow(0 18px 38px rgba(212,175,55,0.55))
+      drop-shadow(0 0 30px rgba(16,185,129,0.35));
   }
 
-  100%{
+  100% {
     filter:
       brightness(1)
-      drop-shadow(0 12px 24px rgba(212,175,55,.30));
+      saturate(1)
+      drop-shadow(0 12px 24px rgba(212,175,55,0.30))
+      drop-shadow(0 0 18px rgba(16,185,129,0.18));
   }
 }
 
-/* Accessibility */
-
-@media (prefers-reduced-motion:reduce){
-
-  .polisync-logo{
-    animation:none;
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .polisync-logo {
+    animation: none;
+    transform: none;
   }
-
 }
