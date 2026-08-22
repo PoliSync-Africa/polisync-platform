@@ -1,1 +1,11 @@
-
+<div style={{ textAlign: "center", marginBottom: "20px" }}>
+  <img
+    src="/polisync-logo.png"
+    alt="PoliSync Africa"
+    style={{
+      width: "220px",
+      height: "auto",
+      objectFit: "contain"
+    }}
+  />
+</div>
