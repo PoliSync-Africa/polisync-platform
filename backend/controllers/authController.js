@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-// Register User
+// Register
 exports.register = async (req, res) => {
   try {
     const {
@@ -10,18 +10,24 @@ exports.register = async (req, res) => {
       email,
       password,
       phone,
-      role,
-      party,
-      region,
-      constituency
+      accountType
     } = req.body;
 
-    const existingUser = await User.findOne({ email });
+    if (!fullName || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Please complete all required fields."
+      });
+    }
+
+    const existingUser = await User.findOne({
+      email: email.toLowerCase()
+    });
 
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: "Email already exists"
+        message: "Email already exists."
       });
     }
 
@@ -29,19 +35,21 @@ exports.register = async (req, res) => {
 
     const user = await User.create({
       fullName,
-      email,
+      email: email.toLowerCase(),
       password: hashedPassword,
       phone,
-      role,
-      party,
-      region,
-      constituency
+      accountType
     });
 
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
-      user
+      message: "Account created successfully.",
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        accountType: user.accountType
+      }
     });
 
   } catch (error) {
@@ -52,18 +60,20 @@ exports.register = async (req, res) => {
   }
 };
 
-// Login User
+// Login
 exports.login = async (req, res) => {
   try {
 
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({
+      email: email.toLowerCase()
+    });
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User not found"
+        message: "User not found."
       });
     }
 
@@ -72,7 +82,7 @@ exports.login = async (req, res) => {
     if (!match) {
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials"
+        message: "Invalid email or password."
       });
     }
 
@@ -90,7 +100,13 @@ exports.login = async (req, res) => {
     res.json({
       success: true,
       token,
-      user
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        accountType: user.accountType,
+        role: user.role
+      }
     });
 
   } catch (error) {
@@ -105,6 +121,6 @@ exports.login = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
   res.json({
     success: true,
-    message: "Password reset feature coming next."
+    message: "Password reset feature coming soon."
   });
 };
