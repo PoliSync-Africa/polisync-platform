@@ -1,126 +1,95 @@
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const mongoose = require("mongoose");
 
-// Register
-exports.register = async (req, res) => {
-  try {
-    const {
-      fullName,
-      email,
-      password,
-      phone,
-      accountType
-    } = req.body;
+const UserSchema = new mongoose.Schema({
 
-    if (!fullName || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Please complete all required fields."
-      });
-    }
+  fullName: {
+    type: String,
+    required: true,
+    trim: true
+  },
 
-    const existingUser = await User.findOne({
-      email: email.toLowerCase()
-    });
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true
+  },
 
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "Email already exists."
-      });
-    }
+  password: {
+    type: String,
+    required: true
+  },
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+  phone: {
+    type: String,
+    default: ""
+  },
 
-    const user = await User.create({
-      fullName,
-      email: email.toLowerCase(),
-      password: hashedPassword,
-      phone,
-      accountType
-    });
+  accountType: {
+    type: String,
+    enum: [
+      "individual",
+      "organization",
+      "political-party"
+    ],
+    default: "individual"
+  },
 
-    res.status(201).json({
-      success: true,
-      message: "Account created successfully.",
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        accountType: user.accountType
-      }
-    });
+  role: {
+    type: String,
+    enum: [
+      "super_admin",
+      "country_admin",
+      "regional_admin",
+      "constituency_admin",
+      "polling_agent",
+      "researcher",
+      "observer",
+      "voter"
+    ],
+    default: "voter"
+  },
 
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+  country: {
+    type: String,
+    default: "Ghana"
+  },
+
+  party: {
+    type: String,
+    default: ""
+  },
+
+  region: {
+    type: String,
+    default: ""
+  },
+
+  constituency: {
+    type: String,
+    default: ""
+  },
+
+  pollingStation: {
+    type: String,
+    default: ""
+  },
+
+  invitationCode: {
+    type: String,
+    default: ""
+  },
+
+  isVerified: {
+    type: Boolean,
+    default: false
   }
-};
 
-// Login
-exports.login = async (req, res) => {
-  try {
+},
+{
+  timestamps: true
+});
 
-    const { email, password } = req.body;
-
-    const user = await User.findOne({
-      email: email.toLowerCase()
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found."
-      });
-    }
-
-    const match = await bcrypt.compare(password, user.password);
-
-    if (!match) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password."
-      });
-    }
-
-    const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role
-      },
-      process.env.JWT_SECRET || "polisync-secret",
-      {
-        expiresIn: "7d"
-      }
-    );
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        accountType: user.accountType,
-        role: user.role
-      }
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// Forgot Password
-exports.forgotPassword = async (req, res) => {
-  res.json({
-    success: true,
-    message: "Password reset feature coming soon."
-  });
-};
+module.exports =
+  mongoose.models.User ||
+  mongoose.model("User", UserSchema);
