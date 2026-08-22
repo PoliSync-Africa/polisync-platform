@@ -1,16 +1,21 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState } from "react";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: "#F8FAF8",
+        background:
+          "linear-gradient(135deg,#00160A 0%,#01351A 40%,#065F2B 100%)",
+        backgroundImage:
+          "radial-gradient(circle at 20% 20%, rgba(212,175,55,.18), transparent 30%), radial-gradient(circle at 80% 30%, rgba(0,255,140,.12), transparent 35%)",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -21,25 +26,25 @@ export default function LoginPage() {
         style={{
           width: "100%",
           maxWidth: "430px",
-          background: "#FFFFFF",
-          borderRadius: "32px",
-          padding: "32px 24px",
-          boxShadow: "0 18px 45px rgba(0,0,0,.08)",
-          border: "1px solid rgba(0,0,0,.06)",
+          background: "rgba(255,255,255,.96)",
+          backdropFilter: "blur(18px)",
+          borderRadius: "34px",
+          padding: "34px 28px",
+          boxShadow: "0 25px 70px rgba(0,0,0,.35)",
         }}
       >
-        {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: "18px" }}>
+        <div style={{ display: "flex", justifyContent: "center" }}>
           <Image
-            src="/IMG_9644.jpeg"
+            src="/polisync-logo.png"
             alt="PoliSync Africa"
-            width={220}
-            height={220}
+            width={210}
+            height={210}
             priority
             style={{
-              width: "220px",
+              width: "210px",
               height: "auto",
               objectFit: "contain",
+              filter: "drop-shadow(0 14px 32px rgba(212,175,55,.45))",
             }}
           />
         </div>
@@ -47,213 +52,206 @@ export default function LoginPage() {
         <h1
           style={{
             textAlign: "center",
-            fontSize: "36px",
-            fontWeight: "800",
-            color: "#064E2A",
-            marginBottom: "8px",
+            color: "#065F2B",
+            fontSize: "44px",
+            fontWeight: 800,
+            margin: "8px 0 0",
+          }}
+        >
+          PoliSync Africa
+        </h1>
+
+        <h2
+          style={{
+            textAlign: "center",
+            color: "#111",
+            fontSize: "32px",
+            fontWeight: 700,
+            margin: "18px 0 6px",
           }}
         >
           Welcome Back
-        </h1>
+        </h2>
 
         <p
           style={{
             textAlign: "center",
-            color: "#555",
+            color: "#666",
             marginBottom: "28px",
-            fontSize: "15px",
+            fontSize: "16px",
           }}
         >
           Sign in to your PoliSync Africa account
         </p>
 
-        <form style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-          <div>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "8px",
-                fontWeight: "700",
-                color: "#111",
-              }}
-            >
-              Email Address
-            </label>
+        <div style={{ marginBottom: "18px" }}>
+          <label
+            style={{
+              display: "block",
+              fontWeight: 600,
+              color: "#111",
+              marginBottom: "8px",
+            }}
+          >
+            Email Address
+          </label>
 
+          <input
+            type="email"
+            placeholder="Enter your email"
+            style={{
+              width: "100%",
+              padding: "17px 18px",
+              borderRadius: "999px",
+              border: "1.8px solid #D5D5D5",
+              fontSize: "16px",
+              outline: "none",
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: "10px" }}>
+          <label
+            style={{
+              display: "block",
+              fontWeight: 600,
+              color: "#111",
+              marginBottom: "8px",
+            }}
+          >
+            Password
+          </label>
+
+          <div style={{ position: "relative" }}>
             <input
-              type="email"
-              placeholder="Enter your email"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
               style={{
                 width: "100%",
-                padding: "15px 18px",
+                padding: "17px 70px 17px 18px",
                 borderRadius: "999px",
-                border: "1.5px solid #D7D7D7",
+                border: "1.8px solid #D5D5D5",
                 fontSize: "16px",
                 outline: "none",
               }}
             />
-          </div>
-
-          <div>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "8px",
-                fontWeight: "700",
-                color: "#111",
-              }}
-            >
-              Password
-            </label>
-
-            <div style={{ position: "relative" }}>
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                style={{
-                  width: "100%",
-                  padding: "15px 90px 15px 18px",
-                  borderRadius: "999px",
-                  border: "1.5px solid #D7D7D7",
-                  fontSize: "16px",
-                  outline: "none",
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: "absolute",
-                  right: "18px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  color: "#666",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: "15px",
-            }}
-          >
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                color: "#222",
-              }}
-            >
-              <input type="checkbox" />
-              Remember Me
-            </label>
 
             <button
               type="button"
+              onClick={() => setShowPassword(!showPassword)}
               style={{
-                background: "none",
+                position: "absolute",
+                right: "16px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "transparent",
                 border: "none",
-                color: "#0A8F3C",
-                fontWeight: "700",
+                color: "#666",
                 cursor: "pointer",
+                fontWeight: 600,
               }}
             >
-              Forgot Password?
+              {showPassword ? "Hide" : "Show"}
             </button>
           </div>
+        </div>
 
-          <button
-            type="submit"
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "24px",
+            fontSize: "15px",
+          }}
+        >
+          <label
             style={{
-              width: "100%",
-              padding: "16px",
-              borderRadius: "999px",
-              border: "none",
-              background: "linear-gradient(90deg,#0A8F3C,#064E2A)",
-              color: "#FFF",
-              fontSize: "17px",
-              fontWeight: "800",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
               cursor: "pointer",
             }}
           >
-            Login
-          </button>
-        </form>
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={() => setRemember(!remember)}
+            />
+            Remember Me
+          </label>
 
-        {/* Divider */}
+          <Link
+            href="/forgot-password"
+            style={{
+              color: "#065F2B",
+              textDecoration: "none",
+              fontWeight: 600,
+            }}
+          >
+            Forgot Password?
+          </Link>
+        </div>
+
+        <button
+          style={{
+            width: "100%",
+            padding: "18px",
+            borderRadius: "999px",
+            border: "none",
+            background: "linear-gradient(90deg,#0A8F35,#065F2B)",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: "18px",
+            cursor: "pointer",
+            boxShadow: "0 12px 30px rgba(6,95,43,.35)",
+          }}
+        >
+          Login
+        </button>
+
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: "12px",
-            margin: "28px 0",
-            color: "#888",
+            margin: "26px 0",
           }}
         >
-          <div style={{ flex: 1, height: "1px", background: "#DDD" }} />
-          <span>OR</span>
-          <div style={{ flex: 1, height: "1px", background: "#DDD" }} />
-        </div>
-
-        {/* Social Buttons */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {[
-            ["Continue with Google", "🔵"],
-            ["Continue with Apple", "🍎"],
-            ["Continue with Microsoft", "🟦"],
-          ].map(([label, icon]) => (
-            <button
-              key={label}
-              style={{
-                width: "100%",
-                padding: "15px",
-                borderRadius: "999px",
-                border: "1.5px solid #D7D7D7",
-                background: "#FFF",
-                fontSize: "15px",
-                fontWeight: "600",
-                cursor: "pointer",
-              }}
-            >
-              {icon} {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: "28px",
-            color: "#555",
-          }}
-        >
-          Don't have an account?
-          <a
-            href="/register"
+          <div
             style={{
-              display: "block",
-              marginTop: "8px",
-              color: "#D4AF37",
-              fontWeight: "800",
-              textDecoration: "none",
+              flex: 1,
+              height: "1px",
+              background: "#DDD",
             }}
-          >
-            Create Account
-          </a>
+          />
+
+          <span style={{ color: "#777" }}>OR</span>
+
+          <div
+            style={{
+              flex: 1,
+              height: "1px",
+              background: "#DDD",
+            }}
+          />
         </div>
+
+        <Link
+          href="/register"
+          style={{
+            display: "block",
+            textAlign: "center",
+            padding: "16px",
+            borderRadius: "999px",
+            border: "2px solid #065F2B",
+            color: "#065F2B",
+            fontWeight: 700,
+            textDecoration: "none",
+          }}
+        >
+          Create Free Account
+        </Link>
       </div>
     </main>
   );
