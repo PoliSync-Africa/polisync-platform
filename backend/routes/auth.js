@@ -1,18 +1,23 @@
 const express = require("express");
-const { register, login } = require("../controllers/authController");
+const {
+  register,
+  login,
+  forgotPassword
+} = require("../controllers/authController");
 
 const router = express.Router();
 
-// Status
+// Status Check
 router.get("/", (req, res) => {
   res.json({
-    status: "success",
-    message: "Authentication routes ready"
+    success: true,
+    message: "PoliSync Africa Authentication API Ready"
   });
 });
 
 // Authentication
 router.post("/register", register);
 router.post("/login", login);
+router.post("/forgot-password", forgotPassword);
 
 module.exports = router;
