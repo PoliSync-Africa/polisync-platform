@@ -1,21 +1,67 @@
+/* =========================================
+   POLISYNC AFRICA CINEMATIC LOGO
+   ========================================= */
 
-*{
-  box-sizing:border-box;
+.polisync-logo-wrapper{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin-bottom:24px;
+  perspective:1200px;
 }
 
-html{
-  scroll-behavior:smooth;
+.polisync-logo{
+  width:240px;
+  height:auto;
+  transform-origin:center top;
+  animation:
+    logoSwing 6s ease-in-out infinite,
+    logoFloat 4s ease-in-out infinite,
+    goldShimmer 8s linear infinite;
+  filter:
+    drop-shadow(0 12px 24px rgba(212,175,55,.35))
+    drop-shadow(0 0 30px rgba(16,185,129,.18));
 }
 
-body{
-  margin:0;
-  background:#041E1A;
+@keyframes logoSwing{
+  0%   {transform:rotate(-7deg);}
+  25%  {transform:rotate(-3deg);}
+  50%  {transform:rotate(7deg);}
+  75%  {transform:rotate(3deg);}
+  100% {transform:rotate(-7deg);}
 }
 
-button{
-  transition:0.25s ease;
+@keyframes logoFloat{
+  0%,100%{margin-top:0;}
+  50%{margin-top:-8px;}
 }
 
-button:hover{
-  transform:translateY(-2px);
+@keyframes goldShimmer{
+  0%{
+    filter:
+      brightness(1)
+      drop-shadow(0 12px 24px rgba(212,175,55,.30));
+  }
+
+  50%{
+    filter:
+      brightness(1.08)
+      drop-shadow(0 16px 36px rgba(212,175,55,.55));
+  }
+
+  100%{
+    filter:
+      brightness(1)
+      drop-shadow(0 12px 24px rgba(212,175,55,.30));
+  }
+}
+
+/* Accessibility */
+
+@media (prefers-reduced-motion:reduce){
+
+  .polisync-logo{
+    animation:none;
+  }
+
 }
