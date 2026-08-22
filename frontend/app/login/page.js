@@ -47,24 +47,15 @@ export default function LoginPage() {
           border: "1px solid rgba(0,0,0,.05)",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            marginBottom: "22px",
-          }}
-        >
+        {/* Animated PoliSync Logo */}
+        <div className="polisync-logo-wrapper">
           <Image
             src="/IMG_9654.jpeg"
             alt="PoliSync Africa"
             width={240}
             height={240}
             priority
-            style={{
-              width: "240px",
-              height: "auto",
-              objectFit: "contain",
-            }}
+            className="polisync-logo"
           />
         </div>
 
@@ -175,6 +166,7 @@ export default function LoginPage() {
               display: "flex",
               alignItems: "center",
               gap: "8px",
+              cursor: "pointer",
             }}
           >
             <input
@@ -264,6 +256,7 @@ export default function LoginPage() {
         >
           Don't have an account?
           <br />
+
           <Link
             href="/register"
             style={{
