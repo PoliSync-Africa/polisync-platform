@@ -1,50 +1,45 @@
 "use client";
 
+import Image from "next/image";
+import { useState } from "react";
+
 export default function LoginPage() {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <main
       style={{
         minHeight: "100vh",
-        backgroundImage: "url('/polisync-hero.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+        background: "#F8FAF8",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         padding: "24px",
       }}
     >
-      {/* Dark overlay */}
       <div
         style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,20,10,.55)",
-        }}
-      />
-
-      <div
-        style={{
-          position: "relative",
           width: "100%",
           maxWidth: "430px",
-          background: "rgba(255,255,255,.12)",
-          backdropFilter: "blur(18px)",
-          border: "1px solid rgba(255,255,255,.2)",
-          borderRadius: "28px",
-          padding: "32px",
-          boxShadow: "0 25px 70px rgba(0,0,0,.45)",
-          color: "white",
+          background: "#FFFFFF",
+          borderRadius: "32px",
+          padding: "32px 24px",
+          boxShadow: "0 18px 45px rgba(0,0,0,.08)",
+          border: "1px solid rgba(0,0,0,.06)",
         }}
       >
         {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: "22px" }}>
-          <img
-            src="/polisync-logo.png"
+        <div style={{ textAlign: "center", marginBottom: "18px" }}>
+          <Image
+            src="/IMG_9644.jpeg"
             alt="PoliSync Africa"
+            width={220}
+            height={220}
+            priority
             style={{
               width: "220px",
               height: "auto",
+              objectFit: "contain",
             }}
           />
         </div>
@@ -52,10 +47,10 @@ export default function LoginPage() {
         <h1
           style={{
             textAlign: "center",
-            fontSize: "34px",
-            color: "#D4AF37",
-            marginBottom: "8px",
+            fontSize: "36px",
             fontWeight: "800",
+            color: "#064E2A",
+            marginBottom: "8px",
           }}
         >
           Welcome Back
@@ -64,88 +59,202 @@ export default function LoginPage() {
         <p
           style={{
             textAlign: "center",
-            color: "#E8E8E8",
+            color: "#555",
             marginBottom: "28px",
+            fontSize: "15px",
           }}
         >
-          Africa's Political Intelligence Platform
+          Sign in to your PoliSync Africa account
         </p>
 
-        <Input placeholder="Email Address" type="email" />
-        <Input placeholder="Password" type="password" />
+        <form style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "8px",
+                fontWeight: "700",
+                color: "#111",
+              }}
+            >
+              Email Address
+            </label>
 
+            <input
+              type="email"
+              placeholder="Enter your email"
+              style={{
+                width: "100%",
+                padding: "15px 18px",
+                borderRadius: "999px",
+                border: "1.5px solid #D7D7D7",
+                fontSize: "16px",
+                outline: "none",
+              }}
+            />
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "8px",
+                fontWeight: "700",
+                color: "#111",
+              }}
+            >
+              Password
+            </label>
+
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                style={{
+                  width: "100%",
+                  padding: "15px 90px 15px 18px",
+                  borderRadius: "999px",
+                  border: "1.5px solid #D7D7D7",
+                  fontSize: "16px",
+                  outline: "none",
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: "18px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  color: "#666",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: "15px",
+            }}
+          >
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                color: "#222",
+              }}
+            >
+              <input type="checkbox" />
+              Remember Me
+            </label>
+
+            <button
+              type="button"
+              style={{
+                background: "none",
+                border: "none",
+                color: "#0A8F3C",
+                fontWeight: "700",
+                cursor: "pointer",
+              }}
+            >
+              Forgot Password?
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            style={{
+              width: "100%",
+              padding: "16px",
+              borderRadius: "999px",
+              border: "none",
+              background: "linear-gradient(90deg,#0A8F3C,#064E2A)",
+              color: "#FFF",
+              fontSize: "17px",
+              fontWeight: "800",
+              cursor: "pointer",
+            }}
+          >
+            Login
+          </button>
+        </form>
+
+        {/* Divider */}
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: "22px",
-            fontSize: "14px",
+            gap: "12px",
+            margin: "28px 0",
+            color: "#888",
           }}
         >
-          <label style={{ display: "flex", gap: "8px" }}>
-            <input type="checkbox" />
-            Remember me
-          </label>
-
-          <a href="#" style={{ color: "#FFD54F", textDecoration: "none" }}>
-            Forgot Password?
-          </a>
+          <div style={{ flex: 1, height: "1px", background: "#DDD" }} />
+          <span>OR</span>
+          <div style={{ flex: 1, height: "1px", background: "#DDD" }} />
         </div>
 
-        <button
-          style={{
-            width: "100%",
-            padding: "16px",
-            borderRadius: "16px",
-            border: "none",
-            background: "#0A8F3C",
-            color: "white",
-            fontSize: "17px",
-            fontWeight: "700",
-            cursor: "pointer",
-          }}
-        >
-          Login
-        </button>
+        {/* Social Buttons */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {[
+            ["Continue with Google", "🔵"],
+            ["Continue with Apple", "🍎"],
+            ["Continue with Microsoft", "🟦"],
+          ].map(([label, icon]) => (
+            <button
+              key={label}
+              style={{
+                width: "100%",
+                padding: "15px",
+                borderRadius: "999px",
+                border: "1.5px solid #D7D7D7",
+                background: "#FFF",
+                fontSize: "15px",
+                fontWeight: "600",
+                cursor: "pointer",
+              }}
+            >
+              {icon} {label}
+            </button>
+          ))}
+        </div>
 
-        <button
+        {/* Footer */}
+        <div
           style={{
-            width: "100%",
-            padding: "15px",
-            marginTop: "14px",
-            borderRadius: "16px",
-            border: "2px solid #D4AF37",
-            background: "transparent",
-            color: "#D4AF37",
-            fontSize: "16px",
-            fontWeight: "700",
-            cursor: "pointer",
+            textAlign: "center",
+            marginTop: "28px",
+            color: "#555",
           }}
         >
-          Create Free Account
-        </button>
+          Don't have an account?
+          <a
+            href="/register"
+            style={{
+              display: "block",
+              marginTop: "8px",
+              color: "#D4AF37",
+              fontWeight: "800",
+              textDecoration: "none",
+            }}
+          >
+            Create Account
+          </a>
+        </div>
       </div>
     </main>
-  );
-}
-
-function Input({ placeholder, type = "text" }) {
-  return (
-    <input
-      type={type}
-      placeholder={placeholder}
-      style={{
-        width: "100%",
-        padding: "15px",
-        marginBottom: "16px",
-        borderRadius: "14px",
-        border: "1px solid rgba(255,255,255,.25)",
-        background: "rgba(255,255,255,.12)",
-        color: "white",
-        fontSize: "16px",
-        outline: "none",
-      }}
-    />
   );
 }
