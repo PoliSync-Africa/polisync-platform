@@ -1,28 +1,37 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
+const mongoose = require("mongoose");
 require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Allow requests from the frontend
+app.use(
+  cors({
+    origin: [
+      "https://polisync-platform-1.onrender.com",
+      process.env.CLIENT_URL,
+    ],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// API Routes
-app.use("/api/auth", authRoutes);
-
-// Health Check
+// Health check
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "PoliSync Africa Backend Running"
+    message: "PoliSync Africa Backend is running",
   });
 });
 
-// MongoDB Connection
+// API routes
+app.use("/api/auth", authRoutes);
+
+// Connect to MongoDB
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
@@ -35,5 +44,5 @@ mongoose
     });
   })
   .catch((err) => {
-    console.error("MongoDB Connection Error:", err.message);
+    console.error("MongoDB Connection Failed:", err.message);
   });
