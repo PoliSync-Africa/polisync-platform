@@ -1,14 +1,12 @@
-/* ==========================================================
-   POLISYNC AFRICA • OFFICIAL CINEMATIC LOGO ANIMATION
-   Replace the old logo animation section with this.
-   ========================================================== */
+/* ==========================================
+   POLISYNC AFRICA OFFICIAL LOGO ANIMATION
+   ========================================== */
 
 .polisync-logo-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
   margin-bottom: 24px;
-  perspective: 1400px;
   overflow: visible;
 }
 
@@ -18,65 +16,56 @@
   transform-origin: center top;
   will-change: transform, filter;
   animation:
-    polisyncSwing 6s ease-in-out infinite,
-    polisyncFloat 4s ease-in-out infinite,
-    polisyncGlow 8s ease-in-out infinite;
-  filter:
-    drop-shadow(0 14px 28px rgba(212,175,55,0.35))
-    drop-shadow(0 0 18px rgba(16,185,129,0.18));
+    polisyncMotion 6s ease-in-out infinite,
+    polisyncGlow 6s ease-in-out infinite;
 }
 
-/* Slow left-right pendulum */
-@keyframes polisyncSwing {
-  0%   { transform: rotate(-7deg); }
-  25%  { transform: rotate(-3deg); }
-  50%  { transform: rotate(7deg); }
-  75%  { transform: rotate(3deg); }
-  100% { transform: rotate(-7deg); }
-}
+/* One animation controls both swing and float */
 
-/* Gentle floating motion */
-@keyframes polisyncFloat {
-  0%,100% {
-    translate: 0 0;
+@keyframes polisyncMotion {
+  0% {
+    transform: rotate(-8deg) translateY(0px);
+  }
+
+  25% {
+    transform: rotate(-4deg) translateY(-4px);
   }
 
   50% {
-    translate: 0 -8px;
+    transform: rotate(8deg) translateY(-8px);
+  }
+
+  75% {
+    transform: rotate(4deg) translateY(-4px);
+  }
+
+  100% {
+    transform: rotate(-8deg) translateY(0px);
   }
 }
 
-/* Gold shimmer + emerald glow */
+/* Gold glow */
+
 @keyframes polisyncGlow {
-  0% {
+  0%,100% {
     filter:
       brightness(1)
-      saturate(1)
-      drop-shadow(0 12px 24px rgba(212,175,55,0.30))
-      drop-shadow(0 0 18px rgba(16,185,129,0.18));
+      drop-shadow(0 12px 24px rgba(212,175,55,.30))
+      drop-shadow(0 0 16px rgba(16,185,129,.18));
   }
 
   50% {
     filter:
       brightness(1.12)
-      saturate(1.12)
-      drop-shadow(0 18px 38px rgba(212,175,55,0.55))
-      drop-shadow(0 0 30px rgba(16,185,129,0.35));
-  }
-
-  100% {
-    filter:
-      brightness(1)
-      saturate(1)
-      drop-shadow(0 12px 24px rgba(212,175,55,0.30))
-      drop-shadow(0 0 18px rgba(16,185,129,0.18));
+      drop-shadow(0 20px 40px rgba(212,175,55,.60))
+      drop-shadow(0 0 28px rgba(16,185,129,.35));
   }
 }
 
-/* Respect users who prefer reduced motion */
+/* Accessibility */
+
 @media (prefers-reduced-motion: reduce) {
   .polisync-logo {
     animation: none;
-    transform: none;
   }
 }
