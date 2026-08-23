@@ -1,45 +1,5 @@
-const mongoose = require("mongoose");
+const { PrismaClient } = require("@prisma/client");
 
-const organizationSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+const prisma = new PrismaClient();
 
-    shortName: {
-      type: String,
-      trim: true,
-    },
-
-    type: {
-      type: String,
-      enum: [
-        "political_party",
-        "electoral_body",
-        "ngo",
-        "observer",
-      ],
-      required: true,
-    },
-
-    country: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
-
-module.exports =
-  mongoose.models.Organization ||
-  mongoose.model("Organization", organizationSchema);
+module.exports = prisma;
