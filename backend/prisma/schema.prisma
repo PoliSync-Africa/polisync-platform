@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/*
+|--------------------------------------------------------------------------
+| Temporary Bootstrap Schema
+|--------------------------------------------------------------------------
+| This gets Render and Prisma working again.
+| We'll expand it into the full POLISYNC AFRICA election database next.
+*/
+
+model SystemHealth {
+  id        String   @id @default(cuid())
+  name      String   @default("POLISYNC AFRICA")
+  status    String   @default("healthy")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
