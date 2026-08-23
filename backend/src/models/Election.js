@@ -1,82 +1,17 @@
-const mongoose = require("mongoose");
+const prisma = require("./User");
 
-const electionSchema = new mongoose.Schema(
-  {
-    organizationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
-      required: true,
-      index: true
-    },
+const Election = {
+  findMany: (args = {}) => prisma.election.findMany(args),
 
-    title: {
-      type: String,
-      required: true,
-      trim: true
-    },
+  findUnique: (args) => prisma.election.findUnique(args),
 
-    type: {
-      type: String,
-      required: true,
-      enum: [
-        "presidential",
-        "parliamentary",
-        "local_government",
-        "party_primary",
-        "referendum",
-        "other"
-      ]
-    },
+  create: (args) => prisma.election.create(args),
 
-    country: {
-      type: String,
-      required: true
-    },
+  update: (args) => prisma.election.update(args),
 
-    region: {
-      type: String
-    },
+  delete: (args) => prisma.election.delete(args),
 
-    constituency: {
-      type: String
-    },
+  count: (args = {}) => prisma.election.count(args),
+};
 
-    electionDate: {
-      type: Date,
-      required: true
-    },
-
-    status: {
-      type: String,
-      enum: [
-        "draft",
-        "scheduled",
-        "active",
-        "closed",
-        "archived"
-      ],
-      default: "draft"
-    },
-
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true
-    },
-
-    description: {
-      type: String,
-      trim: true
-    }
-  },
-  {
-    timestamps: true
-  }
-);
-
-electionSchema.index({
-  organizationId: 1,
-  electionDate: 1
-});
-
-module.exports = mongoose.model("Election", electionSchema);
+module.exports = Election;
