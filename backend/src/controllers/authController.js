@@ -1,29 +1,25 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { PrismaClient } = require("@prisma/client");
 
-const User = require("../models/User");
-const Organization = require("../models/Organization");
+const prisma = new PrismaClient();
 
 const generateToken = (user) => {
   return jwt.sign(
     {
-      id: user._id,
+      id: user.id,
       role: user.role,
       organizationId: user.organizationId,
       country: user.country
     },
     process.env.JWT_SECRET,
-    {
-      expiresIn: "7d"
-    }
+    { expiresIn: "7d" }
   );
 };
-
 
 // ===============================
 // REGISTER USER
 // ===============================
-
 exports.register = async (req, res) => {
   try {
     const {
@@ -41,7 +37,6 @@ exports.register = async (req, res) => {
       pollingStation
     } = req.body;
 
-    // Basic validation
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -49,7 +44,6 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Only approved non-privileged roles can be created through normal registration
     const allowedPublicRoles = [
       "observer",
       "polling_station_agent",
@@ -68,7 +62,6 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Organization is required for party and organizational users
     const organizationRequiredRoles = [
       "party_admin",
       "regional_admin",
@@ -77,17 +70,13 @@ exports.register = async (req, res) => {
       "polling_station_agent"
     ];
 
-    if (
-      organizationRequiredRoles.includes(selectedRole) &&
-      !organizationId
-    ) {
+    if (organizationRequiredRoles.includes(selectedRole) && !organizationId) {
       return res.status(400).json({
         success: false,
         message: "Organization is required for this role."
       });
     }
 
-    // Country is required for country-based users
     if (!country) {
       return res.status(400).json({
         success: false,
@@ -95,9 +84,10 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate organization when one is supplied
     if (organizationId) {
-      const organization = await Organization.findById(organizationId);
+      const organization = await prisma.organization.findUnique({
+        where: { id: organizationId }
+      });
 
       if (!organization || !organization.isActive) {
         return res.status(400).json({
@@ -107,8 +97,9 @@ exports.register = async (req, res) => {
       }
     }
 
-    // Check whether email already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
 
     if (existingUser) {
       return res.status(400).json({
@@ -117,41 +108,30 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
-    const user = await User.create({
-      organizationId: organizationId || undefined,
-      firstName,
-      lastName,
-      email,
-      phone,
-      password: hashedPassword,
-      role: selectedRole,
-      country,
-      region,
-      constituency,
-      electoralArea,
-      pollingStation
+    const user = await prisma.user.create({
+      data: {
+        organizationId,
+        firstName,
+        lastName,
+        email,
+        phone,
+        password: hashedPassword,
+        role: selectedRole,
+        country,
+        region,
+        constituency,
+        electoralArea,
+        pollingStation
+      }
     });
 
     res.status(201).json({
       success: true,
       message: "User registered successfully.",
       token: generateToken(user),
-      user: {
-        id: user._id,
-        organizationId: user.organizationId,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        country: user.country,
-        region: user.region,
-        constituency: user.constituency,
-        electoralArea: user.electoralArea,
-        pollingStation: user.pollingStation
-      }
+      user
     });
 
   } catch (error) {
@@ -162,11 +142,9 @@ exports.register = async (req, res) => {
   }
 };
 
-
 // ===============================
 // LOGIN USER
 // ===============================
-
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -178,19 +156,18 @@ exports.login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
 
-    if (!user || !user.isActive) {
+    if (!user || user.isActive === false) {
       return res.status(401).json({
         success: false,
         message: "Invalid credentials."
       });
     }
 
-    const validPassword = await bcrypt.compare(
-      password,
-      user.password
-    );
+    const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
       return res.status(401).json({
@@ -199,26 +176,16 @@ exports.login = async (req, res) => {
       });
     }
 
-    user.lastLogin = new Date();
-
-    await user.save();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() }
+    });
 
     res.json({
       success: true,
       message: "Login successful.",
       token: generateToken(user),
-      user: {
-        id: user._id,
-        organizationId: user.organizationId,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        country: user.country,
-        region: user.region,
-        constituency: user.constituency,
-        electoralArea: user.electoralArea,
-        pollingStation: user.pollingStation
-      }
+      user
     });
 
   } catch (error) {
