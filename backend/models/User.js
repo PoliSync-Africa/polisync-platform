@@ -1,8 +1,19 @@
 const mongoose = require("mongoose");
 
-const UserSchema = new mongoose.Schema(
+const userSchema = new mongoose.Schema(
   {
-    fullName: {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization"
+    },
+
+    firstName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    lastName: {
       type: String,
       required: true,
       trim: true
@@ -12,56 +23,44 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      lowercase: true
+      lowercase: true,
+      trim: true
     },
+
+    phone: String,
 
     password: {
       type: String,
       required: true
     },
 
-    phone: {
-      type: String
-    },
-
     role: {
       type: String,
+      required: true,
       enum: [
         "super_admin",
+        "country_admin",
         "party_admin",
-        "candidate",
-        "polling_agent",
-        "researcher",
-        "observer",
-        "voter"
-      ],
-      default: "voter"
+        "regional_admin",
+        "constituency_officer",
+        "electoral_area_coordinator",
+        "polling_station_agent",
+        "observer"
+      ]
     },
 
-    country: {
-      type: String,
-      default: "Ghana"
-    },
+    country: String,
+    region: String,
+    constituency: String,
+    electoralArea: String,
+    pollingStation: String,
 
-    party: {
-      type: String,
-      default: ""
-    },
-
-    constituency: {
-      type: String,
-      default: ""
-    },
-
-    region: {
-      type: String,
-      default: ""
-    },
-
-    isVerified: {
+    isActive: {
       type: Boolean,
-      default: false
-    }
+      default: true
+    },
+
+    lastLogin: Date
   },
   {
     timestamps: true
@@ -69,4 +68,5 @@ const UserSchema = new mongoose.Schema(
 );
 
 module.exports =
-  mongoose.models.User || mongoose.model("User", UserSchema);
+  mongoose.models.User ||
+  mongoose.model("User", userSchema);
