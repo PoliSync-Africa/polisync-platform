@@ -3,6 +3,26 @@ const mongoose = require("mongoose");
 const userSchema = new mongoose.Schema(
   {
     // ============================================================
+    // PLATFORM ROLE
+    // ============================================================
+    // This is separate from organization roles.
+    //
+    // "super_admin" = PoliSync Africa platform authority
+    // "user"        = normal personal account
+    //
+    // Organization roles such as Party Admin, Observer Admin,
+    // Polling Agent, Parliamentary Candidate, etc. belong in
+    // OrganizationMembership.js.
+    // ============================================================
+
+    platformRole: {
+      type: String,
+      enum: ["user", "super_admin"],
+      required: true,
+      default: "user",
+    },
+
+    // ============================================================
     // PERSONAL IDENTITY
     // ============================================================
 
@@ -54,9 +74,9 @@ const userSchema = new mongoose.Schema(
 
     // ============================================================
     // IDENTIFICATION
-    // One identification document is required.
-    // User chooses ONE:
-    // Passport OR Ghana Card OR Voter ID
+    // ============================================================
+    // Exactly one of the supported identification types is
+    // required when creating the account.
     // ============================================================
 
     identificationType: {
@@ -115,7 +135,6 @@ const userSchema = new mongoose.Schema(
 
     // ============================================================
     // TWO-FACTOR AUTHENTICATION
-    // Recommended, but can be enabled later.
     // ============================================================
 
     twoFactorEnabled: {
@@ -143,16 +162,13 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
-    /*
-     * IMPORTANT:
-     * We do NOT store Face ID or fingerprint data.
-     * The device operating system handles biometric authentication.
-     */
+    // IMPORTANT:
+    // We never store actual fingerprint or Face ID biometric
+    // data in MongoDB. The device operating system handles
+    // biometric authentication.
 
     // ============================================================
     // ACCOUNT APPROVAL / STATUS
-    // Every new account starts as PENDING.
-    // Super Admin controls approval.
     // ============================================================
 
     accountStatus: {
@@ -164,8 +180,8 @@ const userSchema = new mongoose.Schema(
         "suspended",
         "deactivated",
       ],
-      default: "pending",
       required: true,
+      default: "pending",
     },
 
     approvedAt: {
@@ -192,9 +208,6 @@ const userSchema = new mongoose.Schema(
 
     // ============================================================
     // PRIVACY
-    // DEFAULT:
-    // Nobody can message the user.
-    // Nobody can discover the user's profile.
     // ============================================================
 
     privacy: {
@@ -234,7 +247,12 @@ const userSchema = new mongoose.Schema(
 
       fontSize: {
         type: String,
-        enum: ["small", "medium", "large", "extra_large"],
+        enum: [
+          "small",
+          "medium",
+          "large",
+          "extra_large",
+        ],
         default: "medium",
       },
     },
@@ -247,11 +265,6 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-
-    /*
-     * Automatically records the date the person joined PoliSync.
-     * Users cannot change this value.
-     */
 
     joinedAt: {
       type: Date,
@@ -273,6 +286,19 @@ userSchema.pre("save", function (next) {
     this.username = this.username.toLowerCase().trim();
   }
 
+  if (this.email) {
+    this.email = this.email.toLowerCase().trim();
+  }
+
+  if (this.phone) {
+    this.phone = this.phone.trim();
+  }
+
+  if (this.identificationNumber) {
+    this.identificationNumber =
+      this.identificationNumber.trim();
+  }
+
   next();
 });
 
@@ -281,4 +307,5 @@ userSchema.pre("save", function (next) {
 // ============================================================
 
 module.exports =
-  mongoose.models.User || mongoose.model("User", userSchema);
+  mongoose.models.User ||
+  mongoose.model("User", userSchema);
