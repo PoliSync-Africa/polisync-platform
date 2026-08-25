@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema(
     // ============================================================
     // PLATFORM ROLE
     // ============================================================
-    // "user"        = ordinary platform user
+    // "user"        = ordinary PoliSync Africa account
     // "super_admin" = PoliSync Africa platform authority
     //
     // Organization roles belong to OrganizationMembership.js.
@@ -89,7 +89,12 @@ const userSchema = new mongoose.Schema(
 
     identificationType: {
       type: String,
-      enum: ["passport", "ghana_card", "voter_id", null],
+      enum: [
+        "passport",
+        "ghana_card",
+        "voter_id",
+        null,
+      ],
       default: null,
     },
 
@@ -152,7 +157,12 @@ const userSchema = new mongoose.Schema(
 
     twoFactorMethod: {
       type: String,
-      enum: ["authenticator", "sms", "email", null],
+      enum: [
+        "authenticator",
+        "sms",
+        "email",
+        null,
+      ],
       default: null,
     },
 
@@ -220,6 +230,10 @@ const userSchema = new mongoose.Schema(
     // ============================================================
 
     privacy: {
+      // ----------------------------------------------------------
+      // MESSAGE PRIVACY
+      // ----------------------------------------------------------
+
       messagePrivacy: {
         type: String,
         enum: [
@@ -230,6 +244,10 @@ const userSchema = new mongoose.Schema(
         default: "nobody",
       },
 
+      // ----------------------------------------------------------
+      // PROFILE VISIBILITY
+      // ----------------------------------------------------------
+
       profileVisibility: {
         type: String,
         enum: [
@@ -239,6 +257,167 @@ const userSchema = new mongoose.Schema(
         ],
         default: "nobody",
       },
+
+      // ----------------------------------------------------------
+      // ONLINE STATUS
+      // ----------------------------------------------------------
+      // Controls whether other permitted users can see
+      // "Online".
+      // ----------------------------------------------------------
+
+      showOnlineStatus: {
+        type: Boolean,
+        default: true,
+      },
+
+      // ----------------------------------------------------------
+      // LAST SEEN
+      // ----------------------------------------------------------
+
+      showLastSeen: {
+        type: Boolean,
+        default: true,
+      },
+
+      // ----------------------------------------------------------
+      // LOCATION SHARING
+      // ----------------------------------------------------------
+
+      shareLocation: {
+        type: Boolean,
+        default: false,
+      },
+
+      // ----------------------------------------------------------
+      // LOCATION VISIBILITY
+      // ----------------------------------------------------------
+
+      locationVisibility: {
+        type: String,
+        enum: [
+          "everyone",
+          "organizations_only",
+          "selected_people",
+          "nobody",
+        ],
+        default: "nobody",
+      },
+
+      // ----------------------------------------------------------
+      // LOCATION PRECISION
+      // ----------------------------------------------------------
+
+      locationPrecision: {
+        type: String,
+        enum: [
+          "exact",
+          "approximate",
+        ],
+        default: "approximate",
+      },
+
+      // ----------------------------------------------------------
+      // LOCATION SHARING DURATION
+      // ----------------------------------------------------------
+
+      locationSharingDuration: {
+        type: String,
+        enum: [
+          "until_turned_off",
+          "one_hour",
+          "eight_hours",
+          "twenty_four_hours",
+        ],
+        default: "until_turned_off",
+      },
+    },
+
+    // ============================================================
+    // LOCATION PERMISSION
+    // ============================================================
+    // This records whether the user has granted location
+    // permission to PoliSync.
+    //
+    // It does NOT override the browser/device permission.
+    // ============================================================
+
+    locationPermissionGranted: {
+      type: Boolean,
+      default: false,
+    },
+
+    // ============================================================
+    // CURRENT LOCATION
+    // ============================================================
+    // Location coordinates are stored only when location sharing
+    // has been explicitly enabled.
+    //
+    // Google Maps can use these coordinates to display the
+    // permitted user's current location.
+    // ============================================================
+
+    currentLocation: {
+      latitude: {
+        type: Number,
+        default: null,
+        min: -90,
+        max: 90,
+      },
+
+      longitude: {
+        type: Number,
+        default: null,
+        min: -180,
+        max: 180,
+      },
+
+      accuracy: {
+        type: Number,
+        default: null,
+        min: 0,
+      },
+
+      updatedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+
+    // ============================================================
+    // LOCATION EXPIRATION
+    // ============================================================
+    // Used for temporary location sharing.
+    // ============================================================
+
+    locationExpiresAt: {
+      type: Date,
+      default: null,
+    },
+
+    // ============================================================
+    // PLATFORM ACTIVITY / PRESENCE
+    // ============================================================
+
+    isOnline: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    lastLoginAt: {
+      type: Date,
+      default: null,
+    },
+
+    lastSeenAt: {
+      type: Date,
+      default: null,
+    },
+
+    joinedAt: {
+      type: Date,
+      default: Date.now,
+      immutable: true,
     },
 
     // ============================================================
@@ -276,21 +455,6 @@ const userSchema = new mongoose.Schema(
         ],
         default: "medium",
       },
-    },
-
-    // ============================================================
-    // PLATFORM ACTIVITY
-    // ============================================================
-
-    lastLoginAt: {
-      type: Date,
-      default: null,
-    },
-
-    joinedAt: {
-      type: Date,
-      default: Date.now,
-      immutable: true,
     },
   },
   {
@@ -346,14 +510,16 @@ userSchema.pre("validate", function (next) {
 // ============================================================
 // SUPER ADMIN PLATFORM IDENTITY
 // ============================================================
-// The Super Admin represents the entire PoliSync Africa platform.
+// The Super Admin represents the entire PoliSync Africa
+// platform.
 //
 // Public identity:
+//
 //   Display name: POLISYNC AFRICA
 //   Username:     polisync.africa
 //
-// The real person's personal identity is NOT used as the
-// platform's public identity.
+// The private controller's personal identity must never become
+// the platform's public identity.
 // ============================================================
 
 userSchema.pre("validate", function (next) {
@@ -369,6 +535,66 @@ userSchema.pre("validate", function (next) {
     this.identificationType = null;
     this.identificationNumber = null;
     this.dateOfBirth = null;
+
+    // The platform account does not expose a personal location.
+    this.locationPermissionGranted = false;
+
+    this.privacy.shareLocation = false;
+    this.privacy.locationVisibility = "nobody";
+
+    this.currentLocation = {
+      latitude: null,
+      longitude: null,
+      accuracy: null,
+      updatedAt: null,
+    };
+
+    this.locationExpiresAt = null;
+  }
+
+  next();
+});
+
+// ============================================================
+// LOCATION SAFETY VALIDATION
+// ============================================================
+
+userSchema.pre("validate", function (next) {
+  // If location sharing is disabled, location should not remain
+  // publicly usable.
+
+  if (!this.privacy.shareLocation) {
+    this.privacy.locationVisibility = "nobody";
+    this.locationExpiresAt = null;
+  }
+
+  // A user cannot claim location sharing without permission.
+  if (
+    this.privacy.shareLocation &&
+    !this.locationPermissionGranted
+  ) {
+    this.privacy.shareLocation = false;
+    this.privacy.locationVisibility = "nobody";
+    this.locationExpiresAt = null;
+  }
+
+  next();
+});
+
+// ============================================================
+// LOCATION EXPIRATION VALIDATION
+// ============================================================
+
+userSchema.pre("save", function (next) {
+  if (
+    this.privacy &&
+    this.privacy.shareLocation &&
+    this.locationExpiresAt &&
+    this.locationExpiresAt <= new Date()
+  ) {
+    this.privacy.shareLocation = false;
+    this.privacy.locationVisibility = "nobody";
+    this.locationExpiresAt = null;
   }
 
   next();
@@ -380,19 +606,22 @@ userSchema.pre("validate", function (next) {
 
 userSchema.pre("save", function (next) {
   if (this.username) {
-    this.username = this.username
-      .toLowerCase()
-      .trim();
+    this.username =
+      this.username
+        .toLowerCase()
+        .trim();
   }
 
   if (this.email) {
-    this.email = this.email
-      .toLowerCase()
-      .trim();
+    this.email =
+      this.email
+        .toLowerCase()
+        .trim();
   }
 
   if (this.phone) {
-    this.phone = this.phone.trim();
+    this.phone =
+      this.phone.trim();
   }
 
   if (this.identificationNumber) {
@@ -426,18 +655,27 @@ userSchema.pre("save", function (next) {
 // ============================================================
 // PUBLIC IDENTITY
 // ============================================================
-// Use this whenever the platform needs to determine what name
-// other users should see.
+// Determines the identity other users should see.
 // ============================================================
 
 userSchema.methods.getPublicIdentity =
   function () {
-    if (this.platformRole === "super_admin") {
+    if (
+      this.platformRole ===
+      "super_admin"
+    ) {
       return {
-        displayName: "POLISYNC AFRICA",
-        username: "polisync.africa",
-        platformRole: "super_admin",
-        isPlatformAccount: true,
+        displayName:
+          "POLISYNC AFRICA",
+
+        username:
+          "polisync.africa",
+
+        platformRole:
+          "super_admin",
+
+        isPlatformAccount:
+          true,
       };
     }
 
@@ -446,25 +684,237 @@ userSchema.methods.getPublicIdentity =
         this.displayName ||
         `${this.firstName} ${this.lastName}`.trim(),
 
-      username: this.username,
+      username:
+        this.username,
 
-      platformRole: this.platformRole,
+      platformRole:
+        this.platformRole,
 
-      isPlatformAccount: false,
+      isPlatformAccount:
+        false,
     };
+  };
+
+// ============================================================
+// LOCATION VISIBILITY CHECK
+// ============================================================
+// This method determines whether a viewer is allowed to see
+// the user's location.
+//
+// Actual authorization based on organization membership or
+// selected users should be implemented in the service/controller
+// layer.
+// ============================================================
+
+userSchema.methods.canShareLocationWith =
+  function ({
+    viewerId = null,
+    viewerIsOrganizationMember = false,
+  } = {}) {
+    // Platform Super Admin has no personal location.
+    if (
+      this.platformRole ===
+      "super_admin"
+    ) {
+      return false;
+    }
+
+    // Location sharing must be enabled.
+    if (
+      !this.privacy.shareLocation
+    ) {
+      return false;
+    }
+
+    // Device/browser permission must exist.
+    if (
+      !this.locationPermissionGranted
+    ) {
+      return false;
+    }
+
+    // Check expiration.
+    if (
+      this.locationExpiresAt &&
+      this.locationExpiresAt <= new Date()
+    ) {
+      return false;
+    }
+
+    const visibility =
+      this.privacy.locationVisibility;
+
+    if (visibility === "nobody") {
+      return false;
+    }
+
+    if (
+      visibility === "everyone"
+    ) {
+      return true;
+    }
+
+    if (
+      visibility ===
+        "organizations_only" &&
+      viewerIsOrganizationMember
+    ) {
+      return true;
+    }
+
+    if (
+      visibility ===
+        "selected_people" &&
+      viewerId
+    ) {
+      // Selected-person authorization should be checked by the
+      // controller/service against an access list.
+      return false;
+    }
+
+    return false;
+  };
+
+// ============================================================
+// PUBLIC LOCATION
+// ============================================================
+// Never expose raw location unless the viewer has already passed
+// the privacy/authorization check.
+// ============================================================
+
+userSchema.methods.getPublicLocation =
+  function ({
+    viewerId = null,
+    viewerIsOrganizationMember = false,
+  } = {}) {
+    const allowed =
+      this.canShareLocationWith({
+        viewerId,
+        viewerIsOrganizationMember,
+      });
+
+    if (!allowed) {
+      return null;
+    }
+
+    if (
+      !this.currentLocation ||
+      this.currentLocation.latitude === null ||
+      this.currentLocation.longitude === null
+    ) {
+      return null;
+    }
+
+    const precision =
+      this.privacy.locationPrecision;
+
+    // ----------------------------------------------------------
+    // APPROXIMATE LOCATION
+    // ----------------------------------------------------------
+    // Reduce precision before sending coordinates to the client.
+    // ----------------------------------------------------------
+
+    if (
+      precision === "approximate"
+    ) {
+      const latitude =
+        Math.round(
+          this.currentLocation.latitude *
+            100
+        ) / 100;
+
+      const longitude =
+        Math.round(
+          this.currentLocation.longitude *
+            100
+        ) / 100;
+
+      return {
+        latitude,
+        longitude,
+        precision: "approximate",
+        updatedAt:
+          this.currentLocation.updatedAt,
+      };
+    }
+
+    // ----------------------------------------------------------
+    // EXACT LOCATION
+    // ----------------------------------------------------------
+
+    return {
+      latitude:
+        this.currentLocation.latitude,
+
+      longitude:
+        this.currentLocation.longitude,
+
+      accuracy:
+        this.currentLocation.accuracy,
+
+      precision: "exact",
+
+      updatedAt:
+        this.currentLocation.updatedAt,
+    };
+  };
+
+// ============================================================
+// PUBLIC PRESENCE
+// ============================================================
+// Determines what another user may see about online/last-seen
+// activity.
+// ============================================================
+
+userSchema.methods.getPublicPresence =
+  function () {
+    const presence = {};
+
+    if (
+      this.privacy.showOnlineStatus
+    ) {
+      presence.isOnline =
+        this.isOnline;
+    }
+
+    if (
+      this.privacy.showLastSeen
+    ) {
+      presence.lastSeenAt =
+        this.lastSeenAt;
+    }
+
+    return presence;
   };
 
 // ============================================================
 // SAFE PUBLIC USER PROFILE
 // ============================================================
-// Never expose password, identification numbers or private
-// authentication information through this method.
+// Never expose:
+// - password
+// - identification number
+// - private email
+// - private phone
+// - private security settings
+// - unauthorized location
 // ============================================================
 
 userSchema.methods.toPublicProfile =
-  function () {
+  function ({
+    viewerId = null,
+    viewerIsOrganizationMember = false,
+  } = {}) {
     const identity =
       this.getPublicIdentity();
+
+    const presence =
+      this.getPublicPresence();
+
+    const location =
+      this.getPublicLocation({
+        viewerId,
+        viewerIsOrganizationMember,
+      });
 
     return {
       id: this._id,
@@ -483,6 +933,10 @@ userSchema.methods.toPublicProfile =
 
       profilePhoto:
         this.profilePhoto,
+
+      ...presence,
+
+      location,
     };
   };
 
@@ -492,4 +946,7 @@ userSchema.methods.toPublicProfile =
 
 module.exports =
   mongoose.models.User ||
-  mongoose.model("User", userSchema);
+  mongoose.model(
+    "User",
+    userSchema
+  );
