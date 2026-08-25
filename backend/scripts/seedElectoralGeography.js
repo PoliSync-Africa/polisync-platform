@@ -11,7 +11,7 @@ const Constituency = require("../models/Constituency");
 const PollingStation = require("../models/PollingStation");
 
 // ============================================================
-// DATABASE CONNECTION
+// DATABASE
 // ============================================================
 
 const MONGO_URI = process.env.MONGO_URI;
@@ -22,58 +22,21 @@ if (!MONGO_URI) {
 }
 
 // ============================================================
-// DATA FILE
-// ============================================================
-//
-// Expected location:
-//
-// backend/data/ghana_polling_stations_2024.csv
-//
-// The CSV must contain:
-//
-// number
-// polling_station_code
-// polling_station_name
-// constituency
-// district
-// region
-// source
+// SOURCE DATA FILES
 // ============================================================
 
-const DATA_FILE = path.join(
+const GEOGRAPHY_FILE = path.join(
+  __dirname,
+  "../data/ghana_regions_constituencies.csv"
+);
+
+const POLLING_STATIONS_FILE = path.join(
   __dirname,
   "../data/ghana_polling_stations_2024.csv"
 );
 
 // ============================================================
-// GHANA'S 16 REGIONS
-// ============================================================
-
-const GHANA_REGIONS = [
-  "Ahafo",
-  "Ashanti",
-  "Bono",
-  "Bono East",
-  "Central",
-  "Eastern",
-  "Greater Accra",
-  "North East",
-  "Northern",
-  "Oti",
-  "Savannah",
-  "Upper East",
-  "Upper West",
-  "Volta",
-  "Western",
-  "Western North",
-];
-
-// ============================================================
 // CSV PARSER
-// ============================================================
-//
-// This parser handles quoted CSV fields and commas inside
-// quoted values without requiring another npm package.
 // ============================================================
 
 function parseCSVLine(line) {
@@ -82,26 +45,20 @@ function parseCSVLine(line) {
   let insideQuotes = false;
 
   for (let i = 0; i < line.length; i++) {
-    const character = line[i];
+    const char = line[i];
 
-    if (character === '"') {
-      if (
-        insideQuotes &&
-        line[i + 1] === '"'
-      ) {
+    if (char === '"') {
+      if (insideQuotes && line[i + 1] === '"') {
         current += '"';
         i++;
       } else {
         insideQuotes = !insideQuotes;
       }
-    } else if (
-      character === "," &&
-      !insideQuotes
-    ) {
+    } else if (char === "," && !insideQuotes) {
       values.push(current);
       current = "";
     } else {
-      current += character;
+      current += char;
     }
   }
 
@@ -110,52 +67,24 @@ function parseCSVLine(line) {
   return values;
 }
 
-// ============================================================
-// LOAD CSV
-// ============================================================
-
-function loadCSV(filePath) {
+function readCSV(filePath) {
   if (!fs.existsSync(filePath)) {
-    throw new Error(
-      `EC data file not found:\n${filePath}`
-    );
+    throw new Error(`File not found:\n${filePath}`);
   }
 
-  const raw = fs.readFileSync(
-    filePath,
-    "utf8"
-  );
+  const raw = fs.readFileSync(filePath, "utf8");
 
   const lines = raw
     .split(/\r?\n/)
     .filter((line) => line.trim() !== "");
 
   if (lines.length < 2) {
-    throw new Error(
-      "EC polling-station CSV is empty or incomplete."
-    );
+    throw new Error(`CSV file is empty:\n${filePath}`);
   }
 
-  const headers = parseCSVLine(lines[0]).map(
-    (header) => header.trim()
+  const headers = parseCSVLine(lines[0]).map((header) =>
+    header.trim()
   );
-
-  const requiredHeaders = [
-    "number",
-    "polling_station_code",
-    "polling_station_name",
-    "constituency",
-    "district",
-    "region",
-  ];
-
-  for (const header of requiredHeaders) {
-    if (!headers.includes(header)) {
-      throw new Error(
-        `Missing required CSV column: ${header}`
-      );
-    }
-  }
 
   const rows = [];
 
@@ -178,31 +107,13 @@ function loadCSV(filePath) {
 }
 
 // ============================================================
-// NORMALIZATION
+// TEXT HELPERS
 // ============================================================
 
 function normalize(value) {
   return String(value || "")
     .trim()
     .replace(/\s+/g, " ");
-}
-
-function normalizeRegion(value) {
-  const cleaned = normalize(value);
-
-  const region = GHANA_REGIONS.find(
-    (item) =>
-      item.toLowerCase() ===
-      cleaned.toLowerCase()
-  );
-
-  if (!region) {
-    throw new Error(
-      `Unknown Ghana region: "${value}"`
-    );
-  }
-
-  return region;
 }
 
 function createSlug(value) {
@@ -214,74 +125,144 @@ function createSlug(value) {
 }
 
 // ============================================================
-// VALIDATE SOURCE DATA
+// VALIDATE GEOGRAPHY FILE
 // ============================================================
 
-function validateRows(rows) {
-  const codes = new Set();
-  const constituencies = new Set();
-  const regions = new Set();
+function validateGeographyData(rows) {
+  const requiredHeaders = [
+    "region_number",
+    "region",
+    "constituency_number_in_region",
+    "constituency",
+  ];
+
+  if (rows.length === 0) {
+    throw new Error(
+      "The regions/constituencies CSV contains no records."
+    );
+  }
+
+  for (const header of requiredHeaders) {
+    if (!(header in rows[0])) {
+      throw new Error(
+        `Missing geography CSV column: ${header}`
+      );
+    }
+  }
+
+  const regionSet = new Set();
+  const constituencySet = new Set();
 
   for (const row of rows) {
-    if (!row.polling_station_code) {
+    const region = normalize(row.region);
+    const constituency = normalize(row.constituency);
+
+    if (!region) {
       throw new Error(
-        "A polling station is missing its EC code."
+        "A geography record is missing its region."
       );
     }
 
-    if (!row.polling_station_name) {
+    if (!constituency) {
       throw new Error(
-        `Polling station ${row.polling_station_code} is missing its name.`
+        `Region "${region}" has a record without a constituency.`
       );
     }
 
-    if (!row.constituency) {
-      throw new Error(
-        `Polling station ${row.polling_station_code} is missing its constituency.`
-      );
-    }
+    regionSet.add(region);
 
-    if (!row.district) {
-      throw new Error(
-        `Polling station ${row.polling_station_code} is missing its district.`
-      );
-    }
-
-    if (!row.region) {
-      throw new Error(
-        `Polling station ${row.polling_station_code} is missing its region.`
-      );
-    }
-
-    const code = normalize(
-      row.polling_station_code
-    ).toUpperCase();
-
-    if (codes.has(code)) {
-      throw new Error(
-        `Duplicate polling station code detected: ${code}`
-      );
-    }
-
-    codes.add(code);
-
-    const region = normalizeRegion(
-      row.region
+    constituencySet.add(
+      `${region}::${constituency}`
     );
+  }
 
-    regions.add(region);
+  if (regionSet.size !== 16) {
+    throw new Error(
+      `Expected 16 regions but found ${regionSet.size}.`
+    );
+  }
 
-    constituencies.add(
-      `${region}::${normalize(
-        row.constituency
-      )}`
+  if (constituencySet.size !== 276) {
+    throw new Error(
+      `Expected 276 constituencies but found ${constituencySet.size}.`
     );
   }
 
   return {
-    pollingStations: codes.size,
-    constituencies: constituencies.size,
-    regions: regions.size,
+    regions: regionSet.size,
+    constituencies: constituencySet.size,
+  };
+}
+
+// ============================================================
+// VALIDATE POLLING-STATION FILE
+// ============================================================
+
+function validatePollingData(rows) {
+  const requiredHeaders = [
+    "polling_station_code",
+    "polling_station_name",
+    "constituency",
+    "district",
+    "region",
+  ];
+
+  if (rows.length === 0) {
+    throw new Error(
+      "The polling-station CSV contains no records."
+    );
+  }
+
+  for (const header of requiredHeaders) {
+    if (!(header in rows[0])) {
+      throw new Error(
+        `Missing polling-station CSV column: ${header}`
+      );
+    }
+  }
+
+  const codeSet = new Set();
+
+  for (const row of rows) {
+    const code = normalize(
+      row.polling_station_code
+    ).toUpperCase();
+
+    if (!code) {
+      throw new Error(
+        "A polling station is missing its EC polling-station code."
+      );
+    }
+
+    if (codeSet.has(code)) {
+      throw new Error(
+        `Duplicate polling-station code found: ${code}`
+      );
+    }
+
+    codeSet.add(code);
+
+    if (!normalize(row.polling_station_name)) {
+      throw new Error(
+        `Polling station ${code} is missing its name.`
+      );
+    }
+
+    if (!normalize(row.constituency)) {
+      throw new Error(
+        `Polling station ${code} is missing its constituency.`
+      );
+    }
+
+    if (!normalize(row.region)) {
+      throw new Error(
+        `Polling station ${code} is missing its region.`
+      );
+    }
+  }
+
+  return {
+    pollingStations: codeSet.size,
   };
 }
 
@@ -289,39 +270,48 @@ function validateRows(rows) {
 // SEED REGIONS
 // ============================================================
 
-async function seedRegions() {
+async function seedRegions(geographyRows) {
   const regionMap = new Map();
 
-  for (
-    let index = 0;
-    index < GHANA_REGIONS.length;
-    index++
-  ) {
-    const name = GHANA_REGIONS[index];
+  const uniqueRegions = new Map();
 
-    const region =
-      await Region.findOneAndUpdate(
-        { name },
-        {
-          $set: {
-            name,
-            slug: createSlug(name),
-            country: "Ghana",
-            regionNumber: index + 1,
-            isActive: true,
-          },
+  for (const row of geographyRows) {
+    const region = normalize(row.region);
+    const regionNumber = Number(
+      row.region_number
+    );
+
+    if (!uniqueRegions.has(region)) {
+      uniqueRegions.set(region, regionNumber);
+    }
+  }
+
+  const sortedRegions = [...uniqueRegions.entries()]
+    .sort((a, b) => a[1] - b[1]);
+
+  for (const [name, regionNumber] of sortedRegions) {
+    const region = await Region.findOneAndUpdate(
+      { name },
+      {
+        $set: {
+          name,
+          slug: createSlug(name),
+          country: "Ghana",
+          regionNumber,
+          isActive: true,
         },
-        {
-          new: true,
-          upsert: true,
-          setDefaultsOnInsert: true,
-        }
-      );
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true,
+      }
+    );
 
     regionMap.set(name, region);
 
     console.log(
-      `Region ready: ${index + 1}. ${name}`
+      `Region ready: ${regionNumber}. ${name}`
     );
   }
 
@@ -333,45 +323,25 @@ async function seedRegions() {
 // ============================================================
 
 async function seedConstituencies(
-  rows,
+  geographyRows,
   regionMap
 ) {
   const constituencyMap = new Map();
 
-  // Use a Set so we create each constituency only once.
-
-  const uniqueConstituencies =
-    new Map();
-
-  for (const row of rows) {
-    const regionName =
-      normalizeRegion(row.region);
-
+  for (const row of geographyRows) {
+    const regionName = normalize(row.region);
     const constituencyName =
       normalize(row.constituency);
 
-    const district =
-      normalize(row.district);
+    const constituencyNumber = Number(
+      row.constituency_number_in_region
+    );
 
-    const key =
-      `${regionName}::${constituencyName}`;
-
-    if (!uniqueConstituencies.has(key)) {
-      uniqueConstituencies.set(key, {
-        regionName,
-        constituencyName,
-        district,
-      });
-    }
-  }
-
-  for (const item of uniqueConstituencies.values()) {
-    const region =
-      regionMap.get(item.regionName);
+    const region = regionMap.get(regionName);
 
     if (!region) {
       throw new Error(
-        `Region not found: ${item.regionName}`
+        `Region "${regionName}" does not exist.`
       );
     }
 
@@ -379,16 +349,16 @@ async function seedConstituencies(
       await Constituency.findOneAndUpdate(
         {
           regionId: region._id,
-          name: item.constituencyName,
+          name: constituencyName,
         },
         {
           $set: {
-            name: item.constituencyName,
+            name: constituencyName,
             slug: createSlug(
-              item.constituencyName
+              constituencyName
             ),
             regionId: region._id,
-            district: item.district,
+            constituencyNumber,
             isActive: true,
           },
         },
@@ -400,7 +370,7 @@ async function seedConstituencies(
       );
 
     constituencyMap.set(
-      `${item.regionName}::${item.constituencyName}`,
+      `${regionName}::${constituencyName}`,
       constituency
     );
   }
@@ -413,38 +383,33 @@ async function seedConstituencies(
 // ============================================================
 
 async function seedPollingStations(
-  rows,
+  pollingRows,
   regionMap,
   constituencyMap
 ) {
-  let imported = 0;
+  let processed = 0;
 
-  for (const row of rows) {
-    const regionName =
-      normalizeRegion(row.region);
+  for (const row of pollingRows) {
+    const code = normalize(
+      row.polling_station_code
+    ).toUpperCase();
+
+    const stationName = normalize(
+      row.polling_station_name
+    );
+
+    const regionName = normalize(row.region);
 
     const constituencyName =
       normalize(row.constituency);
 
-    const code =
-      normalize(
-        row.polling_station_code
-      ).toUpperCase();
+    const district = normalize(row.district);
 
-    const stationName =
-      normalize(
-        row.polling_station_name
-      );
-
-    const district =
-      normalize(row.district);
-
-    const region =
-      regionMap.get(regionName);
+    const region = regionMap.get(regionName);
 
     if (!region) {
       throw new Error(
-        `Region not found for polling station ${code}`
+        `Polling station ${code} references unknown region: ${regionName}`
       );
     }
 
@@ -455,7 +420,7 @@ async function seedPollingStations(
 
     if (!constituency) {
       throw new Error(
-        `Constituency not found for polling station ${code}`
+        `Polling station ${code} references unknown constituency: ${constituencyName} in ${regionName}`
       );
     }
 
@@ -480,24 +445,22 @@ async function seedPollingStations(
         },
       },
       {
-        upsert: true,
         new: true,
+        upsert: true,
         setDefaultsOnInsert: true,
       }
     );
 
-    imported++;
+    processed++;
 
-    if (
-      imported % 1000 === 0
-    ) {
+    if (processed % 1000 === 0) {
       console.log(
-        `Polling stations processed: ${imported}`
+        `Polling stations processed: ${processed.toLocaleString()}`
       );
     }
   }
 
-  return imported;
+  return processed;
 }
 
 // ============================================================
@@ -515,92 +478,158 @@ async function main() {
     );
 
     console.log(
-      "Ghana Electoral Geography Seeder"
+      "Ghana Electoral Geography Import"
     );
 
     console.log(
       "=============================================="
     );
 
+    // --------------------------------------------------------
+    // LOAD SOURCE FILES
+    // --------------------------------------------------------
+
     console.log(
-      `Loading EC data from:\n${DATA_FILE}`
+      "\nLoading regional/constituency data..."
     );
 
-    const rows = loadCSV(DATA_FILE);
+    const geographyRows =
+      readCSV(GEOGRAPHY_FILE);
 
     console.log(
-      `Loaded ${rows.length.toLocaleString()} records.`
-    );
-
-    const summary =
-      validateRows(rows);
-
-    console.log(
-      "\nSource validation:"
-    );
-
-    console.log(
-      `Regions: ${summary.regions}`
+      `Loaded ${geographyRows.length} geography records.`
     );
 
     console.log(
-      `Constituencies: ${summary.constituencies}`
+      "\nLoading polling-station data..."
     );
+
+    const pollingRows =
+      readCSV(POLLING_STATIONS_FILE);
 
     console.log(
-      `Polling stations: ${summary.pollingStations.toLocaleString()}`
+      `Loaded ${pollingRows.length.toLocaleString()} polling-station records.`
     );
 
-    if (summary.regions !== 16) {
-      throw new Error(
-        `Expected 16 regions but found ${summary.regions}.`
+    // --------------------------------------------------------
+    // VALIDATE
+    // --------------------------------------------------------
+
+    console.log(
+      "\nValidating geography data..."
+    );
+
+    const geographySummary =
+      validateGeographyData(
+        geographyRows
       );
-    }
 
-    if (summary.constituencies !== 276) {
-      throw new Error(
-        `Expected 276 constituencies but found ${summary.constituencies}.`
-      );
-    }
-
-    await mongoose.connect(
-      MONGO_URI
+    console.log(
+      `✓ ${geographySummary.regions} regions`
     );
 
     console.log(
-      "\nConnected to MongoDB."
+      `✓ ${geographySummary.constituencies} constituencies`
+    );
+
+    console.log(
+      "\nValidating polling-station data..."
+    );
+
+    const pollingSummary =
+      validatePollingData(
+        pollingRows
+      );
+
+    console.log(
+      `✓ ${pollingSummary.pollingStations.toLocaleString()} unique polling-station codes`
+    );
+
+    // --------------------------------------------------------
+    // CONNECT TO DATABASE
+    // --------------------------------------------------------
+
+    console.log(
+      "\nConnecting to MongoDB..."
+    );
+
+    await mongoose.connect(MONGO_URI);
+
+    console.log(
+      "✓ MongoDB connected."
+    );
+
+    // --------------------------------------------------------
+    // REGIONS
+    // --------------------------------------------------------
+
+    console.log(
+      "\nCreating/updating regions..."
     );
 
     const regionMap =
-      await seedRegions();
+      await seedRegions(
+        geographyRows
+      );
+
+    // --------------------------------------------------------
+    // CONSTITUENCIES
+    // --------------------------------------------------------
 
     console.log(
-      "\n16 regions are ready."
+      "\nCreating/updating constituencies..."
     );
 
     const constituencyMap =
       await seedConstituencies(
-        rows,
+        geographyRows,
         regionMap
       );
 
+    // --------------------------------------------------------
+    // POLLING STATIONS
+    // --------------------------------------------------------
+
     console.log(
-      `${constituencyMap.size} constituencies are ready.`
+      "\nCreating/updating polling stations..."
     );
 
-    const imported =
+    const pollingStationsProcessed =
       await seedPollingStations(
-        rows,
+        pollingRows,
         regionMap,
         constituencyMap
       );
+
+    // --------------------------------------------------------
+    // FINAL DATABASE COUNTS
+    // --------------------------------------------------------
+
+    const regionCount =
+      await Region.countDocuments({
+        isActive: true,
+      });
+
+    const constituencyCount =
+      await Constituency.countDocuments({
+        isActive: true,
+      });
+
+    const pollingStationCount =
+      await PollingStation.countDocuments({
+        isActive: true,
+      });
+
+    // --------------------------------------------------------
+    // FINAL REPORT
+    // --------------------------------------------------------
 
     console.log(
       "\n=============================================="
     );
 
     console.log(
-      "IMPORT COMPLETE"
+      "ELECTORAL GEOGRAPHY IMPORT COMPLETE"
     );
 
     console.log(
@@ -608,19 +637,19 @@ async function main() {
     );
 
     console.log(
-      `Regions: ${regionMap.size}`
+      `Regions in database: ${regionCount}`
     );
 
     console.log(
-      `Constituencies: ${constituencyMap.size}`
+      `Constituencies in database: ${constituencyCount}`
     );
 
     console.log(
-      `Polling stations processed: ${imported.toLocaleString()}`
+      `Polling stations in database: ${pollingStationCount.toLocaleString()}`
     );
 
     console.log(
-      "EC electoral geography is ready."
+      `Polling stations processed this run: ${pollingStationsProcessed.toLocaleString()}`
     );
 
     console.log(
@@ -629,6 +658,10 @@ async function main() {
 
     await mongoose.disconnect();
 
+    console.log(
+      "\nMongoDB connection closed."
+    );
+
     process.exit(0);
   } catch (error) {
     console.error(
@@ -636,7 +669,7 @@ async function main() {
     );
 
     console.error(
-      "GEOGRAPHY IMPORT FAILED"
+      "ELECTORAL GEOGRAPHY IMPORT FAILED"
     );
 
     console.error(
@@ -649,7 +682,9 @@ async function main() {
 
     try {
       await mongoose.disconnect();
-    } catch {}
+    } catch (disconnectError) {
+      // Ignore disconnect errors.
+    }
 
     process.exit(1);
   }
