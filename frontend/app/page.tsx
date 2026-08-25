@@ -26,9 +26,8 @@ export default function Home() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       router.push("/dashboard");
     } catch (error) {
-      console.error(error);
+      console.error("Login error:", error);
       alert("Login failed. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
@@ -37,7 +36,8 @@ export default function Home() {
     <main
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)",
+        background:
+          "linear-gradient(135deg, #F8FAF8 0%, #EEF7F0 100%)",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -52,10 +52,11 @@ export default function Home() {
           background: "#FFFFFF",
           borderRadius: "32px",
           padding: "34px 28px",
-          boxShadow: "0 20px 60px rgba(0,0,0,.10)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.10)",
           boxSizing: "border-box",
         }}
       >
+        {/* PoliSync Africa Logo */}
         <div
           style={{
             display: "flex",
@@ -77,6 +78,7 @@ export default function Home() {
           />
         </div>
 
+        {/* Welcome */}
         <h1
           style={{
             textAlign: "center",
@@ -100,6 +102,7 @@ export default function Home() {
           Sign in to your PoliSync Africa account
         </p>
 
+        {/* Email */}
         <div style={{ marginBottom: "18px" }}>
           <label
             htmlFor="email"
@@ -126,10 +129,12 @@ export default function Home() {
               borderRadius: "999px",
               border: "1.5px solid #D8D8D8",
               fontSize: "16px",
+              outline: "none",
             }}
           />
         </div>
 
+        {/* Password */}
         <div style={{ marginBottom: "14px" }}>
           <label
             htmlFor="password"
@@ -157,12 +162,13 @@ export default function Home() {
                 borderRadius: "999px",
                 border: "1.5px solid #D8D8D8",
                 fontSize: "16px",
+                outline: "none",
               }}
             />
 
             <button
               type="button"
-              onClick={() => setShowPassword(!showPassword)}
+              onClick={() => setShowPassword((value) => !value)}
               style={{
                 position: "absolute",
                 right: "16px",
@@ -172,6 +178,7 @@ export default function Home() {
                 border: "none",
                 color: "#065F2B",
                 fontWeight: "700",
+                cursor: "pointer",
               }}
             >
               {showPassword ? "Hide" : "Show"}
@@ -179,6 +186,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Remember / Forgot Password */}
         <div
           style={{
             display: "flex",
@@ -215,6 +223,7 @@ export default function Home() {
           </Link>
         </div>
 
+        {/* Login */}
         <button
           type="button"
           onClick={handleLogin}
@@ -224,16 +233,18 @@ export default function Home() {
             padding: "17px",
             borderRadius: "999px",
             border: "none",
-            background: "linear-gradient(90deg,#0A8F3C,#065F2B)",
-            color: "#FFF",
+            background: "linear-gradient(90deg, #0A8F3C, #065F2B)",
+            color: "#FFFFFF",
             fontSize: "17px",
             fontWeight: "800",
             cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.7 : 1,
           }}
         >
           {loading ? "Signing In..." : "Login"}
         </button>
 
+        {/* Divider */}
         <div
           style={{
             display: "flex",
@@ -242,11 +253,33 @@ export default function Home() {
             margin: "28px 0",
           }}
         >
-          <div style={{ flex: 1, height: "1px", background: "#DDD" }} />
-          <span style={{ color: "#888", fontSize: "14px" }}>OR</span>
-          <div style={{ flex: 1, height: "1px", background: "#DDD" }} />
+          <div
+            style={{
+              flex: 1,
+              height: "1px",
+              background: "#DDD",
+            }}
+          />
+
+          <span
+            style={{
+              color: "#888",
+              fontSize: "14px",
+            }}
+          >
+            OR
+          </span>
+
+          <div
+            style={{
+              flex: 1,
+              height: "1px",
+              background: "#DDD",
+            }}
+          />
         </div>
 
+        {/* Google */}
         <button
           type="button"
           style={{
@@ -254,15 +287,17 @@ export default function Home() {
             padding: "15px",
             borderRadius: "999px",
             border: "1.5px solid #DDD",
-            background: "#FFF",
+            background: "#FFFFFF",
             marginBottom: "14px",
             fontWeight: "600",
             fontSize: "16px",
+            cursor: "pointer",
           }}
         >
           Continue with Google
         </button>
 
+        {/* Apple */}
         <button
           type="button"
           style={{
@@ -270,15 +305,17 @@ export default function Home() {
             padding: "15px",
             borderRadius: "999px",
             border: "1.5px solid #DDD",
-            background: "#FFF",
+            background: "#FFFFFF",
             marginBottom: "14px",
             fontWeight: "600",
             fontSize: "16px",
+            cursor: "pointer",
           }}
         >
           Continue with Apple
         </button>
 
+        {/* Facebook */}
         <button
           type="button"
           style={{
@@ -286,14 +323,16 @@ export default function Home() {
             padding: "15px",
             borderRadius: "999px",
             border: "1.5px solid #DDD",
-            background: "#FFF",
+            background: "#FFFFFF",
             fontWeight: "600",
             fontSize: "16px",
+            cursor: "pointer",
           }}
         >
           Continue with Facebook
         </button>
 
+        {/* Register */}
         <div
           style={{
             textAlign: "center",
@@ -316,6 +355,7 @@ export default function Home() {
           </Link>
         </div>
 
+        {/* Footer */}
         <p
           style={{
             marginTop: "22px",
