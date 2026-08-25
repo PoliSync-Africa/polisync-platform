@@ -1,0 +1,38 @@
+name: Seed Ghana Electoral Geography
+
+on:
+  workflow_dispatch:
+
+jobs:
+  seed-ghana:
+    name: Import Ghana Electoral Data
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Validate Ghana data files
+        working-directory: backend
+        run: |
+          test -f data/ghana_regions_constituencies.csv
+          test -f data/ghana_polling_stations_2024.csv
+          test -f scripts/seedElectoralGeography.js
+          echo "Ghana electoral data files found."
+
+      - name: Seed Ghana electoral geography
+        working-directory: backend
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: npm run seed:ghana
