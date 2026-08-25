@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const fs = require("fs");
 const path = require("path");
 const mongoose = require("mongoose");
@@ -11,18 +13,20 @@ const Constituency = require("../models/Constituency");
 const PollingStation = require("../models/PollingStation");
 
 // ============================================================
-// DATABASE
+// DATABASE CONFIGURATION
 // ============================================================
 
-const MONGO_URI = process.env.MONGO_URI;
+const MONGODB_URI = process.env.MONGODB_URI;
 
-if (!MONGO_URI) {
-  console.error("ERROR: MONGO_URI is not configured.");
+if (!MONGODB_URI) {
+  console.error(
+    "ERROR: MONGODB_URI is not configured."
+  );
   process.exit(1);
 }
 
 // ============================================================
-// SOURCE DATA FILES
+// SOURCE DATA
 // ============================================================
 
 const GEOGRAPHY_FILE = path.join(
@@ -45,20 +49,26 @@ function parseCSVLine(line) {
   let insideQuotes = false;
 
   for (let i = 0; i < line.length; i++) {
-    const char = line[i];
+    const character = line[i];
 
-    if (char === '"') {
-      if (insideQuotes && line[i + 1] === '"') {
+    if (character === '"') {
+      if (
+        insideQuotes &&
+        line[i + 1] === '"'
+      ) {
         current += '"';
         i++;
       } else {
         insideQuotes = !insideQuotes;
       }
-    } else if (char === "," && !insideQuotes) {
+    } else if (
+      character === "," &&
+      !insideQuotes
+    ) {
       values.push(current);
       current = "";
     } else {
-      current += char;
+      current += character;
     }
   }
 
@@ -69,21 +79,28 @@ function parseCSVLine(line) {
 
 function readCSV(filePath) {
   if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found:\n${filePath}`);
+    throw new Error(
+      `CSV file not found:\n${filePath}`
+    );
   }
 
-  const raw = fs.readFileSync(filePath, "utf8");
+  const content = fs.readFileSync(
+    filePath,
+    "utf8"
+  );
 
-  const lines = raw
+  const lines = content
     .split(/\r?\n/)
     .filter((line) => line.trim() !== "");
 
   if (lines.length < 2) {
-    throw new Error(`CSV file is empty:\n${filePath}`);
+    throw new Error(
+      `CSV file contains no data:\n${filePath}`
+    );
   }
 
-  const headers = parseCSVLine(lines[0]).map((header) =>
-    header.trim()
+  const headers = parseCSVLine(lines[0]).map(
+    (header) => header.trim()
   );
 
   const rows = [];
@@ -107,13 +124,17 @@ function readCSV(filePath) {
 }
 
 // ============================================================
-// TEXT HELPERS
+// NORMALIZATION
 // ============================================================
 
 function normalize(value) {
   return String(value || "")
     .trim()
     .replace(/\s+/g, " ");
+}
+
+function normalizeKey(value) {
+  return normalize(value).toLowerCase();
 }
 
 function createSlug(value) {
@@ -125,41 +146,42 @@ function createSlug(value) {
 }
 
 // ============================================================
-// VALIDATE GEOGRAPHY FILE
+// VALIDATE GEOGRAPHY DATA
 // ============================================================
 
 function validateGeographyData(rows) {
-  const requiredHeaders = [
+  const requiredColumns = [
     "region_number",
     "region",
     "constituency_number_in_region",
     "constituency",
   ];
 
-  if (rows.length === 0) {
+  if (!rows.length) {
     throw new Error(
-      "The regions/constituencies CSV contains no records."
+      "The geography CSV contains no records."
     );
   }
 
-  for (const header of requiredHeaders) {
-    if (!(header in rows[0])) {
+  for (const column of requiredColumns) {
+    if (!(column in rows[0])) {
       throw new Error(
-        `Missing geography CSV column: ${header}`
+        `Missing geography CSV column: ${column}`
       );
     }
   }
 
-  const regionSet = new Set();
-  const constituencySet = new Set();
+  const regions = new Map();
+  const constituencies = new Set();
 
   for (const row of rows) {
     const region = normalize(row.region);
-    const constituency = normalize(row.constituency);
+    const constituency =
+      normalize(row.constituency);
 
     if (!region) {
       throw new Error(
-        "A geography record is missing its region."
+        "A geography record has no region."
       );
     }
 
@@ -169,37 +191,43 @@ function validateGeographyData(rows) {
       );
     }
 
-    regionSet.add(region);
+    regions.set(
+      normalizeKey(region),
+      region
+    );
 
-    constituencySet.add(
-      `${region}::${constituency}`
+    constituencies.add(
+      `${normalizeKey(region)}::${normalizeKey(
+        constituency
+      )}`
     );
   }
 
-  if (regionSet.size !== 16) {
+  if (regions.size !== 16) {
     throw new Error(
-      `Expected 16 regions but found ${regionSet.size}.`
+      `Expected 16 regions but found ${regions.size}.`
     );
   }
 
-  if (constituencySet.size !== 276) {
+  if (constituencies.size !== 276) {
     throw new Error(
-      `Expected 276 constituencies but found ${constituencySet.size}.`
+      `Expected 276 constituencies but found ${constituencies.size}.`
     );
   }
 
   return {
-    regions: regionSet.size,
-    constituencies: constituencySet.size,
+    regionCount: regions.size,
+    constituencyCount:
+      constituencies.size,
   };
 }
 
 // ============================================================
-// VALIDATE POLLING-STATION FILE
+// VALIDATE POLLING STATION DATA
 // ============================================================
 
-function validatePollingData(rows) {
-  const requiredHeaders = [
+function validatePollingStationData(rows) {
+  const requiredColumns = [
     "polling_station_code",
     "polling_station_name",
     "constituency",
@@ -207,21 +235,21 @@ function validatePollingData(rows) {
     "region",
   ];
 
-  if (rows.length === 0) {
+  if (!rows.length) {
     throw new Error(
       "The polling-station CSV contains no records."
     );
   }
 
-  for (const header of requiredHeaders) {
-    if (!(header in rows[0])) {
+  for (const column of requiredColumns) {
+    if (!(column in rows[0])) {
       throw new Error(
-        `Missing polling-station CSV column: ${header}`
+        `Missing polling-station CSV column: ${column}`
       );
     }
   }
 
-  const codeSet = new Set();
+  const codes = new Set();
 
   for (const row of rows) {
     const code = normalize(
@@ -230,88 +258,102 @@ function validatePollingData(rows) {
 
     if (!code) {
       throw new Error(
-        "A polling station is missing its EC polling-station code."
+        "A polling station has no EC polling-station code."
       );
     }
 
-    if (codeSet.has(code)) {
+    if (codes.has(code)) {
       throw new Error(
-        `Duplicate polling-station code found: ${code}`
+        `Duplicate EC polling-station code: ${code}`
       );
     }
 
-    codeSet.add(code);
+    codes.add(code);
 
     if (!normalize(row.polling_station_name)) {
       throw new Error(
-        `Polling station ${code} is missing its name.`
-      );
-    }
-
-    if (!normalize(row.constituency)) {
-      throw new Error(
-        `Polling station ${code} is missing its constituency.`
+        `Polling station ${code} has no name.`
       );
     }
 
     if (!normalize(row.region)) {
       throw new Error(
-        `Polling station ${code} is missing its region.`
+        `Polling station ${code} has no region.`
+      );
+    }
+
+    if (!normalize(row.constituency)) {
+      throw new Error(
+        `Polling station ${code} has no constituency.`
+      );
+    }
+
+    if (!normalize(row.district)) {
+      throw new Error(
+        `Polling station ${code} has no district.`
       );
     }
   }
 
   return {
-    pollingStations: codeSet.size,
+    pollingStationCount: codes.size,
   };
 }
 
 // ============================================================
-// SEED REGIONS
+// CREATE / UPDATE REGIONS
 // ============================================================
 
-async function seedRegions(geographyRows) {
+async function seedRegions(rows) {
   const regionMap = new Map();
 
   const uniqueRegions = new Map();
 
-  for (const row of geographyRows) {
-    const region = normalize(row.region);
-    const regionNumber = Number(
+  for (const row of rows) {
+    const name = normalize(row.region);
+    const number = Number(
       row.region_number
     );
 
-    if (!uniqueRegions.has(region)) {
-      uniqueRegions.set(region, regionNumber);
-    }
-  }
-
-  const sortedRegions = [...uniqueRegions.entries()]
-    .sort((a, b) => a[1] - b[1]);
-
-  for (const [name, regionNumber] of sortedRegions) {
-    const region = await Region.findOneAndUpdate(
-      { name },
+    uniqueRegions.set(
+      normalizeKey(name),
       {
-        $set: {
-          name,
-          slug: createSlug(name),
-          country: "Ghana",
-          regionNumber,
-          isActive: true,
-        },
-      },
-      {
-        new: true,
-        upsert: true,
-        setDefaultsOnInsert: true,
+        name,
+        number,
       }
     );
+  }
 
-    regionMap.set(name, region);
+  const regions = [...uniqueRegions.values()]
+    .sort(
+      (a, b) => a.number - b.number
+    );
 
-    console.log(
-      `Region ready: ${regionNumber}. ${name}`
+  for (const item of regions) {
+    const region =
+      await Region.findOneAndUpdate(
+        {
+          name: item.name,
+        },
+        {
+          $set: {
+            name: item.name,
+            slug: createSlug(item.name),
+            country: "Ghana",
+            regionNumber: item.number,
+            isActive: true,
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+
+    regionMap.set(
+      normalizeKey(item.name),
+      region
     );
   }
 
@@ -319,29 +361,35 @@ async function seedRegions(geographyRows) {
 }
 
 // ============================================================
-// SEED CONSTITUENCIES
+// CREATE / UPDATE CONSTITUENCIES
 // ============================================================
 
 async function seedConstituencies(
-  geographyRows,
+  rows,
   regionMap
 ) {
   const constituencyMap = new Map();
 
-  for (const row of geographyRows) {
-    const regionName = normalize(row.region);
+  for (const row of rows) {
+    const regionName =
+      normalize(row.region);
+
     const constituencyName =
       normalize(row.constituency);
 
-    const constituencyNumber = Number(
-      row.constituency_number_in_region
-    );
+    const constituencyNumber =
+      Number(
+        row.constituency_number_in_region
+      );
 
-    const region = regionMap.get(regionName);
+    const region =
+      regionMap.get(
+        normalizeKey(regionName)
+      );
 
     if (!region) {
       throw new Error(
-        `Region "${regionName}" does not exist.`
+        `Region not found: ${regionName}`
       );
     }
 
@@ -370,7 +418,11 @@ async function seedConstituencies(
       );
 
     constituencyMap.set(
-      `${regionName}::${constituencyName}`,
+      `${normalizeKey(
+        regionName
+      )}::${normalizeKey(
+        constituencyName
+      )}`,
       constituency
     );
   }
@@ -379,48 +431,58 @@ async function seedConstituencies(
 }
 
 // ============================================================
-// SEED POLLING STATIONS
+// CREATE / UPDATE POLLING STATIONS
 // ============================================================
 
 async function seedPollingStations(
-  pollingRows,
+  rows,
   regionMap,
   constituencyMap
 ) {
   let processed = 0;
 
-  for (const row of pollingRows) {
+  for (const row of rows) {
     const code = normalize(
       row.polling_station_code
     ).toUpperCase();
 
-    const stationName = normalize(
-      row.polling_station_name
-    );
+    const stationName =
+      normalize(
+        row.polling_station_name
+      );
 
-    const regionName = normalize(row.region);
+    const regionName =
+      normalize(row.region);
 
     const constituencyName =
       normalize(row.constituency);
 
-    const district = normalize(row.district);
+    const district =
+      normalize(row.district);
 
-    const region = regionMap.get(regionName);
+    const region =
+      regionMap.get(
+        normalizeKey(regionName)
+      );
 
     if (!region) {
       throw new Error(
-        `Polling station ${code} references unknown region: ${regionName}`
+        `Unknown region "${regionName}" for polling station ${code}.`
       );
     }
 
     const constituency =
       constituencyMap.get(
-        `${regionName}::${constituencyName}`
+        `${normalizeKey(
+          regionName
+        )}::${normalizeKey(
+          constituencyName
+        )}`
       );
 
     if (!constituency) {
       throw new Error(
-        `Polling station ${code} references unknown constituency: ${constituencyName} in ${regionName}`
+        `Unknown constituency "${constituencyName}" in "${regionName}" for polling station ${code}.`
       );
     }
 
@@ -455,7 +517,7 @@ async function seedPollingStations(
 
     if (processed % 1000 === 0) {
       console.log(
-        `Polling stations processed: ${processed.toLocaleString()}`
+        `Processed ${processed.toLocaleString()} polling stations...`
       );
     }
   }
@@ -464,13 +526,13 @@ async function seedPollingStations(
 }
 
 // ============================================================
-// MAIN
+// MAIN IMPORT PROCESS
 // ============================================================
 
 async function main() {
   try {
     console.log(
-      "=============================================="
+      "\n=============================================="
     );
 
     console.log(
@@ -478,45 +540,47 @@ async function main() {
     );
 
     console.log(
-      "Ghana Electoral Geography Import"
+      "GHANA ELECTORAL GEOGRAPHY IMPORTER"
     );
 
     console.log(
-      "=============================================="
+      "==============================================\n"
     );
 
     // --------------------------------------------------------
-    // LOAD SOURCE FILES
+    // READ SOURCE FILES
     // --------------------------------------------------------
 
     console.log(
-      "\nLoading regional/constituency data..."
+      "Reading regions and constituencies..."
     );
 
     const geographyRows =
       readCSV(GEOGRAPHY_FILE);
 
     console.log(
-      `Loaded ${geographyRows.length} geography records.`
+      `Loaded ${geographyRows.length} geography rows.`
     );
 
     console.log(
-      "\nLoading polling-station data..."
+      "\nReading polling stations..."
     );
 
-    const pollingRows =
-      readCSV(POLLING_STATIONS_FILE);
+    const pollingStationRows =
+      readCSV(
+        POLLING_STATIONS_FILE
+      );
 
     console.log(
-      `Loaded ${pollingRows.length.toLocaleString()} polling-station records.`
+      `Loaded ${pollingStationRows.length.toLocaleString()} polling-station rows.`
     );
 
     // --------------------------------------------------------
-    // VALIDATE
+    // VALIDATE SOURCE DATA
     // --------------------------------------------------------
 
     console.log(
-      "\nValidating geography data..."
+      "\nValidating geography..."
     );
 
     const geographySummary =
@@ -525,35 +589,37 @@ async function main() {
       );
 
     console.log(
-      `✓ ${geographySummary.regions} regions`
+      `✓ Regions: ${geographySummary.regionCount}`
     );
 
     console.log(
-      `✓ ${geographySummary.constituencies} constituencies`
+      `✓ Constituencies: ${geographySummary.constituencyCount}`
     );
 
     console.log(
-      "\nValidating polling-station data..."
+      "\nValidating polling stations..."
     );
 
     const pollingSummary =
-      validatePollingData(
-        pollingRows
+      validatePollingStationData(
+        pollingStationRows
       );
 
     console.log(
-      `✓ ${pollingSummary.pollingStations.toLocaleString()} unique polling-station codes`
+      `✓ Polling station codes: ${pollingSummary.pollingStationCount.toLocaleString()}`
     );
 
     // --------------------------------------------------------
-    // CONNECT TO DATABASE
+    // CONNECT TO MONGODB
     // --------------------------------------------------------
 
     console.log(
       "\nConnecting to MongoDB..."
     );
 
-    await mongoose.connect(MONGO_URI);
+    await mongoose.connect(
+      MONGODB_URI
+    );
 
     console.log(
       "✓ MongoDB connected."
@@ -572,6 +638,10 @@ async function main() {
         geographyRows
       );
 
+    console.log(
+      `✓ ${regionMap.size} regions ready.`
+    );
+
     // --------------------------------------------------------
     // CONSTITUENCIES
     // --------------------------------------------------------
@@ -586,6 +656,10 @@ async function main() {
         regionMap
       );
 
+    console.log(
+      `✓ ${constituencyMap.size} constituencies ready.`
+    );
+
     // --------------------------------------------------------
     // POLLING STATIONS
     // --------------------------------------------------------
@@ -594,16 +668,24 @@ async function main() {
       "\nCreating/updating polling stations..."
     );
 
-    const pollingStationsProcessed =
+    const processed =
       await seedPollingStations(
-        pollingRows,
+        pollingStationRows,
         regionMap,
         constituencyMap
       );
 
+    console.log(
+      `✓ ${processed.toLocaleString()} polling stations processed.`
+    );
+
     // --------------------------------------------------------
-    // FINAL DATABASE COUNTS
+    // VERIFY DATABASE
     // --------------------------------------------------------
+
+    console.log(
+      "\nVerifying database..."
+    );
 
     const regionCount =
       await Region.countDocuments({
@@ -629,7 +711,7 @@ async function main() {
     );
 
     console.log(
-      "ELECTORAL GEOGRAPHY IMPORT COMPLETE"
+      "IMPORT COMPLETE"
     );
 
     console.log(
@@ -637,29 +719,25 @@ async function main() {
     );
 
     console.log(
-      `Regions in database: ${regionCount}`
+      `Regions: ${regionCount}`
     );
 
     console.log(
-      `Constituencies in database: ${constituencyCount}`
+      `Constituencies: ${constituencyCount}`
     );
 
     console.log(
-      `Polling stations in database: ${pollingStationCount.toLocaleString()}`
+      `Polling stations: ${pollingStationCount.toLocaleString()}`
     );
 
     console.log(
-      `Polling stations processed this run: ${pollingStationsProcessed.toLocaleString()}`
-    );
-
-    console.log(
-      "=============================================="
+      "==============================================\n"
     );
 
     await mongoose.disconnect();
 
     console.log(
-      "\nMongoDB connection closed."
+      "MongoDB connection closed."
     );
 
     process.exit(0);
@@ -669,7 +747,7 @@ async function main() {
     );
 
     console.error(
-      "ELECTORAL GEOGRAPHY IMPORT FAILED"
+      "IMPORT FAILED"
     );
 
     console.error(
