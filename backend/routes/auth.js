@@ -9,6 +9,12 @@ const {
 const router = express.Router();
 
 // ============================================================
+// FORM DATA SUPPORT
+// ============================================================
+
+router.use(express.urlencoded({ extended: false }));
+
+// ============================================================
 // AUTH STATUS
 // ============================================================
 
@@ -28,21 +34,85 @@ router.post("/login", login);
 router.post("/forgot-password", forgotPassword);
 
 // ============================================================
-// TEMPORARY SUPER ADMIN BOOTSTRAP
+// TEMPORARY SUPER ADMIN BOOTSTRAP PAGE
 // ============================================================
 //
-// This route will be used ONCE to create the
-// POLISYNC AFRICA Super Admin account.
+// This is temporary.
+// After POLISYNC AFRICA is successfully created,
+// this entire bootstrap section will be removed.
 //
-// IMPORTANT:
-// After the account is successfully created,
-// we will REMOVE this route.
-//
+// ============================================================
+
+router.get("/bootstrap-super-admin", (req, res) => {
+  res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>PoliSync Africa Super Admin</title>
+      </head>
+
+      <body style="
+        font-family: Arial, sans-serif;
+        max-width: 500px;
+        margin: 50px auto;
+        padding: 20px;
+      ">
+
+        <h1>PoliSync Africa</h1>
+
+        <h2>Super Admin Bootstrap</h2>
+
+        <p>
+          This page creates the initial POLISYNC AFRICA
+          platform Super Admin account.
+        </p>
+
+        <form method="POST" action="/api/auth/bootstrap-super-admin">
+
+          <label>
+            Bootstrap Security Key
+          </label>
+
+          <br><br>
+
+          <input
+            type="password"
+            name="bootstrapKey"
+            required
+            autocomplete="off"
+            style="
+              width: 100%;
+              padding: 12px;
+              box-sizing: border-box;
+            "
+          />
+
+          <br><br>
+
+          <button
+            type="submit"
+            style="
+              padding: 12px 20px;
+              font-size: 16px;
+            "
+          >
+            Create Super Admin
+          </button>
+
+        </form>
+
+      </body>
+    </html>
+  `);
+});
+
+// ============================================================
+// CREATE SUPER ADMIN
 // ============================================================
 
 router.post("/bootstrap-super-admin", async (req, res) => {
   try {
-    const mongoose = require("mongoose");
     const bcrypt = require("bcryptjs");
     const User = require("../models/User");
 
@@ -61,8 +131,14 @@ router.post("/bootstrap-super-admin", async (req, res) => {
       });
     }
 
-    const providedKey =
+    const headerKey =
       req.headers["x-super-admin-bootstrap-key"];
+
+    const formKey =
+      req.body?.bootstrapKey;
+
+    const providedKey =
+      headerKey || formKey;
 
     if (
       !providedKey ||
@@ -84,22 +160,14 @@ router.post("/bootstrap-super-admin", async (req, res) => {
       });
 
     if (existingSuperAdmin) {
-      return res.status(409).json({
-        success: false,
-        message:
-          "A Super Admin already exists.",
-        user: {
-          displayName:
-            existingSuperAdmin.displayName ||
-            "POLISYNC AFRICA",
-          username:
-            existingSuperAdmin.username,
-        },
-      });
+      return res.status(409).send(`
+        <h2>Super Admin already exists.</h2>
+        <p>POLISYNC AFRICA is already configured.</p>
+      `);
     }
 
     // --------------------------------------------------------
-    // READ ENVIRONMENT VARIABLES
+    // ENVIRONMENT VARIABLES
     // --------------------------------------------------------
 
     const email =
@@ -135,9 +203,12 @@ router.post("/bootstrap-super-admin", async (req, res) => {
     // CHECK EMAIL
     // --------------------------------------------------------
 
+    const normalizedEmail =
+      email.toLowerCase().trim();
+
     const existingEmail =
       await User.findOne({
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
       });
 
     if (existingEmail) {
@@ -152,9 +223,12 @@ router.post("/bootstrap-super-admin", async (req, res) => {
     // CHECK PHONE
     // --------------------------------------------------------
 
+    const normalizedPhone =
+      phone.trim();
+
     const existingPhone =
       await User.findOne({
-        phone: phone.trim(),
+        phone: normalizedPhone,
       });
 
     if (existingPhone) {
@@ -166,6 +240,23 @@ router.post("/bootstrap-super-admin", async (req, res) => {
     }
 
     // --------------------------------------------------------
+    // CHECK USERNAME
+    // --------------------------------------------------------
+
+    const existingUsername =
+      await User.findOne({
+        username: "polisync.africa",
+      });
+
+    if (existingUsername) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "The POLISYNC AFRICA username already exists.",
+      });
+    }
+
+    // --------------------------------------------------------
     // HASH PASSWORD
     // --------------------------------------------------------
 
@@ -173,7 +264,7 @@ router.post("/bootstrap-super-admin", async (req, res) => {
       await bcrypt.hash(password, 12);
 
     // --------------------------------------------------------
-    // CREATE POLISYNC AFRICA SUPER ADMIN
+    // CREATE PLATFORM SUPER ADMIN
     // --------------------------------------------------------
 
     const user =
@@ -208,10 +299,10 @@ router.post("/bootstrap-super-admin", async (req, res) => {
           null,
 
         email:
-          email.toLowerCase().trim(),
+          normalizedEmail,
 
         phone:
-          phone.trim(),
+          normalizedPhone,
 
         password:
           hashedPassword,
@@ -279,29 +370,54 @@ router.post("/bootstrap-super-admin", async (req, res) => {
     // SUCCESS
     // --------------------------------------------------------
 
-    return res.status(201).json({
-      success: true,
+    return res.status(201).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Super Admin Created</title>
+        </head>
 
-      message:
-        "POLISYNC AFRICA Super Admin created successfully.",
+        <body style="
+          font-family: Arial, sans-serif;
+          max-width: 500px;
+          margin: 50px auto;
+          padding: 20px;
+        ">
 
-      user: {
-        id:
-          user._id,
+          <h1>✓ Super Admin Created</h1>
 
-        displayName:
-          "POLISYNC AFRICA",
+          <h2>POLISYNC AFRICA</h2>
 
-        username:
-          "polisync.africa",
+          <p>
+            The PoliSync Africa platform Super Admin
+            has been created successfully.
+          </p>
 
-        platformRole:
-          "super_admin",
+          <p>
+            <strong>Username:</strong>
+            polisync.africa
+          </p>
 
-        accountStatus:
-          "approved",
-      },
-    });
+          <p>
+            <strong>Platform Role:</strong>
+            super_admin
+          </p>
+
+          <p>
+            <strong>Status:</strong>
+            approved
+          </p>
+
+          <p>
+            The private account email and phone number
+            are not the public platform identity.
+          </p>
+
+        </body>
+      </html>
+    `);
+
   } catch (error) {
     console.error(
       "Super Admin bootstrap error:",
