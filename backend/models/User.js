@@ -226,6 +226,127 @@ const userSchema = new mongoose.Schema(
     },
 
     // ============================================================
+    // VERIFICATION
+    // ============================================================
+    // Verification is separate from email/phone verification.
+    //
+    // Ordinary users must REQUEST verification.
+    //
+    // ONLY the PoliSync Africa Super Admin may approve, reject,
+    // or revoke a verification request.
+    //
+    // The controller/service layer must enforce the Super Admin
+    // authorization before changing reviewed fields.
+    // ============================================================
+
+    verification: {
+      // ----------------------------------------------------------
+      // VERIFIED BADGE
+      // ----------------------------------------------------------
+
+      isVerified: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+
+      // ----------------------------------------------------------
+      // VERIFICATION REQUEST STATUS
+      // ----------------------------------------------------------
+
+      status: {
+        type: String,
+        enum: [
+          "not_requested",
+          "pending",
+          "approved",
+          "rejected",
+          "revoked",
+        ],
+        default: "not_requested",
+        index: true,
+      },
+
+      // ----------------------------------------------------------
+      // VERIFICATION TYPE
+      // ----------------------------------------------------------
+
+      verificationType: {
+        type: String,
+        enum: [
+          "individual",
+          "candidate",
+          "organization",
+          "political_party",
+          "public_figure",
+          "platform",
+        ],
+        default: "individual",
+      },
+
+      // ----------------------------------------------------------
+      // REQUEST INFORMATION
+      // ----------------------------------------------------------
+
+      requestedAt: {
+        type: Date,
+        default: null,
+      },
+
+      requestReason: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 2000,
+      },
+
+      // ----------------------------------------------------------
+      // REVIEW INFORMATION
+      // ----------------------------------------------------------
+
+      reviewedAt: {
+        type: Date,
+        default: null,
+      },
+
+      reviewedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
+
+      // ----------------------------------------------------------
+      // REJECTION / REVOCATION INFORMATION
+      // ----------------------------------------------------------
+
+      rejectionReason: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 2000,
+      },
+
+      revocationReason: {
+        type: String,
+        default: null,
+        trim: true,
+        maxlength: 2000,
+      },
+
+      // ----------------------------------------------------------
+      // OFFICIAL BADGE
+      // ----------------------------------------------------------
+      // This is the official PoliSync Africa verification badge.
+      // The frontend can use this asset when isVerified = true.
+      // ----------------------------------------------------------
+
+      badgeAsset: {
+        type: String,
+        default: "/verified-badge.png",
+      },
+    },
+
+    // ============================================================
     // PRIVACY
     // ============================================================
 
@@ -260,9 +381,6 @@ const userSchema = new mongoose.Schema(
 
       // ----------------------------------------------------------
       // ONLINE STATUS
-      // ----------------------------------------------------------
-      // Controls whether other permitted users can see
-      // "Online".
       // ----------------------------------------------------------
 
       showOnlineStatus: {
@@ -330,15 +448,43 @@ const userSchema = new mongoose.Schema(
         ],
         default: "until_turned_off",
       },
+
+      // ----------------------------------------------------------
+      // PROFILE VIEW HISTORY
+      // ----------------------------------------------------------
+      // Controls whether the owner can see who viewed the profile.
+      // ----------------------------------------------------------
+
+      showProfileViewers: {
+        type: Boolean,
+        default: true,
+      },
+
+      // ----------------------------------------------------------
+      // PROFILE VIEW PRIVACY
+      // ----------------------------------------------------------
+      // Controls whether this user appears in another person's
+      // profile-view history.
+      // ----------------------------------------------------------
+
+      profileViewPrivacy: {
+        type: String,
+        enum: [
+          "everyone",
+          "organizations_only",
+          "nobody",
+        ],
+        default: "everyone",
+      },
     },
 
     // ============================================================
     // LOCATION PERMISSION
     // ============================================================
-    // This records whether the user has granted location
-    // permission to PoliSync.
+    // Records whether the user has granted location permission
+    // to PoliSync.
     //
-    // It does NOT override the browser/device permission.
+    // It does NOT override browser/device permissions.
     // ============================================================
 
     locationPermissionGranted: {
@@ -349,11 +495,11 @@ const userSchema = new mongoose.Schema(
     // ============================================================
     // CURRENT LOCATION
     // ============================================================
-    // Location coordinates are stored only when location sharing
-    // has been explicitly enabled.
+    // Coordinates are stored only when location sharing has been
+    // explicitly enabled.
     //
-    // Google Maps can use these coordinates to display the
-    // permitted user's current location.
+    // Google Maps can use permitted coordinates to display the
+    // user's location.
     // ============================================================
 
     currentLocation: {
@@ -385,8 +531,6 @@ const userSchema = new mongoose.Schema(
 
     // ============================================================
     // LOCATION EXPIRATION
-    // ============================================================
-    // Used for temporary location sharing.
     // ============================================================
 
     locationExpiresAt: {
@@ -514,12 +658,11 @@ userSchema.pre("validate", function (next) {
 // platform.
 //
 // Public identity:
+//   POLISYNC AFRICA
+//   @polisync.africa
 //
-//   Display name: POLISYNC AFRICA
-//   Username:     polisync.africa
-//
-// The private controller's personal identity must never become
-// the platform's public identity.
+// The private administrator's personal identity must never
+// become the platform's public identity.
 // ============================================================
 
 userSchema.pre("validate", function (next) {
@@ -536,11 +679,30 @@ userSchema.pre("validate", function (next) {
     this.identificationNumber = null;
     this.dateOfBirth = null;
 
-    // The platform account does not expose a personal location.
+    // ----------------------------------------------------------
+    // SUPER ADMIN IS THE OFFICIAL PLATFORM ACCOUNT
+    // ----------------------------------------------------------
+
+    this.verification.isVerified = true;
+
+    this.verification.status = "approved";
+
+    this.verification.verificationType =
+      "platform";
+
+    this.verification.badgeAsset =
+      "/verified-badge.png";
+
+    // ----------------------------------------------------------
+    // PLATFORM ACCOUNT HAS NO PERSONAL LOCATION
+    // ----------------------------------------------------------
+
     this.locationPermissionGranted = false;
 
     this.privacy.shareLocation = false;
-    this.privacy.locationVisibility = "nobody";
+
+    this.privacy.locationVisibility =
+      "nobody";
 
     this.currentLocation = {
       latitude: null,
@@ -556,25 +718,72 @@ userSchema.pre("validate", function (next) {
 });
 
 // ============================================================
+// VERIFICATION STATE SAFETY
+// ============================================================
+// Ordinary users cannot become verified merely by setting
+// isVerified=true during ordinary account creation.
+//
+// Approval/rejection/revocation must be performed through the
+// protected Super Admin verification controller.
+// ============================================================
+
+userSchema.pre("validate", function (next) {
+  if (this.platformRole === "user") {
+    if (
+      this.verification.status ===
+      "not_requested"
+    ) {
+      this.verification.isVerified = false;
+    }
+
+    if (
+      this.verification.status ===
+      "pending"
+    ) {
+      this.verification.isVerified = false;
+    }
+
+    if (
+      this.verification.status ===
+        "rejected" ||
+      this.verification.status ===
+        "revoked"
+    ) {
+      this.verification.isVerified = false;
+    }
+
+    if (
+      this.verification.status ===
+      "approved"
+    ) {
+      this.verification.isVerified = true;
+    }
+  }
+
+  next();
+});
+
+// ============================================================
 // LOCATION SAFETY VALIDATION
 // ============================================================
 
 userSchema.pre("validate", function (next) {
-  // If location sharing is disabled, location should not remain
-  // publicly usable.
-
   if (!this.privacy.shareLocation) {
-    this.privacy.locationVisibility = "nobody";
+    this.privacy.locationVisibility =
+      "nobody";
+
     this.locationExpiresAt = null;
   }
 
-  // A user cannot claim location sharing without permission.
   if (
     this.privacy.shareLocation &&
     !this.locationPermissionGranted
   ) {
     this.privacy.shareLocation = false;
-    this.privacy.locationVisibility = "nobody";
+
+    this.privacy.locationVisibility =
+      "nobody";
+
     this.locationExpiresAt = null;
   }
 
@@ -593,7 +802,10 @@ userSchema.pre("save", function (next) {
     this.locationExpiresAt <= new Date()
   ) {
     this.privacy.shareLocation = false;
-    this.privacy.locationVisibility = "nobody";
+
+    this.privacy.locationVisibility =
+      "nobody";
+
     this.locationExpiresAt = null;
   }
 
@@ -655,8 +867,6 @@ userSchema.pre("save", function (next) {
 // ============================================================
 // PUBLIC IDENTITY
 // ============================================================
-// Determines the identity other users should see.
-// ============================================================
 
 userSchema.methods.getPublicIdentity =
   function () {
@@ -676,6 +886,15 @@ userSchema.methods.getPublicIdentity =
 
         isPlatformAccount:
           true,
+
+        isVerified:
+          true,
+
+        verificationType:
+          "platform",
+
+        badgeAsset:
+          "/verified-badge.png",
       };
     }
 
@@ -692,18 +911,60 @@ userSchema.methods.getPublicIdentity =
 
       isPlatformAccount:
         false,
+
+      isVerified:
+        this.verification.isVerified,
+
+      verificationType:
+        this.verification.verificationType,
+
+      badgeAsset:
+        this.verification.isVerified
+          ? this.verification.badgeAsset
+          : null,
+    };
+  };
+
+// ============================================================
+// VERIFICATION PUBLIC STATUS
+// ============================================================
+// This exposes only safe public verification information.
+// Private review information is never exposed.
+// ============================================================
+
+userSchema.methods.getPublicVerification =
+  function () {
+    const verified =
+      this.platformRole ===
+        "super_admin" ||
+      this.verification.isVerified;
+
+    if (!verified) {
+      return {
+        isVerified: false,
+        badgeAsset: null,
+        verificationType: null,
+      };
+    }
+
+    return {
+      isVerified: true,
+
+      badgeAsset:
+        this.verification.badgeAsset ||
+        "/verified-badge.png",
+
+      verificationType:
+        this.platformRole ===
+        "super_admin"
+          ? "platform"
+          : this.verification
+              .verificationType,
     };
   };
 
 // ============================================================
 // LOCATION VISIBILITY CHECK
-// ============================================================
-// This method determines whether a viewer is allowed to see
-// the user's location.
-//
-// Actual authorization based on organization membership or
-// selected users should be implemented in the service/controller
-// layer.
 // ============================================================
 
 userSchema.methods.canShareLocationWith =
@@ -711,7 +972,6 @@ userSchema.methods.canShareLocationWith =
     viewerId = null,
     viewerIsOrganizationMember = false,
   } = {}) {
-    // Platform Super Admin has no personal location.
     if (
       this.platformRole ===
       "super_admin"
@@ -719,21 +979,18 @@ userSchema.methods.canShareLocationWith =
       return false;
     }
 
-    // Location sharing must be enabled.
     if (
       !this.privacy.shareLocation
     ) {
       return false;
     }
 
-    // Device/browser permission must exist.
     if (
       !this.locationPermissionGranted
     ) {
       return false;
     }
 
-    // Check expiration.
     if (
       this.locationExpiresAt &&
       this.locationExpiresAt <= new Date()
@@ -744,7 +1001,9 @@ userSchema.methods.canShareLocationWith =
     const visibility =
       this.privacy.locationVisibility;
 
-    if (visibility === "nobody") {
+    if (
+      visibility === "nobody"
+    ) {
       return false;
     }
 
@@ -767,8 +1026,8 @@ userSchema.methods.canShareLocationWith =
         "selected_people" &&
       viewerId
     ) {
-      // Selected-person authorization should be checked by the
-      // controller/service against an access list.
+      // Selected-person authorization must be checked by the
+      // controller/service layer.
       return false;
     }
 
@@ -777,9 +1036,6 @@ userSchema.methods.canShareLocationWith =
 
 // ============================================================
 // PUBLIC LOCATION
-// ============================================================
-// Never expose raw location unless the viewer has already passed
-// the privacy/authorization check.
 // ============================================================
 
 userSchema.methods.getPublicLocation =
@@ -799,8 +1055,10 @@ userSchema.methods.getPublicLocation =
 
     if (
       !this.currentLocation ||
-      this.currentLocation.latitude === null ||
-      this.currentLocation.longitude === null
+      this.currentLocation.latitude ===
+        null ||
+      this.currentLocation.longitude ===
+        null
     ) {
       return null;
     }
@@ -808,25 +1066,19 @@ userSchema.methods.getPublicLocation =
     const precision =
       this.privacy.locationPrecision;
 
-    // ----------------------------------------------------------
-    // APPROXIMATE LOCATION
-    // ----------------------------------------------------------
-    // Reduce precision before sending coordinates to the client.
-    // ----------------------------------------------------------
-
     if (
       precision === "approximate"
     ) {
       const latitude =
         Math.round(
-          this.currentLocation.latitude *
-            100
+          this.currentLocation
+            .latitude * 100
         ) / 100;
 
       const longitude =
         Math.round(
-          this.currentLocation.longitude *
-            100
+          this.currentLocation
+            .longitude * 100
         ) / 100;
 
       return {
@@ -837,10 +1089,6 @@ userSchema.methods.getPublicLocation =
           this.currentLocation.updatedAt,
       };
     }
-
-    // ----------------------------------------------------------
-    // EXACT LOCATION
-    // ----------------------------------------------------------
 
     return {
       latitude:
@@ -861,9 +1109,6 @@ userSchema.methods.getPublicLocation =
 
 // ============================================================
 // PUBLIC PRESENCE
-// ============================================================
-// Determines what another user may see about online/last-seen
-// activity.
 // ============================================================
 
 userSchema.methods.getPublicPresence =
@@ -888,6 +1133,46 @@ userSchema.methods.getPublicPresence =
   };
 
 // ============================================================
+// PROFILE VIEW VISIBILITY
+// ============================================================
+// Determines whether this user may appear in another user's
+// "Who viewed my profile" history.
+//
+// Detailed recording/query authorization belongs in
+// ProfileView.js and the controller/service layer.
+// ============================================================
+
+userSchema.methods.canAppearInProfileViews =
+  function ({
+    viewerIsOrganizationMember = false,
+  } = {}) {
+    const privacy =
+      this.privacy.profileViewPrivacy;
+
+    if (
+      privacy === "nobody"
+    ) {
+      return false;
+    }
+
+    if (
+      privacy === "everyone"
+    ) {
+      return true;
+    }
+
+    if (
+      privacy ===
+        "organizations_only" &&
+      viewerIsOrganizationMember
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+// ============================================================
 // SAFE PUBLIC USER PROFILE
 // ============================================================
 // Never expose:
@@ -895,7 +1180,8 @@ userSchema.methods.getPublicPresence =
 // - identification number
 // - private email
 // - private phone
-// - private security settings
+// - security secrets
+// - verification review details
 // - unauthorized location
 // ============================================================
 
@@ -916,6 +1202,9 @@ userSchema.methods.toPublicProfile =
         viewerIsOrganizationMember,
       });
 
+    const verification =
+      this.getPublicVerification();
+
     return {
       id: this._id,
 
@@ -933,6 +1222,15 @@ userSchema.methods.toPublicProfile =
 
       profilePhoto:
         this.profilePhoto,
+
+      verified:
+        verification.isVerified,
+
+      verificationType:
+        verification.verificationType,
+
+      verificationBadge:
+        verification.badgeAsset,
 
       ...presence,
 
