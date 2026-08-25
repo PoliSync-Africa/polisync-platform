@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const User = require("../models/User");
 
 // ============================================================
@@ -12,6 +13,7 @@ const generateToken = (user) => {
       id: user._id,
       platformRole: user.platformRole,
       email: user.email,
+      username: user.username,
     },
     process.env.JWT_SECRET,
     {
@@ -24,7 +26,10 @@ const generateToken = (user) => {
 // CREATE USERNAME
 // ============================================================
 
-const createUsername = async (firstName, lastName) => {
+const createUsername = async (
+  firstName,
+  lastName
+) => {
   const base =
     `${firstName}.${lastName}`
       .toLowerCase()
@@ -40,6 +45,69 @@ const createUsername = async (firstName, lastName) => {
   }
 
   return username;
+};
+
+// ============================================================
+// SAFE PUBLIC USER
+// ============================================================
+
+const getSafeUser = (user) => {
+  if (user.platformRole === "super_admin") {
+    return {
+      id: user._id,
+      displayName: "POLISYNC AFRICA",
+      username: "polisync.africa",
+      platformRole: "super_admin",
+      accountStatus: user.accountStatus,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
+      twoFactorEnabled: user.twoFactorEnabled,
+      profilePhoto: user.profilePhoto,
+      isPlatformAccount: true,
+      isOnline: user.isOnline,
+      lastSeenAt: user.lastSeenAt,
+    };
+  }
+
+  return {
+    id: user._id,
+
+    displayName:
+      user.displayName ||
+      `${user.firstName} ${user.lastName}`.trim(),
+
+    username: user.username,
+
+    firstName: user.firstName,
+
+    middleName: user.middleName,
+
+    lastName: user.lastName,
+
+    email: user.email,
+
+    phone: user.phone,
+
+    platformRole: user.platformRole,
+
+    accountStatus: user.accountStatus,
+
+    emailVerified: user.emailVerified,
+
+    phoneVerified: user.phoneVerified,
+
+    twoFactorEnabled:
+      user.twoFactorEnabled,
+
+    profilePhoto:
+      user.profilePhoto,
+
+    isPlatformAccount: false,
+
+    isOnline: user.isOnline,
+
+    lastSeenAt: user.lastSeenAt,
+  };
 };
 
 // ============================================================
@@ -63,7 +131,7 @@ exports.register = async (req, res) => {
     } = req.body;
 
     // --------------------------------------------------------
-    // REQUIRED FIELD VALIDATION
+    // REQUIRED FIELDS
     // --------------------------------------------------------
 
     if (
@@ -84,7 +152,7 @@ exports.register = async (req, res) => {
     }
 
     // --------------------------------------------------------
-    // VALIDATE IDENTIFICATION TYPE
+    // IDENTIFICATION TYPE
     // --------------------------------------------------------
 
     const allowedIdentificationTypes = [
@@ -93,20 +161,30 @@ exports.register = async (req, res) => {
       "voter_id",
     ];
 
-    if (!allowedIdentificationTypes.includes(identificationType)) {
+    if (
+      !allowedIdentificationTypes.includes(
+        identificationType
+      )
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid identification type.",
+        message:
+          "Invalid identification type.",
       });
     }
 
     // --------------------------------------------------------
-    // VALIDATE PHONE
+    // PHONE
     // --------------------------------------------------------
 
-    const normalizedPhone = phone.trim();
+    const normalizedPhone =
+      phone.trim();
 
-    if (!/^\+233\d{9}$/.test(normalizedPhone)) {
+    if (
+      !/^\+233\d{9}$/.test(
+        normalizedPhone
+      )
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -115,48 +193,58 @@ exports.register = async (req, res) => {
     }
 
     // --------------------------------------------------------
-    // NORMALIZE EMAIL
+    // EMAIL
     // --------------------------------------------------------
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail =
+      email.trim().toLowerCase();
 
     // --------------------------------------------------------
-    // CHECK EXISTING EMAIL
+    // DUPLICATE EMAIL
     // --------------------------------------------------------
 
-    const existingEmail = await User.findOne({
-      email: normalizedEmail,
-    });
+    const existingEmail =
+      await User.findOne({
+        email: normalizedEmail,
+      });
 
     if (existingEmail) {
       return res.status(409).json({
         success: false,
-        message: "An account with this email already exists.",
+        message:
+          "An account with this email already exists.",
       });
     }
 
     // --------------------------------------------------------
-    // CHECK EXISTING PHONE
+    // DUPLICATE PHONE
     // --------------------------------------------------------
 
-    const existingPhone = await User.findOne({
-      phone: normalizedPhone,
-    });
+    const existingPhone =
+      await User.findOne({
+        phone: normalizedPhone,
+      });
 
     if (existingPhone) {
       return res.status(409).json({
         success: false,
-        message: "An account with this phone number already exists.",
+        message:
+          "An account with this phone number already exists.",
       });
     }
 
     // --------------------------------------------------------
-    // CHECK IDENTIFICATION NUMBER
+    // IDENTIFICATION DUPLICATE
     // --------------------------------------------------------
 
-    const existingIdentification = await User.findOne({
-      identificationNumber: identificationNumber.trim(),
-    });
+    const normalizedIdentification =
+      identificationNumber.trim();
+
+    const existingIdentification =
+      await User.findOne({
+        identificationNumber:
+          normalizedIdentification,
+      });
 
     if (existingIdentification) {
       return res.status(409).json({
@@ -172,9 +260,16 @@ exports.register = async (req, res) => {
 
     let finalUsername = username
       ? username.toLowerCase().trim()
-      : await createUsername(firstName, lastName);
+      : await createUsername(
+          firstName,
+          lastName
+        );
 
-    if (!/^[a-z0-9._-]+$/.test(finalUsername)) {
+    if (
+      !/^[a-z0-9._-]+$/.test(
+        finalUsername
+      )
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -182,14 +277,16 @@ exports.register = async (req, res) => {
       });
     }
 
-    const existingUsername = await User.findOne({
-      username: finalUsername,
-    });
+    const existingUsername =
+      await User.findOne({
+        username: finalUsername,
+      });
 
     if (existingUsername) {
       return res.status(409).json({
         success: false,
-        message: "Username is already taken.",
+        message:
+          "Username is already taken.",
       });
     }
 
@@ -200,68 +297,145 @@ exports.register = async (req, res) => {
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
-        message: "Password must contain at least 8 characters.",
+        message:
+          "Password must contain at least 8 characters.",
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword =
+      await bcrypt.hash(
+        password,
+        12
+      );
 
     // --------------------------------------------------------
     // CREATE USER
     // --------------------------------------------------------
 
-    const user = await User.create({
-      platformRole: "user",
+    const user =
+      await User.create({
+        platformRole: "user",
 
-      username: finalUsername,
+        displayName: null,
 
-      firstName: firstName.trim(),
+        username:
+          finalUsername,
 
-      middleName: middleName
-        ? middleName.trim()
-        : "",
+        firstName:
+          firstName.trim(),
 
-      lastName: lastName.trim(),
+        middleName:
+          middleName
+            ? middleName.trim()
+            : "",
 
-      dateOfBirth,
+        lastName:
+          lastName.trim(),
 
-      nationality: nationality
-        ? nationality.trim()
-        : "Ghanaian",
+        dateOfBirth,
 
-      identificationType,
+        nationality:
+          nationality
+            ? nationality.trim()
+            : "Ghanaian",
 
-      identificationNumber:
-        identificationNumber.trim(),
+        profilePhoto: null,
 
-      email: normalizedEmail,
+        identificationType,
 
-      phone: normalizedPhone,
+        identificationNumber:
+          normalizedIdentification,
 
-      password: hashedPassword,
+        email:
+          normalizedEmail,
 
-      emailVerified: false,
+        phone:
+          normalizedPhone,
 
-      phoneVerified: false,
+        password:
+          hashedPassword,
 
-      twoFactorEnabled: false,
+        emailVerified:
+          false,
 
-      twoFactorMethod: null,
+        phoneVerified:
+          false,
 
-      passcodeEnabled: false,
+        twoFactorEnabled:
+          false,
 
-      biometricEnabled: false,
+        twoFactorMethod:
+          null,
 
-      accountStatus: "pending",
+        passcodeEnabled:
+          false,
 
-      approvedAt: null,
+        biometricEnabled:
+          false,
 
-      approvedBy: null,
+        accountStatus:
+          "pending",
 
-      suspendedAt: null,
+        approvedAt:
+          null,
 
-      suspensionReason: null,
-    });
+        approvedBy:
+          null,
+
+        suspendedAt:
+          null,
+
+        suspensionReason:
+          null,
+
+        privacy: {
+          messagePrivacy:
+            "nobody",
+
+          profileVisibility:
+            "nobody",
+
+          showOnlineStatus:
+            true,
+
+          showLastSeen:
+            true,
+
+          shareLocation:
+            false,
+
+          locationVisibility:
+            "nobody",
+
+          locationPrecision:
+            "approximate",
+
+          locationSharingDuration:
+            "until_turned_off",
+        },
+
+        locationPermissionGranted:
+          false,
+
+        currentLocation: {
+          latitude: null,
+          longitude: null,
+          accuracy: null,
+          updatedAt: null,
+        },
+
+        locationExpiresAt:
+          null,
+
+        isOnline:
+          false,
+
+        lastLoginAt:
+          null,
+
+        lastSeenAt:
+          null,
+      });
 
     // --------------------------------------------------------
     // RESPONSE
@@ -273,25 +447,19 @@ exports.register = async (req, res) => {
       message:
         "Account created successfully. Your account is pending approval.",
 
-      user: {
-        id: user._id,
-        username: user.username,
-        firstName: user.firstName,
-        middleName: user.middleName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        platformRole: user.platformRole,
-        accountStatus: user.accountStatus,
-      },
+      user: getSafeUser(user),
     });
   } catch (error) {
-    console.error("Registration error:", error);
+    console.error(
+      "Registration error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
       message:
-        error.message || "Registration failed.",
+        error.message ||
+        "Registration failed.",
     });
   }
 };
@@ -302,7 +470,10 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const {
+      email,
+      password,
+    } = req.body;
 
     // --------------------------------------------------------
     // VALIDATION
@@ -321,27 +492,28 @@ exports.login = async (req, res) => {
 
     // --------------------------------------------------------
     // FIND USER
-    // password is select:false in User.js,
-    // therefore explicitly request it.
     // --------------------------------------------------------
 
-    const user = await User.findOne({
-      email: normalizedEmail,
-    }).select("+password");
+    const user =
+      await User.findOne({
+        email: normalizedEmail,
+      }).select("+password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password.",
+        message:
+          "Invalid email or password.",
       });
     }
 
     // --------------------------------------------------------
-    // CHECK ACCOUNT STATUS
+    // ACCOUNT STATUS
     // --------------------------------------------------------
 
     if (
-      user.accountStatus === "suspended"
+      user.accountStatus ===
+      "suspended"
     ) {
       return res.status(403).json({
         success: false,
@@ -351,7 +523,8 @@ exports.login = async (req, res) => {
     }
 
     if (
-      user.accountStatus === "deactivated"
+      user.accountStatus ===
+      "deactivated"
     ) {
       return res.status(403).json({
         success: false,
@@ -361,7 +534,8 @@ exports.login = async (req, res) => {
     }
 
     if (
-      user.accountStatus === "rejected"
+      user.accountStatus ===
+      "rejected"
     ) {
       return res.status(403).json({
         success: false,
@@ -371,7 +545,7 @@ exports.login = async (req, res) => {
     }
 
     // --------------------------------------------------------
-    // VERIFY PASSWORD
+    // PASSWORD
     // --------------------------------------------------------
 
     const validPassword =
@@ -389,18 +563,26 @@ exports.login = async (req, res) => {
     }
 
     // --------------------------------------------------------
-    // UPDATE LAST LOGIN
+    // UPDATE PRESENCE
     // --------------------------------------------------------
 
-    user.lastLoginAt = new Date();
+    const now =
+      new Date();
+
+    user.lastLoginAt = now;
+
+    user.lastSeenAt = now;
+
+    user.isOnline = true;
 
     await user.save();
 
     // --------------------------------------------------------
-    // GENERATE TOKEN
+    // TOKEN
     // --------------------------------------------------------
 
-    const token = generateToken(user);
+    const token =
+      generateToken(user);
 
     // --------------------------------------------------------
     // RESPONSE
@@ -409,33 +591,82 @@ exports.login = async (req, res) => {
     return res.status(200).json({
       success: true,
 
-      message: "Login successful.",
+      message:
+        "Login successful.",
 
       token,
 
-      user: {
-        id: user._id,
-        username: user.username,
-        firstName: user.firstName,
-        middleName: user.middleName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        platformRole: user.platformRole,
-        accountStatus: user.accountStatus,
-        emailVerified: user.emailVerified,
-        phoneVerified: user.phoneVerified,
-        twoFactorEnabled:
-          user.twoFactorEnabled,
-      },
+      user:
+        getSafeUser(user),
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error(
+      "Login error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
       message:
-        error.message || "Login failed.",
+        error.message ||
+        "Login failed.",
+    });
+  }
+};
+
+// ============================================================
+// LOGOUT USER
+// ============================================================
+
+exports.logout = async (req, res) => {
+  try {
+    const userId =
+      req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Authentication required.",
+      });
+    }
+
+    const user =
+      await User.findById(
+        userId
+      );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "User not found.",
+      });
+    }
+
+    user.isOnline = false;
+
+    user.lastSeenAt =
+      new Date();
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Logged out successfully.",
+    });
+  } catch (error) {
+    console.error(
+      "Logout error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Logout failed.",
     });
   }
 };
@@ -444,51 +675,107 @@ exports.login = async (req, res) => {
 // FORGOT PASSWORD
 // ============================================================
 
-exports.forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
+exports.forgotPassword =
+  async (req, res) => {
+    try {
+      const {
+        email,
+      } = req.body;
 
-    if (!email) {
-      return res.status(400).json({
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Email is required.",
+        });
+      }
+
+      const normalizedEmail =
+        email.trim().toLowerCase();
+
+      const user =
+        await User.findOne({
+          email: normalizedEmail,
+        });
+
+      // ------------------------------------------------------
+      // SECURITY
+      // ------------------------------------------------------
+      // Do not reveal whether an email exists.
+      // This prevents account enumeration.
+      // ------------------------------------------------------
+
+      if (!user) {
+        return res.status(200).json({
+          success: true,
+          message:
+            "If an account exists for this email, password reset instructions will be sent.",
+        });
+      }
+
+      // ------------------------------------------------------
+      // GENERATE RESET TOKEN
+      // ------------------------------------------------------
+
+      const resetToken =
+        crypto.randomBytes(32)
+          .toString("hex");
+
+      const resetTokenHash =
+        crypto
+          .createHash("sha256")
+          .update(resetToken)
+          .digest("hex");
+
+      // ------------------------------------------------------
+      // TEMPORARY RESET STORAGE
+      // ------------------------------------------------------
+      // These fields will be added to User.js in the next
+      // password-reset upgrade.
+      //
+      // For now we do not save them because the current model
+      // does not yet contain reset-token fields.
+      // ------------------------------------------------------
+
+      console.log(
+        "Password reset token generated for:",
+        user.email
+      );
+
+      console.log(
+        "Reset token hash:",
+        resetTokenHash
+      );
+
+      // Prevent unused-variable warnings while the email
+      // service is being built.
+      void resetToken;
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "If an account exists for this email, password reset instructions will be sent.",
+      });
+    } catch (error) {
+      console.error(
+        "Forgot password error:",
+        error
+      );
+
+      return res.status(500).json({
         success: false,
-        message: "Email is required.",
+        message:
+          "Password reset request failed.",
       });
     }
+  };
 
-    const normalizedEmail =
-      email.trim().toLowerCase();
+// ============================================================
+// EXPORT HELPERS
+// ============================================================
 
-    const user = await User.findOne({
-      email: normalizedEmail,
-    });
+exports.generateToken =
+  generateToken;
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found.",
-      });
-    }
-
-    // --------------------------------------------------------
-    // PASSWORD RESET WILL BE IMPLEMENTED NEXT
-    // --------------------------------------------------------
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Password reset request received.",
-    });
-  } catch (error) {
-    console.error(
-      "Forgot password error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message ||
-        "Password reset failed.",
-    });
-  }
-};
+exports.getSafeUser =
+  getSafeUser;
