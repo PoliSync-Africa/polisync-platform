@@ -1,4 +1,3 @@
-```tsx
 "use client";
 
 import Image from "next/image";
@@ -24,13 +23,10 @@ export default function Home() {
     setLoading(true);
 
     try {
-      // Temporary login flow.
-      // Real backend authentication will be connected next.
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
       router.push("/dashboard");
     } catch (error) {
-      console.error("Login error:", error);
+      console.error(error);
       alert("Login failed. Please try again.");
     } finally {
       setLoading(false);
@@ -41,9 +37,7 @@ export default function Home() {
     <main
       style={{
         minHeight: "100vh",
-        width: "100%",
-        background:
-          "linear-gradient(135deg, #F8FAF8 0%, #EEF7F0 100%)",
+        background: "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -58,20 +52,15 @@ export default function Home() {
           background: "#FFFFFF",
           borderRadius: "32px",
           padding: "34px 28px",
-          boxSizing: "border-box",
           boxShadow: "0 20px 60px rgba(0,0,0,.10)",
-          border: "1px solid rgba(0,0,0,.05)",
+          boxSizing: "border-box",
         }}
       >
-        {/* POLISYNC AFRICA LOGO */}
         <div
-          className="polisync-logo-wrapper"
           style={{
             display: "flex",
             justifyContent: "center",
-            alignItems: "center",
             marginBottom: "18px",
-            overflow: "visible",
           }}
         >
           <Image
@@ -80,7 +69,6 @@ export default function Home() {
             width={220}
             height={220}
             priority
-            className="polisync-logo"
             style={{
               width: "220px",
               height: "auto",
@@ -107,13 +95,11 @@ export default function Home() {
             color: "#555",
             fontSize: "15px",
             margin: "0 0 28px",
-            lineHeight: "1.5",
           }}
         >
           Sign in to your PoliSync Africa account
         </p>
 
-        {/* EMAIL */}
         <div style={{ marginBottom: "18px" }}>
           <label
             htmlFor="email"
@@ -121,7 +107,6 @@ export default function Home() {
               display: "block",
               fontWeight: "700",
               marginBottom: "8px",
-              color: "#222",
             }}
           >
             Email Address
@@ -141,12 +126,10 @@ export default function Home() {
               borderRadius: "999px",
               border: "1.5px solid #D8D8D8",
               fontSize: "16px",
-              outline: "none",
             }}
           />
         </div>
 
-        {/* PASSWORD */}
         <div style={{ marginBottom: "14px" }}>
           <label
             htmlFor="password"
@@ -154,7 +137,6 @@ export default function Home() {
               display: "block",
               fontWeight: "700",
               marginBottom: "8px",
-              color: "#222",
             }}
           >
             Password
@@ -175,13 +157,12 @@ export default function Home() {
                 borderRadius: "999px",
                 border: "1.5px solid #D8D8D8",
                 fontSize: "16px",
-                outline: "none",
               }}
             />
 
             <button
               type="button"
-              onClick={() => setShowPassword((value) => !value)}
+              onClick={() => setShowPassword(!showPassword)}
               style={{
                 position: "absolute",
                 right: "16px",
@@ -190,7 +171,6 @@ export default function Home() {
                 background: "transparent",
                 border: "none",
                 color: "#065F2B",
-                cursor: "pointer",
                 fontWeight: "700",
               }}
             >
@@ -199,13 +179,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* REMEMBER / FORGOT */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            gap: "12px",
             marginBottom: "24px",
             fontSize: "14px",
           }}
@@ -215,7 +193,6 @@ export default function Home() {
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              cursor: "pointer",
             }}
           >
             <input
@@ -238,7 +215,6 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* LOGIN */}
         <button
           type="button"
           onClick={handleLogin}
@@ -248,20 +224,16 @@ export default function Home() {
             padding: "17px",
             borderRadius: "999px",
             border: "none",
-            background: loading
-              ? "#6FAF87"
-              : "linear-gradient(90deg,#0A8F3C,#065F2B)",
+            background: "linear-gradient(90deg,#0A8F3C,#065F2B)",
             color: "#FFF",
             fontSize: "17px",
             fontWeight: "800",
             cursor: loading ? "not-allowed" : "pointer",
-            boxShadow: "0 12px 30px rgba(6,95,43,.25)",
           }}
         >
           {loading ? "Signing In..." : "Login"}
         </button>
 
-        {/* DIVIDER */}
         <div
           style={{
             display: "flex",
@@ -270,33 +242,11 @@ export default function Home() {
             margin: "28px 0",
           }}
         >
-          <div
-            style={{
-              flex: 1,
-              height: "1px",
-              background: "#DDD",
-            }}
-          />
-
-          <span
-            style={{
-              color: "#888",
-              fontSize: "14px",
-            }}
-          >
-            OR
-          </span>
-
-          <div
-            style={{
-              flex: 1,
-              height: "1px",
-              background: "#DDD",
-            }}
-          />
+          <div style={{ flex: 1, height: "1px", background: "#DDD" }} />
+          <span style={{ color: "#888", fontSize: "14px" }}>OR</span>
+          <div style={{ flex: 1, height: "1px", background: "#DDD" }} />
         </div>
 
-        {/* GOOGLE */}
         <button
           type="button"
           style={{
@@ -307,14 +257,12 @@ export default function Home() {
             background: "#FFF",
             marginBottom: "14px",
             fontWeight: "600",
-            cursor: "pointer",
             fontSize: "16px",
           }}
         >
           Continue with Google
         </button>
 
-        {/* APPLE */}
         <button
           type="button"
           style={{
@@ -325,14 +273,12 @@ export default function Home() {
             background: "#FFF",
             marginBottom: "14px",
             fontWeight: "600",
-            cursor: "pointer",
             fontSize: "16px",
           }}
         >
           Continue with Apple
         </button>
 
-        {/* FACEBOOK */}
         <button
           type="button"
           style={{
@@ -342,14 +288,12 @@ export default function Home() {
             border: "1.5px solid #DDD",
             background: "#FFF",
             fontWeight: "600",
-            cursor: "pointer",
             fontSize: "16px",
           }}
         >
           Continue with Facebook
         </button>
 
-        {/* CREATE ACCOUNT */}
         <div
           style={{
             textAlign: "center",
@@ -372,11 +316,9 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* FOOTER */}
         <p
           style={{
             marginTop: "22px",
-            marginBottom: 0,
             textAlign: "center",
             color: "#888",
             fontSize: "13px",
@@ -388,4 +330,3 @@ export default function Home() {
     </main>
   );
 }
-```
