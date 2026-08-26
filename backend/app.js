@@ -3,136 +3,304 @@ const cors = require("cors");
 
 const app = express();
 
-/* ============================
-   Middleware
-============================ */
+// ============================================================
+// CORS
+// ============================================================
+//
+// PoliSync frontend:
+// https://polisync-app.onrender.com
+//
+// PoliSync backend:
+// https://polysync-platform-1.onrender.com
+// ============================================================
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const allowedOrigins = [
+  "https://polisync-app.onrender.com",
+];
 
-/* ============================
-   Route Imports
-============================ */
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow server-to-server requests and tools that do not
+      // send an Origin header.
+      if (!origin) {
+        return callback(null, true);
+      }
 
-const authRoutes = require("./routes/auth");
+      if (
+        allowedOrigins.includes(origin)
+      ) {
+        return callback(null, true);
+      }
 
-/* Optional routes - to be implemented in Phase 2+ */
+      return callback(
+        new Error(
+          "CORS origin not allowed."
+        )
+      );
+    },
+
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
+
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Accept",
+    ],
+
+    credentials: false,
+  })
+);
+
+// ============================================================
+// BODY PARSING
+// ============================================================
+
+app.use(
+  express.json()
+);
+
+app.use(
+  express.urlencoded({
+    extended: true,
+  })
+);
+
+// ============================================================
+// ROUTE IMPORTS
+// ============================================================
+
+const authRoutes =
+  require("./routes/auth");
 
 let organizationRoutes;
+
 try {
-  organizationRoutes = require("./routes/organization");
-} catch {}
+  organizationRoutes =
+    require(
+      "./routes/organization"
+    );
+} catch {
+  organizationRoutes =
+    null;
+}
 
 let electionRoutes;
+
 try {
-  electionRoutes = require("./routes/elections");
-} catch {}
+  electionRoutes =
+    require(
+      "./routes/elections"
+    );
+} catch {
+  electionRoutes =
+    null;
+}
 
 let pollingStationRoutes;
+
 try {
-  pollingStationRoutes = require("./routes/pollingStations");
-} catch {}
+  pollingStationRoutes =
+    require(
+      "./routes/pollingStations"
+    );
+} catch {
+  pollingStationRoutes =
+    null;
+}
 
 let resultRoutes;
+
 try {
-  resultRoutes = require("./routes/results");
-} catch {}
+  resultRoutes =
+    require(
+      "./routes/results"
+    );
+} catch {
+  resultRoutes =
+    null;
+}
 
 let calendarRoutes;
+
 try {
-  calendarRoutes = require("./routes/calendar");
-} catch {}
+  calendarRoutes =
+    require(
+      "./routes/calendar"
+    );
+} catch {
+  calendarRoutes =
+    null;
+}
 
 let notificationRoutes;
+
 try {
-  notificationRoutes = require("./routes/notifications");
-} catch {}
+  notificationRoutes =
+    require(
+      "./routes/notifications"
+    );
+} catch {
+  notificationRoutes =
+    null;
+}
 
 let geoRoutes;
+
 try {
-  geoRoutes = require("./routes/geoRoutes");
-} catch {}
+  geoRoutes =
+    require(
+      "./routes/geoRoutes"
+    );
+} catch {
+  geoRoutes =
+    null;
+}
 
 let gisRoutes;
+
 try {
-  gisRoutes = require("./routes/gisRoutes");
-} catch {}
+  gisRoutes =
+    require(
+      "./routes/gisRoutes"
+    );
+} catch {
+  gisRoutes =
+    null;
+}
 
-/* ============================
-   Health Check
-============================ */
+// ============================================================
+// HEALTH CHECK
+// ============================================================
 
-app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    app: "POLISYNC AFRICA Backend",
-    status: "running",
-    version: "1.0.0",
-    database: "MongoDB + Mongoose"
-  });
-});
+app.get(
+  "/",
+  (req, res) => {
+    res.json({
+      success: true,
+      app:
+        "POLISYNC AFRICA Backend",
+      status:
+        "running",
+      version:
+        "1.0.0",
+      database:
+        "MongoDB + Mongoose",
+    });
+  }
+);
 
-/* ============================
-   API Routes
-============================ */
+// ============================================================
+// API ROUTES
+// ============================================================
 
-app.use("/api/auth", authRoutes);
+app.use(
+  "/api/auth",
+  authRoutes
+);
 
 if (organizationRoutes) {
-  app.use("/api/organizations", organizationRoutes);
+  app.use(
+    "/api/organizations",
+    organizationRoutes
+  );
 }
 
 if (electionRoutes) {
-  app.use("/api/elections", electionRoutes);
+  app.use(
+    "/api/elections",
+    electionRoutes
+  );
 }
 
 if (pollingStationRoutes) {
-  app.use("/api/polling-stations", pollingStationRoutes);
+  app.use(
+    "/api/polling-stations",
+    pollingStationRoutes
+  );
 }
 
 if (resultRoutes) {
-  app.use("/api/results", resultRoutes);
+  app.use(
+    "/api/results",
+    resultRoutes
+  );
 }
 
 if (calendarRoutes) {
-  app.use("/api/calendar", calendarRoutes);
+  app.use(
+    "/api/calendar",
+    calendarRoutes
+  );
 }
 
 if (notificationRoutes) {
-  app.use("/api/notifications", notificationRoutes);
+  app.use(
+    "/api/notifications",
+    notificationRoutes
+  );
 }
 
 if (geoRoutes) {
-  app.use("/api/geo", geoRoutes);
+  app.use(
+    "/api/geo",
+    geoRoutes
+  );
 }
 
 if (gisRoutes) {
-  app.use("/api/gis", gisRoutes);
+  app.use(
+    "/api/gis",
+    gisRoutes
+  );
 }
 
-/* ======================
-   404 Handler
-====================== */
+// ============================================================
+// 404
+// ============================================================
 
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found."
-  });
-});
+app.use(
+  (req, res) => {
+    res.status(404).json({
+      success: false,
+      message:
+        "Route not found.",
+    });
+  }
+);
 
-/* ============================
-   Error Handler
-============================ */
+// ============================================================
+// ERROR HANDLER
+// ============================================================
 
-app.use((err, req, res, next) => {
-  console.error(err);
+app.use(
+  (
+    err,
+    req,
+    res,
+    next
+  ) => {
+    console.error(
+      "PoliSync API error:",
+      err
+    );
 
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || "Internal Server Error"
-  });
-});
+    res.status(
+      err.status || 500
+    ).json({
+      success: false,
+      message:
+        err.message ||
+        "Internal Server Error",
+    });
+  }
+);
 
 module.exports = app;
