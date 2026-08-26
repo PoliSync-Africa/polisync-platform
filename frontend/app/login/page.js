@@ -56,127 +56,69 @@ export default function LoginPage() {
       // POLISYNC PRODUCTION BACKEND
       // ========================================================
 
-      async function handleLogin(event) {
-  event.preventDefault();
+      const API_URL = (
+        process.env.NEXT_PUBLIC_API_URL || ""
+      ).replace(/\/+$/, "");
 
-  setError("");
-
-  const cleanEmail = email.trim();
-
-  if (!cleanEmail) {
-    setError("Please enter your email address.");
-    return;
-  }
-
-  if (!password) {
-    setError("Please enter your password.");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    // ============================================================
-    // POLISYNC PRODUCTION BACKEND
-    // ============================================================
-
-    const API_URL = (
-      process.env.NEXT_PUBLIC_API_URL || ""
-    ).replace(/\/+$/, "");
-
-    if (!API_URL) {
-      throw new Error(
-        "Production API URL is not configured."
-      );
-    }
-
-    // ============================================================
-    // LOGIN REQUEST
-    // ============================================================
-
-    const response = await fetch(
-      `${API_URL}/api/auth/login`,
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-
-        credentials: "include",
-
-        body: JSON.stringify({
-          email: cleanEmail,
-          password,
-        }),
-      }
-    );
-
-    // ============================================================
-    // SERVER RESPONSE
-    // ============================================================
-
-    let data = {};
-
-    try {
-      data = await response.json();
-    } catch {
-      data = {};
-    }
-
-    // ============================================================
-    // LOGIN ERROR
-    // ============================================================
-
-    if (!response.ok) {
-      throw new Error(
-        data.message ||
-          data.error ||
-          "Invalid email or password."
-      );
-    }
-
-    // ============================================================
-    // SAVE TOKEN
-    // ============================================================
-
-    const token =
-      data.token ||
-      data.accessToken ||
-      data.access_token ||
-      null;
-
-    if (token) {
-      if (rememberMe) {
-        localStorage.setItem(
-          "polisync_token",
-          token
-        );
-      } else {
-        sessionStorage.setItem(
-          "polisync_token",
-          token
+      if (!API_URL) {
+        throw new Error(
+          "Production API URL is not configured."
         );
       }
-    }
 
-    // ============================================================
-    // SAVE USER
-    // ============================================================
+      // ========================================================
+      // LOGIN REQUEST
+      // ========================================================
 
-    if (data.user) {
-      const storage = rememberMe
-        ? localStorage
-        : sessionStorage;
+      const controller =
+        new AbortController();
 
-      storage.setItem(
-        "
+      const timeout =
+        setTimeout(() => {
+          controller.abort();
+        }, 90000);
+
+      let response;
+
+      try {
+        response = await fetch(
+          `${API_URL}/api/auth/login`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Accept:
+                "application/json",
+            },
+
+            credentials:
+              "include",
+
+            body:
+              JSON.stringify({
+                email:
+                  normalizedEmail,
+
+                password:
+                  password,
+              }),
+
+            signal:
+              controller.signal,
+          }
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
+
       // ========================================================
       // READ SERVER RESPONSE
       // ========================================================
 
-      let data = null;
+      let data = {};
 
       const contentType =
         response.headers.get(
@@ -188,15 +130,21 @@ export default function LoginPage() {
           "application/json"
         )
       ) {
-        data =
-          await response.json();
+        try {
+          data =
+            await response.json();
+        } catch {
+          data = {};
+        }
       } else {
         const text =
           await response.text();
 
         try {
           data =
-            JSON.parse(text);
+            text
+              ? JSON.parse(text)
+              : {};
         } catch {
           data = {
             message:
@@ -210,33 +158,48 @@ export default function LoginPage() {
       // LOGIN FAILED
       // ========================================================
 
-      if (
-        !response.ok ||
-        !data?.success
-      ) {
-        setError(
+      if (!response.ok) {
+        throw new Error(
           data?.message ||
+            data?.error ||
             "Invalid email or password."
         );
+      }
 
-        setLoading(false);
-        return;
+      if (
+        Object.prototype.hasOwnProperty.call(
+          data,
+          "success"
+        ) &&
+        data.success === false
+      ) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            "Login failed."
+        );
       }
 
       // ========================================================
       // SAVE AUTHENTICATION TOKEN
       // ========================================================
 
-      if (data.token) {
+      const token =
+        data?.token ||
+        data?.accessToken ||
+        data?.access_token ||
+        null;
+
+      if (token) {
         if (remember) {
           localStorage.setItem(
             "polisync_token",
-            data.token
+            token
           );
         } else {
           sessionStorage.setItem(
             "polisync_token",
-            data.token
+            token
           );
         }
       }
@@ -245,7 +208,7 @@ export default function LoginPage() {
       // SAVE USER INFORMATION
       // ========================================================
 
-      if (data.user) {
+      if (data?.user) {
         const userData =
           JSON.stringify(
             data.user
@@ -265,7 +228,22 @@ export default function LoginPage() {
       }
 
       // ========================================================
-      // SUCCESS
+      // SAVE REMEMBER-ME PREFERENCE
+      // ========================================================
+
+      if (remember) {
+        localStorage.setItem(
+          "polisync_remember",
+          "true"
+        );
+      } else {
+        localStorage.removeItem(
+          "polisync_remember"
+        );
+      }
+
+      // ========================================================
+      // LOGIN SUCCESS
       // ========================================================
 
       window.location.href =
@@ -277,10 +255,27 @@ export default function LoginPage() {
         loginError
       );
 
-      setError(
-        "Unable to connect to the server. Please try again."
-      );
-
+      if (
+        loginError?.name ===
+        "AbortError"
+      ) {
+        setError(
+          "The server is taking too long to respond. Please try again."
+        );
+      } else if (
+        loginError?.message ===
+        "Production API URL is not configured."
+      ) {
+        setError(
+          "The production server is not configured correctly."
+        );
+      } else {
+        setError(
+          loginError?.message ||
+            "Unable to connect to the server. Please try again."
+        );
+      }
+    } finally {
       setLoading(false);
     }
   };
@@ -297,7 +292,8 @@ export default function LoginPage() {
         background:
           "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)",
 
-        display: "flex",
+        display:
+          "flex",
 
         justifyContent:
           "center",
@@ -314,7 +310,8 @@ export default function LoginPage() {
     >
       <div
         style={{
-          width: "100%",
+          width:
+            "100%",
 
           maxWidth:
             "440px",
@@ -697,7 +694,9 @@ export default function LoginPage() {
             >
               <input
                 type="checkbox"
-                checked={remember}
+                checked={
+                  remember
+                }
                 onChange={() =>
                   setRemember(
                     !remember
