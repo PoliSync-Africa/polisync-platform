@@ -1,252 +1,429 @@
 // ============================================================
-// POLISYNC AFRICA — SMS MESSAGE TEMPLATES
+// POLISYNC AFRICA — SMS TEMPLATE SERVICE
 // ============================================================
 //
-// Centralized SMS templates for the entire platform.
+// Responsible for:
+// - Loading centralized SMS templates
+// - Replacing template variables
+// - Validating required variables
+// - Preventing accidental unresolved placeholders
+// - Preparing personalized SMS messages
 //
-// IMPORTANT:
-// - This file contains message templates only.
-// - No API keys belong here.
-// - No Arkesel connection logic belongs here.
-// - Personal information is inserted by the notification service.
-// - OTP placeholders are preserved for Arkesel.
+// This service does NOT:
+// - Send SMS
+// - Store API keys
+// - Connect directly to Arkesel
 //
-// Supported variables include:
-//
-// {{firstName}}
-// {{otpCode}}
-// {{expiry}}
-// {{reason}}
-// {{resultReference}}
-// {{electionName}}
-// {{pollingStation}}
-// {{constituency}}
-// {{date}}
-// {{time}}
+// SMS delivery is handled separately by the SMS services.
 //
 // ============================================================
 
-const SMS_TEMPLATES = {
-  // ==========================================================
-  // AUTHENTICATION / SECURITY
-  // ==========================================================
+const SMS_TEMPLATES =
+  require("../config/smsTemplates");
 
-  PHONE_VERIFICATION: {
-    name: "Phone Verification",
+// ============================================================
+// TEMPLATE VARIABLE REGEX
+// ============================================================
 
-    template:
-      "Hello {{firstName}}, your PoliSync Africa phone verification code is {{otpCode}}. It expires in {{expiry}} minutes. Do not share this code.",
-  },
+const VARIABLE_PATTERN =
+  /\{\{([a-zA-Z0-9_]+)\}\}/g;
 
-  PASSWORD_RESET: {
-    name: "Password Reset",
+// ============================================================
+// CONVERT VALUE TO SAFE TEXT
+// ============================================================
 
-    template:
-      "Hello {{firstName}}, your PoliSync Africa password reset code is {{otpCode}}. It expires in {{expiry}} minutes. Do not share this code.",
-  },
+const normalizeValue = (
+  value
+) => {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return "";
+  }
 
-  LOGIN_VERIFICATION: {
-    name: "Login Verification",
+  if (
+    value instanceof Date
+  ) {
+    return value.toISOString();
+  }
 
-    template:
-      "Hello {{firstName}}, your PoliSync Africa login verification code is {{otpCode}}. It expires in {{expiry}} minutes. Do not share this code.",
-  },
+  if (
+    typeof value ===
+    "object"
+  ) {
+    return JSON.stringify(
+      value
+    );
+  }
 
-  TWO_FACTOR_AUTHENTICATION: {
-    name: "Two-Factor Authentication",
-
-    template:
-      "Hello {{firstName}}, your PoliSync Africa security code is {{otpCode}}. It expires in {{expiry}} minutes. Do not share this code.",
-  },
-
-  PASSWORD_CHANGED: {
-    name: "Password Changed",
-
-    template:
-      "Hello {{firstName}}, your PoliSync Africa password was successfully changed. If you did not make this change, secure your account immediately.",
-  },
-
-  NEW_LOGIN: {
-    name: "New Login Alert",
-
-    template:
-      "Hello {{firstName}}, a new login was detected on your PoliSync Africa account. If this was not you, secure your account immediately.",
-  },
-
-  // ==========================================================
-  // ACCOUNT STATUS
-  // ==========================================================
-
-  ACCOUNT_PENDING: {
-    name: "Account Pending",
-
-    template:
-      "Hello {{firstName}}, your PoliSync Africa account registration is pending approval. You will receive another SMS when a decision has been made.",
-  },
-
-  ACCOUNT_APPROVED: {
-    name: "Account Approved",
-
-    template:
-      "Hello {{firstName}}, your PoliSync Africa account has been approved. You can now sign in and access the platform.",
-  },
-
-  ACCOUNT_REJECTED: {
-    name: "Account Rejected",
-
-    template:
-      "Hello {{firstName}}, your PoliSync Africa account registration has been rejected. Reason: {{reason}}. If you believe this decision was made in error, please contact PoliSync Africa support.",
-  },
-
-  ACCOUNT_SUSPENDED: {
-    name: "Account Suspended",
-
-    template:
-      "Hello {{firstName}}, your PoliSync Africa account has been suspended. Reason: {{reason}}. Please contact PoliSync Africa support for assistance.",
-  },
-
-  ACCOUNT_REACTIVATED: {
-    name: "Account Reactivated",
-
-    template:
-      "Hello {{firstName}}, your PoliSync Africa account has been reactivated. You can now sign in and access the platform.",
-  },
-
-  ACCOUNT_DEACTIVATED: {
-    name: "Account Deactivated",
-
-    template:
-      "Hello {{firstName}}, your PoliSync Africa account has been deactivated. Please contact PoliSync Africa support for assistance.",
-  },
-
-  // ==========================================================
-  // VERIFICATION BADGE
-  // ==========================================================
-
-  VERIFICATION_APPROVED: {
-    name: "Verification Approved",
-
-    template:
-      "Hello {{firstName}}, your PoliSync Africa verification request has been approved. Your verified badge is now active.",
-  },
-
-  VERIFICATION_REJECTED: {
-    name: "Verification Rejected",
-
-    template:
-      "Hello {{firstName}}, your PoliSync Africa verification request was not approved. Reason: {{reason}}. Please contact PoliSync Africa support if you need assistance.",
-  },
-
-  PHONE_VERIFIED: {
-    name: "Phone Verified",
-
-    template:
-      "Hello {{firstName}}, your phone number has been successfully verified on PoliSync Africa.",
-  },
-
-  EMAIL_VERIFIED: {
-    name: "Email Verified",
-
-    template:
-      "Hello {{firstName}}, your email address has been successfully verified on PoliSync Africa.",
-  },
-
-  // ==========================================================
-  // ELECTION RESULTS
-  // ==========================================================
-
-  RESULT_RECEIVED: {
-    name: "Election Result Received",
-
-    template:
-      "Hello {{firstName}}, your election result has been received successfully by PoliSync Africa. Reference: {{resultReference}}.",
-  },
-
-  RESULT_SUBMISSION_FAILED: {
-    name: "Election Result Submission Failed",
-
-    template:
-      "Hello {{firstName}}, your election result submission could not be completed. Please try again. Reference: {{resultReference}}.",
-  },
-
-  RESULT_SUBMISSION_RETRY: {
-    name: "Election Result Submission Retry",
-
-    template:
-      "Hello {{firstName}}, your previous election result submission was unsuccessful. Please try submitting the result again. Reference: {{resultReference}}.",
-  },
-
-  // ==========================================================
-  // POLLING AGENT
-  // ==========================================================
-
-  POLLING_AGENT_APPROVED: {
-    name: "Polling Agent Approved",
-
-    template:
-      "Hello {{firstName}}, you have been approved as a polling agent on PoliSync Africa for {{pollingStation}}, {{constituency}}.",
-  },
-
-  POLLING_AGENT_REJECTED: {
-    name: "Polling Agent Rejected",
-
-    template:
-      "Hello {{firstName}}, your polling agent request for {{pollingStation}}, {{constituency}} was not approved. Reason: {{reason}}.",
-  },
-
-  POLLING_AGENT_ASSIGNMENT: {
-    name: "Polling Agent Assignment",
-
-    template:
-      "Hello {{firstName}}, you have been assigned as a polling agent for {{pollingStation}}, {{constituency}} on PoliSync Africa.",
-  },
-
-  // ==========================================================
-  // ORGANIZATION
-  // ==========================================================
-
-  ORGANIZATION_INVITATION: {
-    name: "Organization Invitation",
-
-    template:
-      "Hello {{firstName}}, you have been invited to join {{organizationName}} on PoliSync Africa. Please review the invitation in your account.",
-  },
-
-  ORGANIZATION_MEMBERSHIP_APPROVED: {
-    name: "Organization Membership Approved",
-
-    template:
-      "Hello {{firstName}}, your membership request to {{organizationName}} on PoliSync Africa has been approved.",
-  },
-
-  ORGANIZATION_MEMBERSHIP_REJECTED: {
-    name: "Organization Membership Rejected",
-
-    template:
-      "Hello {{firstName}}, your membership request to {{organizationName}} on PoliSync Africa was not approved. Reason: {{reason}}.",
-  },
-
-  // ==========================================================
-  // GENERAL PLATFORM NOTICES
-  // ==========================================================
-
-  IMPORTANT_NOTICE: {
-    name: "Important Notice",
-
-    template:
-      "Hello {{firstName}}, PoliSync Africa has an important notice for you. Please check your account for more information.",
-  },
-
-  SUPPORT_RESPONSE: {
-    name: "Support Response",
-
-    template:
-      "Hello {{firstName}}, PoliSync Africa Support has responded to your request. Please check your account for details.",
-  },
-
-  // ==========================================================
-  // EXPORT
-  // ==========================================================
+  return String(value);
 };
 
-module.exports = SMS_TEMPLATES;
+// ============================================================
+// FIND TEMPLATE
+// ============================================================
+
+const getTemplate = (
+  templateKey
+) => {
+  if (!templateKey) {
+    throw new Error(
+      "SMS template key is required."
+    );
+  }
+
+  const template =
+    SMS_TEMPLATES[
+      templateKey
+    ];
+
+  if (!template) {
+    throw new Error(
+      `SMS template "${templateKey}" does not exist.`
+    );
+  }
+
+  if (
+    !template.template
+  ) {
+    throw new Error(
+      `SMS template "${templateKey}" has no message content.`
+    );
+  }
+
+  return template;
+};
+
+// ============================================================
+// EXTRACT VARIABLES
+// ============================================================
+
+const getTemplateVariables = (
+  template
+) => {
+  const variables =
+    new Set();
+
+  let match;
+
+  while (
+    (match =
+      VARIABLE_PATTERN.exec(
+        template
+      )) !== null
+  ) {
+    variables.add(
+      match[1]
+    );
+  }
+
+  // Reset regex state.
+  VARIABLE_PATTERN.lastIndex =
+    0;
+
+  return Array.from(
+    variables
+  );
+};
+
+// ============================================================
+// VALIDATE TEMPLATE DATA
+// ============================================================
+
+const validateTemplateData = ({
+  templateKey,
+  template,
+  data,
+  strict = true,
+}) => {
+  const variables =
+    getTemplateVariables(
+      template
+    );
+
+  const missing = [];
+
+  for (
+    const variable of variables
+  ) {
+    const value =
+      data?.[variable];
+
+    if (
+      value ===
+        undefined ||
+      value === null ||
+      String(value).trim() ===
+        ""
+    ) {
+      missing.push(
+        variable
+      );
+    }
+  }
+
+  if (
+    strict &&
+    missing.length > 0
+  ) {
+    throw new Error(
+      `Missing SMS template variables for "${templateKey}": ${missing.join(
+        ", "
+      )}.`
+    );
+  }
+
+  return {
+    valid:
+      missing.length === 0,
+
+    missing,
+  };
+};
+
+// ============================================================
+// RENDER TEMPLATE
+// ============================================================
+//
+// Example:
+//
+// renderTemplate(
+//   "ACCOUNT_APPROVED",
+//   {
+//     firstName: "Daniel"
+//   }
+// )
+//
+// Returns:
+//
+// Hello Daniel, your PoliSync Africa account has been approved.
+// You can now sign in and access the platform.
+//
+// ============================================================
+
+const renderTemplate = (
+  templateKey,
+  data = {},
+  options = {}
+) => {
+  const {
+    strict = true,
+    trim = true,
+  } = options;
+
+  const templateObject =
+    getTemplate(
+      templateKey
+    );
+
+  const template =
+    templateObject.template;
+
+  validateTemplateData({
+    templateKey,
+
+    template,
+
+    data,
+
+    strict,
+  });
+
+  let message =
+    template.replace(
+      VARIABLE_PATTERN,
+      (
+        fullMatch,
+        variableName
+      ) => {
+        const value =
+          data[
+            variableName
+          ];
+
+        if (
+          value ===
+            undefined ||
+          value === null
+        ) {
+          return "";
+        }
+
+        return normalizeValue(
+          value
+        );
+      }
+    );
+
+  // ----------------------------------------------------------
+  // SAFETY CHECK
+  // ----------------------------------------------------------
+
+  const unresolved =
+    message.match(
+      VARIABLE_PATTERN
+    );
+
+  if (
+    unresolved &&
+    unresolved.length > 0
+  ) {
+    throw new Error(
+      `SMS template "${templateKey}" contains unresolved variables: ${unresolved.join(
+        ", "
+      )}.`
+    );
+  }
+
+  if (trim) {
+    message =
+      message.trim();
+  }
+
+  if (!message) {
+    throw new Error(
+      `SMS template "${templateKey}" produced an empty message.`
+    );
+  }
+
+  return message;
+};
+
+// ============================================================
+// RENDER SMS
+// ============================================================
+//
+// This is the main method controllers/services can use.
+//
+// ============================================================
+
+const createSMS = (
+  templateKey,
+  data = {},
+  options = {}
+) => {
+  const message =
+    renderTemplate(
+      templateKey,
+      data,
+      options
+    );
+
+  return {
+    templateKey,
+
+    message,
+
+    characterCount:
+      message.length,
+  };
+};
+
+// ============================================================
+// CHECK TEMPLATE WITHOUT THROWING
+// ============================================================
+//
+// Useful for administrative tools and testing.
+//
+// ============================================================
+
+const inspectTemplate = (
+  templateKey,
+  data = {}
+) => {
+  const templateObject =
+    getTemplate(
+      templateKey
+    );
+
+  const variables =
+    getTemplateVariables(
+      templateObject.template
+    );
+
+  const validation =
+    validateTemplateData({
+      templateKey,
+
+      template:
+        templateObject.template,
+
+      data,
+
+      strict: false,
+    });
+
+  return {
+    templateKey,
+
+    name:
+      templateObject.name ||
+      templateKey,
+
+    template:
+      templateObject.template,
+
+    variables,
+
+    missing:
+      validation.missing,
+
+    ready:
+      validation.valid,
+  };
+};
+
+// ============================================================
+// LIST AVAILABLE SMS TEMPLATES
+// ============================================================
+
+const listTemplates = () => {
+  return Object.keys(
+    SMS_TEMPLATES
+  ).map(
+    (
+      templateKey
+    ) => ({
+      templateKey,
+
+      name:
+        SMS_TEMPLATES[
+          templateKey
+        ].name ||
+        templateKey,
+
+      template:
+        SMS_TEMPLATES[
+          templateKey
+        ].template,
+
+      variables:
+        getTemplateVariables(
+          SMS_TEMPLATES[
+            templateKey
+          ].template
+        ),
+    })
+  );
+};
+
+// ============================================================
+// EXPORT
+// ============================================================
+
+module.exports = {
+  getTemplate,
+
+  getTemplateVariables,
+
+  validateTemplateData,
+
+  renderTemplate,
+
+  createSMS,
+
+  inspectTemplate,
+
+  listTemplates,
+};
