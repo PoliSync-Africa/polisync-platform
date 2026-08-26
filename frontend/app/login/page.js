@@ -788,7 +788,7 @@ export default function LoginPage() {
                 "16px",
 
               borderRadius:
-                "999px",
+  "12px",
 
               border:
                 "none",
