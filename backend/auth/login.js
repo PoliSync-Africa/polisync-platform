@@ -5,7 +5,7 @@ const User = require("../models/User");
 // ============================================================
 // POLISYNC AFRICA — LOGIN CONTROLLER
 // ============================================================
-// Authentication:
+// Login:
 //   1. Email
 //   2. Password
 //
@@ -13,8 +13,14 @@ const User = require("../models/User");
 //   - super_admin
 //   - user
 //
-// Organization roles are NOT stored in User.platformRole.
-// They are handled through OrganizationMembership.
+// Organization roles are handled separately through
+// OrganizationMembership.
+//
+// Organization roles:
+//   - national_party_admin
+//   - regional_admin
+//   - constituency_admin
+//   - polling_station_agent
 //
 // NO:
 //   - Google login
@@ -53,11 +59,33 @@ const login = async (req, res) => {
       });
     }
 
+    if (!String(password).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required."
+      });
+    }
+
     // ----------------------------------------------------------
-    // 3. FIND USER
+    // 3. CHECK JWT SECRET
     // ----------------------------------------------------------
-    // password has select:false in User.js, therefore we
-    // explicitly request it.
+
+    if (!process.env.JWT_SECRET) {
+      console.error(
+        "POLISYNC AUTH ERROR: JWT_SECRET is not configured."
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Authentication service is not properly configured."
+      });
+    }
+
+    // ----------------------------------------------------------
+    // 4. FIND USER
+    // ----------------------------------------------------------
+    // User.password uses select:false, so explicitly request it.
     // ----------------------------------------------------------
 
     const user = await User.findOne({
@@ -72,7 +100,7 @@ const login = async (req, res) => {
     }
 
     // ----------------------------------------------------------
-    // 4. CHECK PASSWORD
+    // 5. VERIFY PASSWORD
     // ----------------------------------------------------------
 
     const passwordMatches = await bcrypt.compare(
@@ -88,7 +116,7 @@ const login = async (req, res) => {
     }
 
     // ----------------------------------------------------------
-    // 5. CHECK ACCOUNT STATUS
+    // 6. ACCOUNT STATUS
     // ----------------------------------------------------------
 
     if (user.accountStatus === "suspended") {
@@ -113,24 +141,43 @@ const login = async (req, res) => {
     }
 
     // ----------------------------------------------------------
-    // 6. SUPER ADMIN ACCESS
+    // 7. SUPER ADMIN
     // ----------------------------------------------------------
-    // Super Admin is the PoliSync Africa platform authority.
+    // Super Admin is the platform authority.
     //
-    // Super Admin does NOT need an organization membership
-    // to access the platform.
+    // Super Admin does not require an organization membership
+    // to access the PoliSync Africa platform.
     // ----------------------------------------------------------
 
     if (user.platformRole === "super_admin") {
-      // Make sure the platform account is treated as approved.
+      // Super Admin must be approved.
       if (user.accountStatus !== "approved") {
-        user.accountStatus = "approved";
-        user.approvedAt = user.approvedAt || new Date();
-        user.approvedBy = user.approvedBy || user._id;
+        return res.status(403).json({
+          success: false,
+          message:
+            "The Super Admin account is not approved."
+        });
       }
 
-      user.emailVerified = true;
-      user.phoneVerified = true;
+      // --------------------------------------------------------
+      // EMAIL VERIFICATION
+      // --------------------------------------------------------
+      // Login must NOT automatically verify the account.
+      // The email confirmation process must do that.
+      // --------------------------------------------------------
+
+      if (!user.emailVerified) {
+        return res.status(403).json({
+          success: false,
+          code: "EMAIL_NOT_VERIFIED",
+          message:
+            "Please verify your email before accessing PoliSync Africa."
+        });
+      }
+
+      // --------------------------------------------------------
+      // UPDATE LOGIN INFORMATION
+      // --------------------------------------------------------
 
       user.lastLoginAt = new Date();
       user.isOnline = true;
@@ -152,40 +199,67 @@ const login = async (req, res) => {
         }
       );
 
+      // --------------------------------------------------------
+      // SUPER ADMIN RESPONSE
+      // --------------------------------------------------------
+
       return res.status(200).json({
         success: true,
 
-        message: "Welcome to PoliSync Africa.",
+        message:
+          "Welcome to PoliSync Africa.",
 
         token,
 
         user: {
           id: user._id,
 
-          displayName: "POLISYNC AFRICA",
+          displayName:
+            "POLISYNC AFRICA",
 
-          username: "polisync.africa",
+          username:
+            "polisync.africa",
 
-          platformRole: "super_admin",
+          platformRole:
+            "super_admin",
 
-          isPlatformAccount: true,
+          isPlatformAccount:
+            true,
 
-          verified: true,
+          verified:
+            true,
 
-          verificationBadge: "/verified-badge.png",
+          verificationBadge:
+            "/verified-badge.png",
 
-          accountStatus: "approved"
+          accountStatus:
+            "approved"
         },
 
         workspace: {
-          type: "super_admin",
-          name: "PoliSync Africa Super Admin"
+          type:
+            "super_admin",
+
+          name:
+            "PoliSync Africa Super Admin"
         }
       });
     }
 
     // ----------------------------------------------------------
-    // 7. ORDINARY USER ACCOUNT
+    // 8. ORDINARY USER
+    // ----------------------------------------------------------
+
+    if (user.platformRole !== "user") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This account has an invalid platform role."
+      });
+    }
+
+    // ----------------------------------------------------------
+    // 9. ORDINARY USER ACCOUNT APPROVAL
     // ----------------------------------------------------------
 
     if (user.accountStatus !== "approved") {
@@ -197,7 +271,20 @@ const login = async (req, res) => {
     }
 
     // ----------------------------------------------------------
-    // 8. UPDATE LOGIN INFORMATION
+    // 10. ORDINARY USER EMAIL VERIFICATION
+    // ----------------------------------------------------------
+
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        success: false,
+        code: "EMAIL_NOT_VERIFIED",
+        message:
+          "Please verify your email before logging in."
+      });
+    }
+
+    // ----------------------------------------------------------
+    // 11. UPDATE LOGIN INFORMATION
     // ----------------------------------------------------------
 
     user.lastLoginAt = new Date();
@@ -206,7 +293,7 @@ const login = async (req, res) => {
     await user.save();
 
     // ----------------------------------------------------------
-    // 9. CREATE ORDINARY USER TOKEN
+    // 12. CREATE ORDINARY USER TOKEN
     // ----------------------------------------------------------
 
     const token = jwt.sign(
@@ -221,38 +308,43 @@ const login = async (req, res) => {
     );
 
     // ----------------------------------------------------------
-    // 10. RETURN AUTHENTICATED USER
+    // 13. ORDINARY USER RESPONSE
     // ----------------------------------------------------------
     //
-    // Organization membership determines whether this user is:
+    // OrganizationMembership determines whether the user is:
     //
     // National Party Admin
     // Regional Admin
     // Constituency Admin
     // Polling Station Agent
     //
-    // We deliberately do NOT create a Country Admin role.
+    // There is deliberately NO Country Admin.
     // ----------------------------------------------------------
 
     return res.status(200).json({
       success: true,
 
-      message: "Login successful.",
+      message:
+        "Login successful.",
 
       token,
 
       user: {
-        id: user._id,
+        id:
+          user._id,
 
         displayName:
           user.displayName ||
           `${user.firstName} ${user.lastName}`.trim(),
 
-        username: user.username,
+        username:
+          user.username,
 
-        platformRole: "user",
+        platformRole:
+          "user",
 
-        isPlatformAccount: false,
+        isPlatformAccount:
+          false,
 
         verified:
           Boolean(
@@ -272,8 +364,11 @@ const login = async (req, res) => {
       },
 
       workspace: {
-        type: "organization",
-        requiresMembership: true
+        type:
+          "organization",
+
+        requiresMembership:
+          true
       }
     });
 
