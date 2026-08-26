@@ -64,57 +64,67 @@ export default function RegisterPage() {
   // ==========================================================
 
   const politicalParties = [
-    {
-      value: "NPP",
-      name: "NPP",
-      logo: "/party-logos/npp.png",
-    },
-    {
-      value: "NDC",
-      name: "NDC",
-      logo: "/party-logos/ndc.png",
-    },
-    {
-      value: "CPP",
-      name: "CPP",
-      logo: "/party-logos/cpp.png",
-    },
-    {
-      value: "LPG",
-      name: "LPG",
-      logo: "/party-logos/lpg.png",
-    },
-    {
-      value: "GUM",
-      name: "GUM",
-      logo: "/party-logos/gum.png",
-    },
-    {
-      value: "PNC",
-      name: "PNC",
-      logo: "/party-logos/pnc.png",
-    },
-    {
-      value: "PPP",
-      name: "PPP",
-      logo: "/party-logos/ppp.png",
-    },
-    {
-      value: "THE_BASE_PARTY",
-      name: "The Base Party",
-      logo: "/party-logos/the-base-party.png",
-    },
-    {
-      value: "UP_MOVEMENT_FOR_CHANGE",
-      name: "UP (Movement For Change)",
-      logo: "/party-logos/up-movement-for-change.png",
-    },
-    {
-      value: "INDEPENDENT",
-      name: "Independent",
-      logo: "/party-logos/independent.png",
-    },
-  ];
+  {
+    value: "NPP",
+    name: "NPP",
+    logo: "/party-logos/npp.png",
+  },
+  {
+    value: "NDC",
+    name: "NDC",
+    logo: "/party-logos/ndc.png",
+  },
+  {
+    value: "CPP",
+    name: "CPP",
+    logo: "/party-logos/cpp.png",
+  },
+  {
+    value: "LPG",
+    name: "LPG",
+    logo: "/party-logos/lpg.png",
+  },
+  {
+    value: "GUM",
+    name: "GUM",
+    logo: "/party-logos/gum.png",
+  },
+  {
+    value: "PNC",
+    name: "PNC",
+    logo: "/party-logos/pnc.png",
+  },
+  {
+    value: "PPP",
+    name: "PPP",
+    logo: "/party-logos/ppp.png",
+  },
+  {
+    value: "THE_BASE_MOVEMENT",
+    name: "The Base Movement",
+    logo: "/party-logos/the-base-movement.png",
+  },
+  {
+    value: "THE_NEW_FORCE",
+    name: "The New Force",
+    logo: "/party-logos/the-new-force.png",
+  },
+  {
+    value: "UP_MOVEMENT_FOR_CHANGE",
+    name: "UP (Movement For Change)",
+    logo: "/party-logos/up-movement-for-change.png",
+  },
+  {
+    value: "GFP",
+    name: "GFP",
+    logo: "/party-logos/gfp.png",
+  },
+  {
+    value: "INDEPENDENT",
+    name: "Independent",
+    logo: "/party-logos/independent.png",
+  },
+];
 
   // ==========================================================
   // REGIONS
