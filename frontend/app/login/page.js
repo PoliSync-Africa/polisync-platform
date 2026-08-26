@@ -493,18 +493,18 @@ export default function LoginPage() {
                   "999px",
 
                 border:
-                  "1.5px solid #D8D8D8",
+  "3px solid #B89A4A",
 
-                background:
-                  loading
-                    ? "#F5F5F5"
-                    : "#FFFFFF",
+background:
+  loading
+    ? "#F5F5F5"
+    : "#FFFFFF",
 
-                fontSize:
-                  "16px",
+fontSize:
+  "16px",
 
-                outline:
-                  "none",
+outline:
+  "none",
               }}
             />
           </div>
