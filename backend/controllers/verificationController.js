@@ -4,17 +4,45 @@ const User = require("../models/User");
 
 const {
   sendAccountApproved,
+  sendVerificationApproved,
+  sendVerificationRejected,
 } = require("../services/notificationService");
 
 // ============================================================
-// CONSTANTS
+// POLISYNC AFRICA — VERIFICATION CONTROLLER
+// ============================================================
+//
+// Handles:
+// 1. Verification requests
+// 2. My verification status
+// 3. Super Admin pending requests
+// 4. Super Admin approval
+// 5. Super Admin rejection
+// 6. Super Admin revocation
+// 7. Individual verification request lookup
+// 8. Verification notifications
+//
+// SECURITY:
+// Only the POLISYNC AFRICA Super Admin can:
+// - approve
+// - reject
+// - revoke
+// - inspect
+// - manage verification requests
+//
+// Notification failure NEVER reverses a saved decision.
 // ============================================================
 
-const VERIFIED_BADGE =
-  "/verified-badge.png";
 
-const SUPER_ADMIN_ROLE =
-  "super_admin";
+// ============================================================
+// CONFIGURATION
+// ============================================================
+
+const VERIFIED_BADGE = "/verified-badge.png";
+
+const SUPER_ADMIN_ROLE = "super_admin";
+
+const MAX_REASON_LENGTH = 2000;
 
 const ALLOWED_VERIFICATION_TYPES = [
   "individual",
@@ -23,6 +51,7 @@ const ALLOWED_VERIFICATION_TYPES = [
   "political_party",
   "public_figure",
 ];
+
 
 // ============================================================
 // HELPERS
@@ -37,6 +66,7 @@ const getAuthenticatedUserId = (req) => {
   );
 };
 
+
 const isValidObjectId = (id) => {
   return Boolean(
     id &&
@@ -44,20 +74,132 @@ const isValidObjectId = (id) => {
   );
 };
 
+
+const getDisplayName = (user) => {
+  if (user.displayName) {
+    return user.displayName;
+  }
+
+  return `${user.firstName || ""} ${
+    user.lastName || ""
+  }`.trim();
+};
+
+
+const getReviewerIdentity = (superAdmin) => {
+  return {
+    id: superAdmin._id,
+
+    displayName: "POLISYNC AFRICA",
+
+    username: "polisync.africa",
+
+    platformRole: SUPER_ADMIN_ROLE,
+  };
+};
+
+
+const sendVerificationApprovalNotification =
+  async (user) => {
+    try {
+      if (
+        typeof sendVerificationApproved ===
+        "function"
+      ) {
+        await sendVerificationApproved({
+          user,
+        });
+
+        return {
+          sent: true,
+          error: null,
+        };
+      }
+
+      if (
+        typeof sendAccountApproved ===
+        "function"
+      ) {
+        await sendAccountApproved({
+          user,
+        });
+
+        return {
+          sent: true,
+          error: null,
+        };
+      }
+
+      return {
+        sent: false,
+
+        error:
+          "No verification approval notification service is available.",
+      };
+    } catch (error) {
+      console.error(
+        "Verification approval notification error:",
+        error
+      );
+
+      return {
+        sent: false,
+
+        error:
+          error.message ||
+          "Verification approval notification failed.",
+      };
+    }
+  };
+
+
+const sendVerificationRejectionNotification =
+  async (
+    user,
+    reason
+  ) => {
+    try {
+      if (
+        typeof sendVerificationRejected !==
+        "function"
+      ) {
+        return {
+          sent: false,
+
+          error:
+            "Verification rejection notification service is not available.",
+        };
+      }
+
+      await sendVerificationRejected({
+        user,
+
+        reason,
+      });
+
+      return {
+        sent: true,
+        error: null,
+      };
+    } catch (error) {
+      console.error(
+        "Verification rejection notification error:",
+        error
+      );
+
+      return {
+        sent: false,
+
+        error:
+          error.message ||
+          "Verification rejection notification failed.",
+      };
+    }
+  };
+
+
 // ============================================================
 // SUPER ADMIN AUTHORIZATION
-// ============================================================
-// ONLY THE POLISYNC AFRICA SUPER ADMIN MAY:
-//
-// - approve verification
-// - reject verification
-// - revoke verification
-// - inspect verification requests
-// - view pending verification requests
-//
-// Party admins, organization admins, candidates,
-// regional admins, constituency officers and other
-// administrators do NOT receive verification authority.
 // ============================================================
 
 const requireSuperAdmin = async (
@@ -75,6 +217,7 @@ const requireSuperAdmin = async (
   ) {
     res.status(401).json({
       success: false,
+
       message:
         "Authentication required.",
     });
@@ -90,6 +233,7 @@ const requireSuperAdmin = async (
   if (!authenticatedUser) {
     res.status(401).json({
       success: false,
+
       message:
         "Authenticated user was not found.",
     });
@@ -103,6 +247,7 @@ const requireSuperAdmin = async (
   ) {
     res.status(403).json({
       success: false,
+
       message:
         "Only the PoliSync Africa Super Admin can manage verification.",
     });
@@ -116,6 +261,7 @@ const requireSuperAdmin = async (
   ) {
     res.status(403).json({
       success: false,
+
       message:
         "The Super Admin account is not active.",
     });
@@ -126,12 +272,9 @@ const requireSuperAdmin = async (
   return authenticatedUser;
 };
 
+
 // ============================================================
 // REQUEST VERIFICATION
-// ============================================================
-// POST /api/verification/request
-//
-// Any eligible approved user may request verification.
 // ============================================================
 
 exports.requestVerification =
@@ -146,6 +289,7 @@ exports.requestVerification =
       ) {
         return res.status(401).json({
           success: false,
+
           message:
             "Authentication required.",
         });
@@ -157,14 +301,11 @@ exports.requestVerification =
       if (!user) {
         return res.status(404).json({
           success: false,
+
           message:
             "User account not found.",
         });
       }
-
-      // --------------------------------------------------------
-      // SUPER ADMIN
-      // --------------------------------------------------------
 
       if (
         user.platformRole ===
@@ -172,45 +313,26 @@ exports.requestVerification =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "POLISYNC AFRICA is already officially verified.",
         });
       }
 
-      // --------------------------------------------------------
-      // ACCOUNT STATUS
-      // --------------------------------------------------------
-
       if (
-        user.accountStatus ===
-        "suspended"
+        [
+          "suspended",
+          "deactivated",
+          "rejected",
+        ].includes(
+          user.accountStatus
+        )
       ) {
         return res.status(403).json({
           success: false,
-          message:
-            "Suspended accounts cannot request verification.",
-        });
-      }
 
-      if (
-        user.accountStatus ===
-        "deactivated"
-      ) {
-        return res.status(403).json({
-          success: false,
           message:
-            "Deactivated accounts cannot request verification.",
-        });
-      }
-
-      if (
-        user.accountStatus ===
-        "rejected"
-      ) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Rejected accounts cannot request verification.",
+            "This account is not eligible to request verification.",
         });
       }
 
@@ -220,45 +342,34 @@ exports.requestVerification =
       ) {
         return res.status(403).json({
           success: false,
+
           message:
             "Your account must be approved before requesting verification.",
         });
       }
 
-      // --------------------------------------------------------
-      // EXISTING VERIFICATION
-      // --------------------------------------------------------
-
       if (
-        user.verification &&
-        user.verification.isVerified
+        user.verification?.isVerified
       ) {
         return res.status(409).json({
           success: false,
+
           message:
             "Your account is already verified.",
         });
       }
 
-      // --------------------------------------------------------
-      // EXISTING PENDING REQUEST
-      // --------------------------------------------------------
-
       if (
-        user.verification &&
-        user.verification.status ===
-          "pending"
+        user.verification?.status ===
+        "pending"
       ) {
         return res.status(409).json({
           success: false,
+
           message:
             "Your verification request is already pending review.",
         });
       }
-
-      // --------------------------------------------------------
-      // REQUEST DATA
-      // --------------------------------------------------------
 
       const {
         verificationType,
@@ -266,8 +377,12 @@ exports.requestVerification =
       } = req.body;
 
       const selectedType =
-        verificationType ||
-        "individual";
+        String(
+          verificationType ||
+            "individual"
+        )
+          .trim()
+          .toLowerCase();
 
       if (
         !ALLOWED_VERIFICATION_TYPES.includes(
@@ -276,26 +391,46 @@ exports.requestVerification =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "Invalid verification type.",
         });
       }
 
       if (
-        requestReason &&
-        requestReason.length >
-          2000
+        requestReason !== undefined &&
+        requestReason !== null &&
+        typeof requestReason !==
+          "string"
       ) {
         return res.status(400).json({
           success: false,
+
+          message:
+            "Verification request reason must be text.",
+        });
+      }
+
+      const reason =
+        requestReason
+          ? requestReason.trim()
+          : null;
+
+      if (
+        reason &&
+        reason.length >
+          MAX_REASON_LENGTH
+      ) {
+        return res.status(400).json({
+          success: false,
+
           message:
             "Verification request reason cannot exceed 2000 characters.",
         });
       }
 
-      // --------------------------------------------------------
-      // CREATE REQUEST
-      // --------------------------------------------------------
+      user.verification =
+        user.verification || {};
 
       user.verification.status =
         "pending";
@@ -310,9 +445,7 @@ exports.requestVerification =
         new Date();
 
       user.verification.requestReason =
-        requestReason
-          ? requestReason.trim()
-          : null;
+        reason;
 
       user.verification.reviewedAt =
         null;
@@ -339,12 +472,10 @@ exports.requestVerification =
 
         verification: {
           status:
-            user.verification
-              .status,
+            user.verification.status,
 
           isVerified:
-            user.verification
-              .isVerified,
+            user.verification.isVerified,
 
           verificationType:
             user.verification
@@ -363,6 +494,7 @@ exports.requestVerification =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Unable to submit verification request.",
@@ -370,10 +502,9 @@ exports.requestVerification =
     }
   };
 
+
 // ============================================================
 // GET MY VERIFICATION STATUS
-// ============================================================
-// GET /api/verification/me
 // ============================================================
 
 exports.getMyVerificationStatus =
@@ -388,6 +519,7 @@ exports.getMyVerificationStatus =
       ) {
         return res.status(401).json({
           success: false,
+
           message:
             "Authentication required.",
         });
@@ -399,24 +531,23 @@ exports.getMyVerificationStatus =
       if (!user) {
         return res.status(404).json({
           success: false,
+
           message:
             "User account not found.",
         });
       }
 
-      const isPlatformAccount =
+      if (
         user.platformRole ===
-        SUPER_ADMIN_ROLE;
-
-      if (isPlatformAccount) {
+        SUPER_ADMIN_ROLE
+      ) {
         return res.status(200).json({
           success: true,
 
           verification: {
             isVerified: true,
 
-            status:
-              "approved",
+            status: "approved",
 
             verificationType:
               "platform",
@@ -424,48 +555,56 @@ exports.getMyVerificationStatus =
             badgeAsset:
               VERIFIED_BADGE,
 
-            platformAccount:
-              true,
+            platformAccount: true,
           },
         });
       }
+
+      const verification =
+        user.verification || {};
 
       return res.status(200).json({
         success: true,
 
         verification: {
           isVerified:
-            user.verification
-              .isVerified,
+            Boolean(
+              verification.isVerified
+            ),
 
           status:
-            user.verification
-              .status,
+            verification.status ||
+            "not_requested",
 
           verificationType:
-            user.verification
-              .verificationType,
+            verification
+              .verificationType ||
+            "individual",
 
           requestedAt:
-            user.verification
-              .requestedAt,
+            verification.requestedAt ||
+            null,
 
           reviewedAt:
-            user.verification
-              .reviewedAt,
+            verification.reviewedAt ||
+            null,
 
           rejectionReason:
-            user.verification
-              .rejectionReason,
+            verification
+              .rejectionReason ||
+            null,
+
+          revocationReason:
+            verification
+              .revocationReason ||
+            null,
 
           badgeAsset:
-            user.verification
-              .isVerified
+            verification.isVerified
               ? VERIFIED_BADGE
               : null,
 
-          platformAccount:
-            false,
+          platformAccount: false,
         },
       });
     } catch (error) {
@@ -476,6 +615,7 @@ exports.getMyVerificationStatus =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Unable to retrieve verification status.",
@@ -483,12 +623,10 @@ exports.getMyVerificationStatus =
     }
   };
 
+
 // ============================================================
 // GET PENDING VERIFICATION REQUESTS
-// ============================================================
-// GET /api/verification/admin/pending
-//
-// SUPER ADMIN ONLY.
+// SUPER ADMIN ONLY
 // ============================================================
 
 exports.getPendingVerificationRequests =
@@ -511,8 +649,7 @@ exports.getPendingVerificationRequests =
 
       const limit = Math.min(
         Math.max(
-          Number(req.query.limit) ||
-            20,
+          Number(req.query.limit) || 20,
           1
         ),
         100
@@ -522,7 +659,9 @@ exports.getPendingVerificationRequests =
         (page - 1) * limit;
 
       const filter = {
-        platformRole: "user",
+        platformRole: {
+          $ne: SUPER_ADMIN_ROLE,
+        },
 
         "verification.status":
           "pending",
@@ -544,9 +683,7 @@ exports.getPendingVerificationRequests =
           .limit(limit)
           .lean(),
 
-        User.countDocuments(
-          filter
-        ),
+        User.countDocuments(filter),
       ]);
 
       const safeRequests =
@@ -555,10 +692,7 @@ exports.getPendingVerificationRequests =
             id: user._id,
 
             displayName:
-              user.displayName ||
-              `${user.firstName || ""} ${
-                user.lastName || ""
-              }`.trim(),
+              getDisplayName(user),
 
             username:
               user.username,
@@ -603,7 +737,9 @@ exports.getPendingVerificationRequests =
 
         pagination: {
           page,
+
           limit,
+
           total,
 
           totalPages:
@@ -612,19 +748,10 @@ exports.getPendingVerificationRequests =
             ),
         },
 
-        reviewer: {
-          id:
-            superAdmin._id,
-
-          displayName:
-            "POLISYNC AFRICA",
-
-          username:
-            "polisync.africa",
-
-          platformRole:
-            "super_admin",
-        },
+        reviewer:
+          getReviewerIdentity(
+            superAdmin
+          ),
       });
     } catch (error) {
       console.error(
@@ -634,6 +761,7 @@ exports.getPendingVerificationRequests =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Unable to retrieve verification requests.",
@@ -641,31 +769,15 @@ exports.getPendingVerificationRequests =
     }
   };
 
+
 // ============================================================
 // APPROVE VERIFICATION
-// ============================================================
-// PATCH /api/verification/admin/:userId/approve
-//
-// SUPER ADMIN ONLY.
-//
-// IMPORTANT:
-// The account is saved as approved BEFORE notification
-// delivery is attempted.
-//
-// Therefore:
-//
-// APPROVAL SUCCESS + SMS/EMAIL FAILURE
-//
-// does NOT undo the approval.
+// SUPER ADMIN ONLY
 // ============================================================
 
 exports.approveVerification =
   async (req, res) => {
     try {
-      // --------------------------------------------------------
-      // SUPER ADMIN AUTHORIZATION
-      // --------------------------------------------------------
-
       const superAdmin =
         await requireSuperAdmin(
           req,
@@ -675,10 +787,6 @@ exports.approveVerification =
       if (!superAdmin) {
         return;
       }
-
-      // --------------------------------------------------------
-      // TARGET USER
-      // --------------------------------------------------------
 
       const targetUserId =
         req.params.userId;
@@ -690,14 +798,11 @@ exports.approveVerification =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "Invalid user ID.",
         });
       }
-
-      // --------------------------------------------------------
-      // FIND USER
-      // --------------------------------------------------------
 
       const user =
         await User.findById(
@@ -707,14 +812,11 @@ exports.approveVerification =
       if (!user) {
         return res.status(404).json({
           success: false,
+
           message:
             "User account not found.",
         });
       }
-
-      // --------------------------------------------------------
-      // SUPER ADMIN CANNOT BE APPROVED
-      // --------------------------------------------------------
 
       if (
         user.platformRole ===
@@ -722,14 +824,11 @@ exports.approveVerification =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "POLISYNC AFRICA is already verified.",
         });
       }
-
-      // --------------------------------------------------------
-      // REQUEST MUST BE PENDING
-      // --------------------------------------------------------
 
       if (
         !user.verification ||
@@ -738,13 +837,14 @@ exports.approveVerification =
       ) {
         return res.status(409).json({
           success: false,
+
           message:
             "This account does not have a pending verification request.",
         });
       }
 
       // --------------------------------------------------------
-      // APPROVE VERIFICATION
+      // SAVE APPROVAL FIRST
       // --------------------------------------------------------
 
       user.verification.isVerified =
@@ -771,49 +871,13 @@ exports.approveVerification =
       await user.save();
 
       // --------------------------------------------------------
-      // NOTIFY USER
-      // --------------------------------------------------------
-      //
-      // Notification failure MUST NOT undo approval.
+      // SEND APPROVAL NOTIFICATION
       // --------------------------------------------------------
 
-      let notificationSent =
-        false;
-
-      let notificationError =
-        null;
-
-      try {
-        if (
-          typeof sendAccountApproved ===
-          "function"
-        ) {
-          await sendAccountApproved({
-            user,
-          });
-
-          notificationSent =
-            true;
-        } else {
-          notificationError =
-            "sendAccountApproved is not available in notificationService.";
-        }
-      } catch (
-        notificationException
-      ) {
-        notificationError =
-          notificationException.message ||
-          "Notification delivery failed.";
-
-        console.error(
-          "Account approval notification error:",
-          notificationException
+      const notification =
+        await sendVerificationApprovalNotification(
+          user
         );
-      }
-
-      // --------------------------------------------------------
-      // SUCCESS RESPONSE
-      // --------------------------------------------------------
 
       return res.status(200).json({
         success: true,
@@ -821,18 +885,17 @@ exports.approveVerification =
         message:
           "Verification approved successfully.",
 
-        notificationSent,
+        notificationSent:
+          notification.sent,
 
-        notificationError,
+        notificationError:
+          notification.error,
 
         user: {
           id: user._id,
 
           displayName:
-            user.displayName ||
-            `${user.firstName || ""} ${
-              user.lastName || ""
-            }`.trim(),
+            getDisplayName(user),
 
           username:
             user.username,
@@ -850,16 +913,10 @@ exports.approveVerification =
             VERIFIED_BADGE,
         },
 
-        reviewedBy: {
-          displayName:
-            "POLISYNC AFRICA",
-
-          username:
-            "polisync.africa",
-
-          platformRole:
-            "super_admin",
-        },
+        reviewedBy:
+          getReviewerIdentity(
+            superAdmin
+          ),
       });
     } catch (error) {
       console.error(
@@ -869,6 +926,7 @@ exports.approveVerification =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Unable to approve verification.",
@@ -876,12 +934,10 @@ exports.approveVerification =
     }
   };
 
+
 // ============================================================
 // REJECT VERIFICATION
-// ============================================================
-// PATCH /api/verification/admin/:userId/reject
-//
-// SUPER ADMIN ONLY.
+// SUPER ADMIN ONLY
 // ============================================================
 
 exports.rejectVerification =
@@ -907,6 +963,7 @@ exports.rejectVerification =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "Invalid user ID.",
         });
@@ -920,6 +977,7 @@ exports.rejectVerification =
       if (!user) {
         return res.status(404).json({
           success: false,
+
           message:
             "User account not found.",
         });
@@ -931,6 +989,7 @@ exports.rejectVerification =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "The POLISYNC AFRICA platform account cannot be rejected.",
         });
@@ -943,6 +1002,7 @@ exports.rejectVerification =
       ) {
         return res.status(409).json({
           success: false,
+
           message:
             "This account does not have a pending verification request.",
         });
@@ -953,29 +1013,35 @@ exports.rejectVerification =
       } = req.body;
 
       if (
-        !rejectionReason ||
+        typeof rejectionReason !==
+          "string" ||
         !rejectionReason.trim()
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "A rejection reason is required.",
         });
       }
 
+      const reason =
+        rejectionReason.trim();
+
       if (
-        rejectionReason.length >
-        2000
+        reason.length >
+        MAX_REASON_LENGTH
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "Rejection reason cannot exceed 2000 characters.",
         });
       }
 
       // --------------------------------------------------------
-      // REJECT
+      // SAVE REJECTION FIRST
       // --------------------------------------------------------
 
       user.verification.isVerified =
@@ -991,12 +1057,22 @@ exports.rejectVerification =
         superAdmin._id;
 
       user.verification.rejectionReason =
-        rejectionReason.trim();
+        reason;
 
       user.verification.badgeAsset =
         VERIFIED_BADGE;
 
       await user.save();
+
+      // --------------------------------------------------------
+      // SEND REJECTION NOTIFICATION
+      // --------------------------------------------------------
+
+      const notification =
+        await sendVerificationRejectionNotification(
+          user,
+          reason
+        );
 
       return res.status(200).json({
         success: true,
@@ -1004,14 +1080,17 @@ exports.rejectVerification =
         message:
           "Verification request rejected.",
 
+        notificationSent:
+          notification.sent,
+
+        notificationError:
+          notification.error,
+
         user: {
           id: user._id,
 
           displayName:
-            user.displayName ||
-            `${user.firstName || ""} ${
-              user.lastName || ""
-            }`.trim(),
+            getDisplayName(user),
 
           username:
             user.username,
@@ -1022,16 +1101,10 @@ exports.rejectVerification =
             "rejected",
         },
 
-        reviewedBy: {
-          displayName:
-            "POLISYNC AFRICA",
-
-          username:
-            "polisync.africa",
-
-          platformRole:
-            "super_admin",
-        },
+        reviewedBy:
+          getReviewerIdentity(
+            superAdmin
+          ),
       });
     } catch (error) {
       console.error(
@@ -1041,6 +1114,7 @@ exports.rejectVerification =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Unable to reject verification.",
@@ -1048,12 +1122,10 @@ exports.rejectVerification =
     }
   };
 
+
 // ============================================================
 // REVOKE VERIFICATION
-// ============================================================
-// PATCH /api/verification/admin/:userId/revoke
-//
-// SUPER ADMIN ONLY.
+// SUPER ADMIN ONLY
 // ============================================================
 
 exports.revokeVerification =
@@ -1079,6 +1151,7 @@ exports.revokeVerification =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "Invalid user ID.",
         });
@@ -1092,6 +1165,7 @@ exports.revokeVerification =
       if (!user) {
         return res.status(404).json({
           success: false,
+
           message:
             "User account not found.",
         });
@@ -1103,6 +1177,7 @@ exports.revokeVerification =
       ) {
         return res.status(403).json({
           success: false,
+
           message:
             "The POLISYNC AFRICA platform verification cannot be revoked through this endpoint.",
         });
@@ -1114,6 +1189,7 @@ exports.revokeVerification =
       ) {
         return res.status(409).json({
           success: false,
+
           message:
             "This account is not currently verified.",
         });
@@ -1124,30 +1200,32 @@ exports.revokeVerification =
       } = req.body;
 
       if (
-        !revocationReason ||
+        typeof revocationReason !==
+          "string" ||
         !revocationReason.trim()
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "A revocation reason is required.",
         });
       }
 
+      const reason =
+        revocationReason.trim();
+
       if (
-        revocationReason.length >
-        2000
+        reason.length >
+        MAX_REASON_LENGTH
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "Revocation reason cannot exceed 2000 characters.",
         });
       }
-
-      // --------------------------------------------------------
-      // REVOKE
-      // --------------------------------------------------------
 
       user.verification.isVerified =
         false;
@@ -1162,7 +1240,7 @@ exports.revokeVerification =
         superAdmin._id;
 
       user.verification.revocationReason =
-        revocationReason.trim();
+        reason;
 
       user.verification.badgeAsset =
         VERIFIED_BADGE;
@@ -1179,10 +1257,7 @@ exports.revokeVerification =
           id: user._id,
 
           displayName:
-            user.displayName ||
-            `${user.firstName || ""} ${
-              user.lastName || ""
-            }`.trim(),
+            getDisplayName(user),
 
           username:
             user.username,
@@ -1193,16 +1268,10 @@ exports.revokeVerification =
             "revoked",
         },
 
-        reviewedBy: {
-          displayName:
-            "POLISYNC AFRICA",
-
-          username:
-            "polisync.africa",
-
-          platformRole:
-            "super_admin",
-        },
+        reviewedBy:
+          getReviewerIdentity(
+            superAdmin
+          ),
       });
     } catch (error) {
       console.error(
@@ -1212,6 +1281,7 @@ exports.revokeVerification =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Unable to revoke verification.",
@@ -1219,12 +1289,10 @@ exports.revokeVerification =
     }
   };
 
+
 // ============================================================
 // GET VERIFICATION REQUEST
-// ============================================================
-// GET /api/verification/admin/:userId
-//
-// SUPER ADMIN ONLY.
+// SUPER ADMIN ONLY
 // ============================================================
 
 exports.getVerificationRequest =
@@ -1250,6 +1318,7 @@ exports.getVerificationRequest =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "Invalid user ID.",
         });
@@ -1267,6 +1336,7 @@ exports.getVerificationRequest =
       if (!user) {
         return res.status(404).json({
           success: false,
+
           message:
             "User account not found.",
         });
@@ -1280,10 +1350,7 @@ exports.getVerificationRequest =
             user._id,
 
           displayName:
-            user.displayName ||
-            `${user.firstName || ""} ${
-              user.lastName || ""
-            }`.trim(),
+            getDisplayName(user),
 
           username:
             user.username,
@@ -1316,19 +1383,10 @@ exports.getVerificationRequest =
             user.verification,
         },
 
-        reviewer: {
-          id:
-            superAdmin._id,
-
-          displayName:
-            "POLISYNC AFRICA",
-
-          username:
-            "polisync.africa",
-
-          platformRole:
-            "super_admin",
-        },
+        reviewer:
+          getReviewerIdentity(
+            superAdmin
+          ),
       });
     } catch (error) {
       console.error(
@@ -1338,6 +1396,7 @@ exports.getVerificationRequest =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Unable to retrieve verification request.",
