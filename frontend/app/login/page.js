@@ -5,67 +5,158 @@ import Link from "next/link";
 import { useState } from "react";
 
 export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
 
-  const socialButton = {
-    width: "100%",
-    padding: "15px",
-    borderRadius: "999px",
-    border: "1.5px solid #DDD",
-    background: "#FFF",
-    marginBottom: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "12px",
-    fontSize: "16px",
-    transition: ".25s ease",
+  const [remember, setRemember] =
+    useState(false);
+
+  const [email, setEmail] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  // ==========================================================
+  // LOGIN
+  // ==========================================================
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+
+    setError("");
+
+    if (!email.trim()) {
+      setError(
+        "Please enter your email address."
+      );
+      return;
+    }
+
+    if (!password) {
+      setError(
+        "Please enter your password."
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      /*
+       * Backend authentication will be connected
+       * to the existing PoliSync authentication
+       * system.
+       *
+       * We intentionally do not connect Google,
+       * Apple or Facebook authentication.
+       */
+
+      console.log(
+        "PoliSync login:",
+        {
+          email: email.trim().toLowerCase(),
+          remember,
+        }
+      );
+
+      /*
+       * Temporary successful request state.
+       *
+       * The actual backend endpoint should remain
+       * connected to the existing authentication
+       * controller rather than creating a duplicate
+       * authentication system here.
+       */
+
+      setLoading(false);
+    } catch (loginError) {
+      console.error(
+        "Login error:",
+        loginError
+      );
+
+      setError(
+        "Unable to connect to the server. Please try again."
+      );
+
+      setLoading(false);
+    }
   };
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)",
+        background:
+          "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        padding: "24px",
+        padding: "24px 16px",
+        boxSizing: "border-box",
       }}
     >
       <div
         style={{
           width: "100%",
-          maxWidth: "430px",
+          maxWidth: "440px",
           background: "#FFFFFF",
-          borderRadius: "32px",
-          padding: "34px 28px",
-          boxShadow: "0 20px 60px rgba(0,0,0,.08)",
-          border: "1px solid rgba(0,0,0,.05)",
+          borderRadius: "30px",
+          padding: "28px 26px 24px",
+          boxShadow:
+            "0 20px 60px rgba(0,0,0,.08)",
+          border:
+            "1px solid rgba(0,0,0,.05)",
+          boxSizing: "border-box",
         }}
       >
-        {/* Animated PoliSync Logo */}
-        <div className="polisync-logo-wrapper">
+        {/* ==================================================
+            POLISYNC LOGO
+        ================================================== */}
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            marginBottom: "8px",
+          }}
+        >
           <Image
             src="/IMG_9654.jpeg"
             alt="PoliSync Africa"
-            width={240}
-            height={240}
+            width={280}
+            height={180}
             priority
-            className="polisync-logo"
+            style={{
+              width: "280px",
+              height: "auto",
+              maxWidth: "100%",
+              objectFit: "contain",
+            }}
           />
         </div>
+
+        {/* ==================================================
+            WELCOME
+        ================================================== */}
 
         <h1
           style={{
             textAlign: "center",
-            fontSize: "34px",
-            fontWeight: "800",
+            fontSize: "27px",
+            lineHeight: "1.2",
+            fontWeight: "750",
             color: "#065F2B",
-            marginBottom: "8px",
+            margin:
+              "4px 0 6px",
           }}
         >
           Welcome Back
@@ -74,200 +165,366 @@ export default function LoginPage() {
         <p
           style={{
             textAlign: "center",
-            color: "#555",
-            fontSize: "15px",
-            marginBottom: "30px",
+            color: "#666",
+            fontSize: "14px",
+            lineHeight: "1.5",
+            margin:
+              "0 0 26px",
           }}
         >
           Sign in to your PoliSync Africa account
         </p>
 
-        <div style={{ marginBottom: "18px" }}>
-          <label
+        {/* ==================================================
+            LOGIN FORM
+        ================================================== */}
+
+        <form
+          onSubmit={handleLogin}
+        >
+          {/* =================================================
+              EMAIL
+          ================================================= */}
+
+          <div
             style={{
-              display: "block",
-              fontWeight: "600",
-              marginBottom: "8px",
+              marginBottom: "17px",
             }}
           >
-            Email Address
-          </label>
+            <label
+              htmlFor="email"
+              style={{
+                display: "block",
+                fontWeight: "650",
+                color: "#222",
+                marginBottom: "8px",
+                fontSize: "15px",
+              }}
+            >
+              Email Address
+            </label>
 
-          <input
-            type="email"
-            placeholder="Enter your email"
-            style={{
-              width: "100%",
-              padding: "16px 18px",
-              borderRadius: "999px",
-              border: "1.5px solid #D8D8D8",
-              fontSize: "16px",
-              outline: "none",
-            }}
-          />
-        </div>
-
-        <div style={{ marginBottom: "12px" }}>
-          <label
-            style={{
-              display: "block",
-              fontWeight: "600",
-              marginBottom: "8px",
-            }}
-          >
-            Password
-          </label>
-
-          <div style={{ position: "relative" }}>
             <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) =>
+                setEmail(
+                  event.target.value
+                )
+              }
+              placeholder="Enter your email"
               style={{
                 width: "100%",
-                padding: "16px 70px 16px 18px",
-                borderRadius: "999px",
-                border: "1.5px solid #D8D8D8",
+                boxSizing: "border-box",
+                padding:
+                  "15px 18px",
+                borderRadius:
+                  "999px",
+                border:
+                  "1.5px solid #D8D8D8",
+                background: "#FFFFFF",
                 fontSize: "16px",
                 outline: "none",
               }}
             />
+          </div>
 
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
+          {/* =================================================
+              PASSWORD
+          ================================================= */}
+
+          <div
+            style={{
+              marginBottom: "12px",
+            }}
+          >
+            <label
+              htmlFor="password"
               style={{
-                position: "absolute",
-                right: "16px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "transparent",
-                border: "none",
-                color: "#666",
-                cursor: "pointer",
-                fontWeight: "600",
+                display: "block",
+                fontWeight: "650",
+                color: "#222",
+                marginBottom: "8px",
+                fontSize: "15px",
               }}
             >
-              {showPassword ? "Hide" : "Show"}
-            </button>
-          </div>
-        </div>
+              Password
+            </label>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "26px",
-            fontSize: "15px",
-          }}
-        >
-          <label
+            <div
+              style={{
+                position: "relative",
+                width: "100%",
+              }}
+            >
+              <input
+                id="password"
+                name="password"
+                type={
+                  showPassword
+                    ? "text"
+                    : "password"
+                }
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) =>
+                  setPassword(
+                    event.target.value
+                  )
+                }
+                placeholder="Enter your password"
+                style={{
+                  width: "100%",
+                  boxSizing:
+                    "border-box",
+                  padding:
+                    "15px 70px 15px 18px",
+                  borderRadius:
+                    "999px",
+                  border:
+                    "1.5px solid #D8D8D8",
+                  background:
+                    "#FFFFFF",
+                  fontSize: "16px",
+                  outline: "none",
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  setShowPassword(
+                    !showPassword
+                  )
+                }
+                aria-label={
+                  showPassword
+                    ? "Hide password"
+                    : "Show password"
+                }
+                style={{
+                  position:
+                    "absolute",
+                  right: "16px",
+                  top: "50%",
+                  transform:
+                    "translateY(-50%)",
+                  background:
+                    "transparent",
+                  border: "none",
+                  color: "#065F2B",
+                  cursor: "pointer",
+                  fontWeight: "700",
+                  fontSize: "14px",
+                  padding: "4px",
+                }}
+              >
+                {showPassword
+                  ? "Hide"
+                  : "Show"}
+              </button>
+            </div>
+          </div>
+
+          {/* =================================================
+              REMEMBER / FORGOT
+          ================================================= */}
+
+          <div
             style={{
               display: "flex",
+              justifyContent:
+                "space-between",
               alignItems: "center",
-              gap: "8px",
-              cursor: "pointer",
+              gap: "12px",
+              margin:
+                "14px 0 24px",
+              fontSize: "14px",
             }}
           >
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={() => setRemember(!remember)}
-            />
-            Remember Me
-          </label>
+            <label
+              style={{
+                display: "flex",
+                alignItems:
+                  "center",
+                gap: "8px",
+                cursor: "pointer",
+                color: "#333",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={() =>
+                  setRemember(
+                    !remember
+                  )
+                }
+                style={{
+                  width: "17px",
+                  height: "17px",
+                  cursor:
+                    "pointer",
+                }}
+              />
 
-          <Link
-            href="/forgot-password"
+              <span>
+                Remember Me
+              </span>
+            </label>
+
+            <Link
+              href="/forgot-password"
+              style={{
+                color: "#065F2B",
+                textDecoration:
+                  "none",
+                fontWeight: "700",
+                whiteSpace:
+                  "nowrap",
+              }}
+            >
+              Forgot Password?
+            </Link>
+          </div>
+
+          {/* =================================================
+              ERROR
+          ================================================= */}
+
+          {error && (
+            <div
+              role="alert"
+              style={{
+                marginBottom: "16px",
+                padding:
+                  "12px 14px",
+                borderRadius: "12px",
+                background:
+                  "#FFF3F3",
+                border:
+                  "1px solid #F0CACA",
+                color: "#A00000",
+                fontSize: "14px",
+                lineHeight: "1.4",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* =================================================
+              LOGIN BUTTON
+          ================================================= */}
+
+          <button
+            type="submit"
+            disabled={loading}
             style={{
-              color: "#065F2B",
-              textDecoration: "none",
-              fontWeight: "700",
+              width: "100%",
+              padding: "16px",
+              borderRadius:
+                "999px",
+              border: "none",
+              background:
+                loading
+                  ? "#7BAE8D"
+                  : "linear-gradient(90deg,#0A8F3C,#065F2B)",
+              color: "#FFFFFF",
+              fontSize: "17px",
+              fontWeight: "800",
+              cursor: loading
+                ? "not-allowed"
+                : "pointer",
+              boxShadow:
+                "0 12px 30px rgba(6,95,43,.25)",
+              transition:
+                "all .2s ease",
             }}
           >
-            Forgot Password?
-          </Link>
-        </div>
+            {loading
+              ? "Signing In..."
+              : "Login"}
+          </button>
+        </form>
 
-        <button
-          style={{
-            width: "100%",
-            padding: "17px",
-            borderRadius: "999px",
-            border: "none",
-            background: "linear-gradient(90deg,#0A8F3C,#065F2B)",
-            color: "#FFF",
-            fontSize: "17px",
-            fontWeight: "800",
-            cursor: "pointer",
-            boxShadow: "0 12px 30px rgba(6,95,43,.25)",
-          }}
-        >
-          Login
-        </button>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            margin: "28px 0",
-          }}
-        >
-          <div style={{ flex: 1, height: "1px", background: "#DDD" }} />
-          <span style={{ color: "#888", fontSize: "14px" }}>OR</span>
-          <div style={{ flex: 1, height: "1px", background: "#DDD" }} />
-        </div>
-
-        {/* Google */}
-        <button style={socialButton}>
-          <svg width="22" height="22" viewBox="0 0 48 48">
-            <path fill="#FFC107" d="M43.6 20H24v8h11.3c-1.6 5-6.3 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 19.3-8.1 20-20c0-1.3-.1-2.7-.4-4z"/>
-            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.6 19 12 24 12c3 0 5.8 1.1 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.7 8.4 6.3 14.7z"/>
-            <path fill="#4CAF50" d="M24 44c5.3 0 10.1-2 13.7-5.3l-6.3-5.2C29.2 35.1 26.7 36 24 36c-5 0-9.6-3-11.2-7.9l-6.5 5C9.6 39.5 16.3 44 24 44z"/>
-            <path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.4-2.3 4.4-4.3 5.7l6.3 5.2C41.1 35.4 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/>
-          </svg>
-          Continue with Google
-        </button>
-
-        {/* Apple */}
-        <button style={socialButton}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="#000">
-            <path d="M17.6 12.7c0-2.4 2-3.5 2.1-3.6-1.1-1.6-2.9-1.8-3.5-1.8-1.5-.2-2.9.9-3.6.9-.8 0-1.9-.9-3.1-.9-1.6 0-3 .9-3.9 2.3-1.7 2.9-.4 7.1 1.2 9.4.8 1.1 1.7 2.3 2.9 2.3s1.7-.7 3.2-.7 2 .7 3.2.7 2-.9 2.8-2c.9-1.3 1.3-2.6 1.3-2.7-.1 0-2.6-1-2.6-3.9z"/>
-            <path d="M15.2 5.9c.7-.8 1.2-1.9 1.1-3-.9.1-2 .6-2.7 1.4-.6.7-1.2 1.8-1 2.9 1 .1 2-.5 2.6-1.3z"/>
-          </svg>
-          Continue with Apple
-        </button>
-
-        {/* Facebook */}
-        <button style={socialButton}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="#1877F2">
-            <path d="M24 12C24 5.4 18.6 0 12 0S0 5.4 0 12c0 6 4.4 11 10.1 11.9v-8.4H7.1V12h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v3H15.8c-1.5 0-2 .9-2 1.9V12h3.4l-.5 3.5h-2.9v8.4C19.6 23 24 18 24 12z"/>
-          </svg>
-          Continue with Facebook
-        </button>
+        {/* ==================================================
+            CREATE ACCOUNT
+        ================================================== */}
 
         <div
           style={{
             textAlign: "center",
-            marginTop: "30px",
+            marginTop: "27px",
             color: "#555",
+            fontSize: "15px",
+            lineHeight: "1.6",
           }}
         >
-          Don't have an account?
-          <br />
+          <div>
+            Don't have an account?
+          </div>
 
           <Link
             href="/register"
             style={{
-              color: "#D4AF37",
-              textDecoration: "none",
+              display:
+                "inline-block",
+              marginTop: "3px",
+              color: "#C9A227",
+              textDecoration:
+                "none",
               fontWeight: "800",
+              fontSize: "16px",
             }}
           >
             Create Account
           </Link>
         </div>
+
+        {/* ==================================================
+            BRAND FOOTER
+        ================================================== */}
+
+        <footer
+          style={{
+            textAlign: "center",
+            marginTop: "30px",
+            paddingTop: "18px",
+            borderTop:
+              "1px solid #E8E8E8",
+            color: "#777",
+            fontSize: "12px",
+            lineHeight: "1.7",
+          }}
+        >
+          <div
+            style={{
+              fontWeight: "700",
+              color: "#065F2B",
+              fontSize: "12px",
+            }}
+          >
+            PoliSync Africa-
+            Africa Best Political
+            Intelligence Platform
+          </div>
+
+          <div>
+            Powered by
+            {" "}
+            <strong>
+              SyncTech Technologies
+            </strong>
+          </div>
+
+          <div>
+            All rights reserved
+          </div>
+        </footer>
       </div>
     </main>
   );
