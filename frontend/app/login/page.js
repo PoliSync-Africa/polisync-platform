@@ -939,3 +939,32 @@ export default function LoginPage() {
     </main>
   );
 }
+
+
+<div
+  style={{
+    width:
+      "100%",
+
+    maxWidth:
+      "440px",
+
+    background:
+      "#FFFFFF",
+
+    borderRadius:
+      "30px",
+
+    padding:
+      "28px 26px 24px",
+
+    boxShadow:
+      "0 20px 60px rgba(0,0,0,.08)",
+
+    border:
+      "1px solid rgba(0,0,0,.05)",
+
+    boxSizing:
+      "border-box",
+  }}
+>
