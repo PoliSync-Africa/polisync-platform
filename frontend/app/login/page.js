@@ -309,24 +309,26 @@ export default function LoginPage() {
       }}
     >
       <div
-  style={{
-    width: "100%",
-    maxWidth: "680px",
-    margin: "0 auto",
+        style={{
+          width: "100%",
+          maxWidth: "680px",
+          margin: "0 auto",
 
-    background: "#FFFFFF",
+          background: "#FFFFFF",
 
-    border: "3px solid #B89A4A",
-    borderRadius: "42px",
+          /* Straight continuous gold border */
+          border: "3px solid #B89A4A",
+          borderRadius: "42px",
 
-    padding: "40px 34px",
+          padding: "40px 34px",
 
-    boxSizing: "border-box",
+          boxSizing: "border-box",
 
-    boxShadow:
-      "0 12px 35px rgba(0, 0, 0, 0.08)",
-  }}
->
+          boxShadow:
+            "0 12px 35px rgba(0, 0, 0, 0.08)",
+        }}
+      >
+
         {/* ==================================================
             POLISYNC LOGO
         ================================================== */}
@@ -480,22 +482,25 @@ export default function LoginPage() {
                 padding:
                   "15px 18px",
 
+                height:
+                  "62px",
+
                 borderRadius:
-  "12px",
+                  "12px",
 
                 border:
-  "3px solid #B89A4A",
+                  "3px solid #B89A4A",
 
-background:
-  loading
-    ? "#F5F5F5"
-    : "#FFFFFF",
+                background:
+                  loading
+                    ? "#F5F5F5"
+                    : "#FFFFFF",
 
-fontSize:
-  "16px",
+                fontSize:
+                  "16px",
 
-outline:
-  "none",
+                outline:
+                  "none",
               }}
             />
           </div>
@@ -566,22 +571,25 @@ outline:
                   padding:
                     "15px 70px 15px 18px",
 
+                  height:
+                    "62px",
+
                   borderRadius:
-                    "999px",
+                    "12px",
 
                   border:
-  "3px solid #B89A4A",
+                    "3px solid #B89A4A",
 
-background:
-  loading
-    ? "#F5F5F5"
-    : "#FFFFFF",
+                  background:
+                    loading
+                      ? "#F5F5F5"
+                      : "#FFFFFF",
 
-fontSize:
-  "16px",
+                  fontSize:
+                    "16px",
 
-outline:
-  "none",
+                  outline:
+                    "none",
                 }}
               />
 
@@ -775,11 +783,14 @@ outline:
               width:
                 "100%",
 
+              height:
+                "64px",
+
               padding:
                 "16px",
 
               borderRadius:
-  "12px",
+                "999px",
 
               border:
                 "none",
@@ -793,7 +804,7 @@ outline:
                 "#FFFFFF",
 
               fontSize:
-                "17px",
+                "20px",
 
               fontWeight:
                 "800",
@@ -930,32 +941,3 @@ outline:
     </main>
   );
 }
-
-
-<div
-  style={{
-    width:
-      "100%",
-
-    maxWidth:
-      "440px",
-
-    background:
-      "#FFFFFF",
-
-    borderRadius:
-      "30px",
-
-    padding:
-      "28px 26px 24px",
-
-    boxShadow:
-      "0 20px 60px rgba(0,0,0,.08)",
-
-    border:
-      "1px solid rgba(0,0,0,.05)",
-
-    boxSizing:
-      "border-box",
-  }}
->
