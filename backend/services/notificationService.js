@@ -1,666 +1,1109 @@
-const emailService = require("./emailService");
-const smsService = require("./smsService");
+require("dotenv").config();
 
 // ============================================================
-// POLISYNC AFRICA NOTIFICATION SERVICE
+// POLISYNC AFRICA — CENTRAL SMS NOTIFICATION SERVICE
 // ============================================================
 //
-// Central notification layer for the entire platform.
+// This service is the central dispatcher for PoliSync SMS.
 //
-// Controllers should call this service instead of communicating
-// directly with Arkesel, Brevo, or another provider.
+// Responsibilities:
+// - Render centralized SMS templates
+// - Send ordinary transactional SMS through Arkesel
+// - Send OTP through Arkesel OTP service
+// - Personalize messages
+// - Protect the main application from SMS failures
+// - Provide structured notification results
 //
-// This allows us to change providers later without rewriting
-// authentication, verification, messaging, organization,
-// candidate, election, or administration controllers.
+// IMPORTANT:
+// SMS failure MUST NOT automatically fail the main platform
+// operation that triggered the notification.
+//
+// Example:
+//
+// Election result submission
+//        |
+//        +--> Save result
+//        |
+//        +--> Attempt SMS
+//                 |
+//                 +--> SMS succeeds
+//                 |
+//                 +--> SMS fails
+//
+// The result operation remains independent from SMS delivery.
+//
 // ============================================================
 
+const {
+  createSMS,
+} = require("./smsTemplateService");
+
+const {
+  generateOTP,
+  verifyOTP,
+  sendPhoneVerificationOTP,
+  sendPasswordResetOTP,
+  sendLoginOTP,
+} = require("./arkeselOtpService");
+
 // ============================================================
-// CHANNEL TYPES
+// CONFIGURATION
 // ============================================================
 
-const CHANNELS = {
-  EMAIL: "email",
-  SMS: "sms",
+const ARKESEL_API_KEY =
+  process.env.ARKESEL_API_KEY;
+
+const ARKESEL_SMS_API_URL =
+  process.env.ARKESEL_API_URL ||
+  "https://sms.arkesel.com/api/v2/sms/send";
+
+const SMS_SENDER_ID =
+  process.env.SMS_SENDER_ID ||
+  "POLISYNC";
+
+const SMS_REQUEST_TIMEOUT_MS = 15000;
+
+// ============================================================
+// SMS PRIORITIES
+// ============================================================
+
+const SMS_PRIORITY = {
+  CRITICAL: "critical",
+  HIGH: "high",
+  NORMAL: "normal",
+  LOW: "low",
+  ELECTION_RESULT_FAILURE:
+    "election_result_failure",
 };
 
 // ============================================================
-// NOTIFICATION EVENTS
+// VALIDATE ORDINARY SMS CONFIGURATION
 // ============================================================
 
-const EVENTS = {
-  EMAIL_VERIFICATION:
-    "email_verification",
+const validateSMSConfiguration = () => {
+  if (!ARKESEL_API_KEY) {
+    throw new Error(
+      "ARKESEL_API_KEY is not configured."
+    );
+  }
 
-  PHONE_VERIFICATION:
-    "phone_verification",
+  if (!ARKESEL_SMS_API_URL) {
+    throw new Error(
+      "ARKESEL_API_URL is not configured."
+    );
+  }
 
-  PASSWORD_RESET:
-    "password_reset",
+  if (!SMS_SENDER_ID) {
+    throw new Error(
+      "SMS_SENDER_ID is not configured."
+    );
+  }
 
-  PASSWORD_CHANGED:
-    "password_changed",
-
-  LOGIN_ALERT:
-    "login_alert",
-
-  ACCOUNT_APPROVED:
-    "account_approved",
-
-  ACCOUNT_REJECTED:
-    "account_rejected",
-
-  ACCOUNT_SUSPENDED:
-    "account_suspended",
-
-  VERIFICATION_REQUESTED:
-    "verification_requested",
-
-  VERIFICATION_APPROVED:
-    "verification_approved",
-
-  VERIFICATION_REJECTED:
-    "verification_rejected",
-
-  VERIFICATION_REVOKED:
-    "verification_revoked",
-
-  ORGANIZATION_INVITATION:
-    "organization_invitation",
-
-  MESSAGE_RECEIVED:
-    "message_received",
-
-  SECURITY_ALERT:
-    "security_alert",
-
-  IMPORTANT_NOTICE:
-    "important_notice",
-};
-
-// ============================================================
-// SAFE VALUE
-// ============================================================
-
-const safeString = (value) => {
   if (
-    value === null ||
-    typeof value === "undefined"
+    SMS_SENDER_ID.length > 11
   ) {
-    return "";
+    throw new Error(
+      "SMS_SENDER_ID must not exceed 11 characters."
+    );
   }
-
-  return String(value).trim();
 };
 
 // ============================================================
-// SEND EMAIL
+// PHONE NORMALIZATION
 // ============================================================
 
-const sendEmail = async ({
-  to,
-  subject,
-  html,
-  text,
-  event,
-}) => {
-  if (!to) {
-    return {
-      success: false,
-      channel: CHANNELS.EMAIL,
-      event,
-      message:
-        "Email recipient is missing.",
-    };
+const normalizePhone = (
+  phone
+) => {
+  if (!phone) {
+    return null;
   }
 
-  try {
-    const result =
-      await emailService.sendEmail({
-        to: safeString(to),
-        subject:
-          safeString(subject),
-        html:
-          safeString(html),
-        text:
-          safeString(text),
-        event,
-      });
+  let normalized =
+    String(phone)
+      .trim()
+      .replace(/\s+/g, "");
 
-    return {
-      success: true,
-      channel: CHANNELS.EMAIL,
-      event,
-      result,
-    };
-  } catch (error) {
-    console.error(
-      "PoliSync email notification error:",
-      error
+  // ----------------------------------------------------------
+  // Ghana local format
+  // 0241234567
+  // ----------------------------------------------------------
+
+  if (
+    /^0\d{9}$/.test(
+      normalized
+    )
+  ) {
+    normalized =
+      "+233" +
+      normalized.slice(1);
+  }
+
+  // ----------------------------------------------------------
+  // Ghana international format without +
+  // ----------------------------------------------------------
+
+  if (
+    /^233\d{9}$/.test(
+      normalized
+    )
+  ) {
+    normalized =
+      "+" +
+      normalized;
+  }
+
+  // ----------------------------------------------------------
+  // Final validation
+  // ----------------------------------------------------------
+
+  if (
+    !/^\+233\d{9}$/.test(
+      normalized
+    )
+  ) {
+    return null;
+  }
+
+  return normalized;
+};
+
+// ============================================================
+// CREATE TIMEOUT SIGNAL
+// ============================================================
+
+const createTimeoutSignal =
+  () => {
+    if (
+      typeof AbortSignal !==
+        "undefined" &&
+      typeof AbortSignal.timeout ===
+        "function"
+    ) {
+      return AbortSignal.timeout(
+        SMS_REQUEST_TIMEOUT_MS
+      );
+    }
+
+    const controller =
+      new AbortController();
+
+    setTimeout(
+      () => {
+        controller.abort();
+      },
+      SMS_REQUEST_TIMEOUT_MS
     );
 
-    return {
-      success: false,
-      channel: CHANNELS.EMAIL,
-      event,
-      message:
-        error.message ||
-        "Email notification failed.",
-    };
-  }
-};
+    return controller.signal;
+  };
 
 // ============================================================
-// SEND SMS
+// PARSE PROVIDER RESPONSE
+// ============================================================
+
+const parseProviderResponse =
+  async (response) => {
+    const contentType =
+      response.headers.get(
+        "content-type"
+      ) || "";
+
+    if (
+      contentType.includes(
+        "application/json"
+      )
+    ) {
+      return response.json();
+    }
+
+    const text =
+      await response.text();
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {
+        message: text,
+      };
+    }
+  };
+
+// ============================================================
+// SEND ORDINARY SMS THROUGH ARKESEL
+// ============================================================
+//
+// This is for non-OTP SMS.
+//
+// OTP must use arkeselOtpService.js.
+//
 // ============================================================
 
 const sendSMS = async ({
   to,
   message,
-  event,
+  priority =
+    SMS_PRIORITY.NORMAL,
+  event = "general",
 }) => {
-  if (!to) {
-    return {
-      success: false,
-      channel: CHANNELS.SMS,
-      event,
-      message:
-        "SMS recipient is missing.",
-    };
+  const phone =
+    normalizePhone(to);
+
+  if (!phone) {
+    throw new Error(
+      "A valid Ghana phone number is required."
+    );
   }
 
+  if (
+    !message ||
+    !String(message).trim()
+  ) {
+    throw new Error(
+      "SMS message is required."
+    );
+  }
+
+  validateSMSConfiguration();
+
+  let response;
+
+  try {
+    response =
+      await fetch(
+        ARKESEL_SMS_API_URL,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Accept:
+              "application/json",
+
+            "api-key":
+              ARKESEL_API_KEY,
+          },
+
+          body:
+            JSON.stringify({
+              sender:
+                SMS_SENDER_ID,
+
+              message:
+                String(
+                  message
+                ).trim(),
+
+              recipients: [
+                phone,
+              ],
+            }),
+
+          signal:
+            createTimeoutSignal(),
+        }
+      );
+  } catch (error) {
+    if (
+      error?.name ===
+      "AbortError"
+    ) {
+      throw new Error(
+        "Arkesel SMS request timed out."
+      );
+    }
+
+    throw new Error(
+      `Unable to connect to Arkesel SMS service: ${
+        error.message ||
+        "network error"
+      }`
+    );
+  }
+
+  const data =
+    await parseProviderResponse(
+      response
+    );
+
+  if (!response.ok) {
+    const error =
+      new Error(
+        data?.message ||
+          data?.error ||
+          `Arkesel returned HTTP ${response.status}.`
+      );
+
+    error.provider =
+      "arkesel";
+
+    error.httpStatus =
+      response.status;
+
+    error.providerResponse =
+      data;
+
+    throw error;
+  }
+
+  return {
+    success: true,
+
+    provider:
+      "arkesel",
+
+    event,
+
+    priority,
+
+    recipient:
+      phone,
+
+    sender:
+      SMS_SENDER_ID,
+
+    response:
+      data,
+
+    httpStatus:
+      response.status,
+  };
+};
+
+// ============================================================
+// SEND TEMPLATE SMS
+// ============================================================
+//
+// Example:
+//
+// sendTemplateSMS({
+//   templateKey: "ACCOUNT_APPROVED",
+//   to: user.phone,
+//   data: {
+//     firstName: user.firstName
+//   }
+// });
+//
+// ============================================================
+
+const sendTemplateSMS =
+  async ({
+    templateKey,
+    to,
+    data = {},
+    priority =
+      SMS_PRIORITY.NORMAL,
+    event = templateKey,
+  }) => {
+    const rendered =
+      createSMS(
+        templateKey,
+        data
+      );
+
+    return sendSMS({
+      to,
+
+      message:
+        rendered.message,
+
+      priority,
+
+      event,
+    });
+  };
+
+// ============================================================
+// SAFE SMS DELIVERY
+// ============================================================
+//
+// This method is designed for notifications that MUST NOT
+// break the primary operation.
+//
+// Example:
+//
+// Result saved successfully.
+// SMS fails.
+// Result still remains successful.
+//
+// ============================================================
+
+const sendSafely = async ({
+  to,
+  message,
+  priority =
+    SMS_PRIORITY.NORMAL,
+  event = "general",
+}) => {
   try {
     const result =
-      await smsService.sendSMS({
-        to: safeString(to),
-        message:
-          safeString(message),
+      await sendSMS({
+        to,
+
+        message,
+
+        priority,
+
         event,
       });
 
     return {
       success: true,
-      channel: CHANNELS.SMS,
-      event,
-      result,
+
+      delivered:
+        true,
+
+      failed:
+        false,
+
+      ...result,
     };
   } catch (error) {
     console.error(
-      "PoliSync SMS notification error:",
-      error
+      "PoliSync SMS notification failed:",
+      {
+        event,
+
+        priority,
+
+        error:
+          error.message,
+      }
     );
 
     return {
       success: false,
-      channel: CHANNELS.SMS,
+
+      delivered:
+        false,
+
+      failed:
+        true,
+
       event,
-      message:
-        error.message ||
-        "SMS notification failed.",
+
+      priority,
+
+      error:
+        error.message,
+
+      provider:
+        error.provider ||
+        "arkesel",
+
+      providerCode:
+        error.providerCode ||
+        null,
+
+      httpStatus:
+        error.httpStatus ||
+        null,
     };
   }
 };
 
 // ============================================================
-// SEND EMAIL + SMS
+// SAFE TEMPLATE SMS
 // ============================================================
 
-const sendMultiChannel = async ({
-  user,
-  event,
-  emailSubject,
-  emailHtml,
-  emailText,
-  smsMessage,
-  sendEmailNotification = true,
-  sendSMSNotification = true,
-}) => {
-  const results = [];
-
-  if (
-    sendEmailNotification &&
-    user?.email
-  ) {
-    results.push(
-      await sendEmail({
-        to: user.email,
-        subject:
-          emailSubject,
-        html:
-          emailHtml,
-        text:
-          emailText,
-        event,
-      })
-    );
-  }
-
-  if (
-    sendSMSNotification &&
-    user?.phone
-  ) {
-    results.push(
-      await sendSMS({
-        to: user.phone,
-        message:
-          smsMessage,
-        event,
-      })
-    );
-  }
-
-  return {
-    success:
-      results.some(
-        (result) =>
-          result.success
-      ),
-
-    event,
-
-    results,
-  };
-};
-
-// ============================================================
-// EMAIL VERIFICATION
-// ============================================================
-
-const sendEmailVerification =
+const sendTemplateSafely =
   async ({
-    user,
-    code,
+    templateKey,
+    to,
+    data = {},
+    priority =
+      SMS_PRIORITY.NORMAL,
+    event = templateKey,
   }) => {
-    return sendMultiChannel({
-      user,
+    try {
+      const rendered =
+        createSMS(
+          templateKey,
+          data
+        );
 
-      event:
-        EVENTS.EMAIL_VERIFICATION,
+      return sendSafely({
+        to,
 
-      emailSubject:
-        "Verify your PoliSync Africa email",
+        message:
+          rendered.message,
 
-      emailHtml: `
-        <h2>Verify your PoliSync Africa account</h2>
-        <p>Hello ${safeString(
-          user?.firstName
-        )},</p>
-        <p>Your email verification code is:</p>
-        <h1>${safeString(
-          code
-        )}</h1>
-        <p>This code should only be used by you.</p>
-        <p>If you did not request this code, ignore this message.</p>
-      `,
+        priority,
 
-      emailText: `
-Verify your PoliSync Africa account.
+        event,
+      });
+    } catch (error) {
+      console.error(
+        "PoliSync SMS template failed:",
+        {
+          templateKey,
 
-Your verification code is: ${safeString(
-        code
-      )}
+          error:
+            error.message,
+        }
+      );
 
-If you did not request this code, ignore this message.
-      `,
+      return {
+        success: false,
 
-      smsMessage:
-        `PoliSync Africa email verification code: ${safeString(
-          code
-        )}. Do not share this code.`,
+        delivered:
+          false,
 
-      sendEmailNotification:
-        true,
+        failed:
+          true,
 
-      sendSMSNotification:
-        false,
-    });
+        event,
+
+        priority,
+
+        templateKey,
+
+        error:
+          error.message,
+      };
+    }
   };
 
 // ============================================================
-// PHONE VERIFICATION
+// PHONE VERIFICATION OTP
 // ============================================================
 
 const sendPhoneVerification =
   async ({
-    user,
-    code,
+    phone,
+    firstName,
   }) => {
-    return sendMultiChannel({
-      user,
+    return sendPhoneVerificationOTP({
+      phone,
 
-      event:
-        EVENTS.PHONE_VERIFICATION,
-
-      emailSubject:
-        "PoliSync Africa phone verification code",
-
-      emailHtml: `
-        <h2>Phone verification</h2>
-        <p>Your PoliSync Africa phone verification code is:</p>
-        <h1>${safeString(
-          code
-        )}</h1>
-      `,
-
-      emailText:
-        `Your PoliSync Africa phone verification code is: ${safeString(
-          code
-        )}`,
-
-      smsMessage:
-        `PoliSync Africa phone verification code: ${safeString(
-          code
-        )}. Do not share this code.`,
-
-      sendEmailNotification:
-        false,
-
-      sendSMSNotification:
-        true,
+      firstName,
     });
   };
 
 // ============================================================
-// PASSWORD RESET
+// PASSWORD RESET OTP
 // ============================================================
 
 const sendPasswordReset =
   async ({
-    user,
-    code,
+    phone,
+    firstName,
   }) => {
-    return sendMultiChannel({
-      user,
+    return sendPasswordResetOTP({
+      phone,
 
-      event:
-        EVENTS.PASSWORD_RESET,
-
-      emailSubject:
-        "PoliSync Africa password reset",
-
-      emailHtml: `
-        <h2>Password reset request</h2>
-        <p>Hello ${safeString(
-          user?.firstName
-        )},</p>
-        <p>Your PoliSync Africa password reset code is:</p>
-        <h1>${safeString(
-          code
-        )}</h1>
-        <p>If you did not request a password reset, secure your account immediately.</p>
-      `,
-
-      emailText: `
-Your PoliSync Africa password reset code is: ${safeString(
-        code
-      )}
-
-If you did not request this password reset, secure your account immediately.
-      `,
-
-      smsMessage:
-        `PoliSync Africa password reset code: ${safeString(
-          code
-        )}. Do not share this code.`,
-
-      sendEmailNotification:
-        true,
-
-      sendSMSNotification:
-        true,
+      firstName,
     });
   };
 
 // ============================================================
-// PASSWORD CHANGED
+// LOGIN / 2FA OTP
 // ============================================================
 
-const sendPasswordChanged =
+const sendLoginVerification =
+  async ({
+    phone,
+    firstName,
+  }) => {
+    return sendLoginOTP({
+      phone,
+
+      firstName,
+    });
+  };
+
+// ============================================================
+// VERIFY ARKESEL OTP
+// ============================================================
+
+const verifySMSOTP =
+  async ({
+    phone,
+    code,
+  }) => {
+    return verifyOTP({
+      phone,
+
+      code,
+    });
+  };
+
+// ============================================================
+// ACCOUNT STATUS SMS
+// ============================================================
+
+const sendAccountPending =
   async ({
     user,
   }) => {
-    return sendMultiChannel({
-      user,
+    return sendTemplateSafely({
+      templateKey:
+        "ACCOUNT_PENDING",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+      },
+
+      priority:
+        SMS_PRIORITY.NORMAL,
 
       event:
-        EVENTS.PASSWORD_CHANGED,
-
-      emailSubject:
-        "Your PoliSync Africa password was changed",
-
-      emailHtml: `
-        <h2>Password changed</h2>
-        <p>Your PoliSync Africa password has been changed successfully.</p>
-        <p>If you did not make this change, contact PoliSync Africa support immediately.</p>
-      `,
-
-      emailText:
-        "Your PoliSync Africa password has been changed successfully. If you did not make this change, contact PoliSync Africa support immediately.",
-
-      smsMessage:
-        "Your PoliSync Africa password was changed. If you did not make this change, secure your account immediately.",
-
-      sendEmailNotification:
-        true,
-
-      sendSMSNotification:
-        true,
+        "account_pending",
     });
   };
-
-// ============================================================
-// ACCOUNT APPROVED
-// ============================================================
 
 const sendAccountApproved =
   async ({
     user,
   }) => {
-    return sendMultiChannel({
-      user,
+    return sendTemplateSafely({
+      templateKey:
+        "ACCOUNT_APPROVED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+      },
+
+      priority:
+        SMS_PRIORITY.HIGH,
 
       event:
-        EVENTS.ACCOUNT_APPROVED,
+        "account_approved",
+    });
+  };
 
-      emailSubject:
-        "Your PoliSync Africa account has been approved",
+const sendAccountRejected =
+  async ({
+    user,
+    reason,
+  }) => {
+    return sendTemplateSafely({
+      templateKey:
+        "ACCOUNT_REJECTED",
 
-      emailHtml: `
-        <h2>Account approved</h2>
-        <p>Hello ${safeString(
-          user?.firstName
-        )},</p>
-        <p>Your PoliSync Africa account has been approved.</p>
-      `,
+      to:
+        user.phone,
 
-      emailText:
-        "Your PoliSync Africa account has been approved.",
+      data: {
+        firstName:
+          user.firstName,
 
-      smsMessage:
-        "PoliSync Africa: Your account has been approved.",
+        reason:
+          reason ||
+          "No reason was provided.",
+      },
 
-      sendEmailNotification:
-        true,
+      priority:
+        SMS_PRIORITY.HIGH,
 
-      sendSMSNotification:
-        true,
+      event:
+        "account_rejected",
+    });
+  };
+
+const sendAccountSuspended =
+  async ({
+    user,
+    reason,
+  }) => {
+    return sendTemplateSafely({
+      templateKey:
+        "ACCOUNT_SUSPENDED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+
+        reason:
+          reason ||
+          "No reason was provided.",
+      },
+
+      priority:
+        SMS_PRIORITY.HIGH,
+
+      event:
+        "account_suspended",
+    });
+  };
+
+const sendAccountReactivated =
+  async ({
+    user,
+  }) => {
+    return sendTemplateSafely({
+      templateKey:
+        "ACCOUNT_REACTIVATED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+      },
+
+      priority:
+        SMS_PRIORITY.HIGH,
+
+      event:
+        "account_reactivated",
+    });
+  };
+
+const sendAccountDeactivated =
+  async ({
+    user,
+  }) => {
+    return sendTemplateSafely({
+      templateKey:
+        "ACCOUNT_DEACTIVATED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+      },
+
+      priority:
+        SMS_PRIORITY.HIGH,
+
+      event:
+        "account_deactivated",
     });
   };
 
 // ============================================================
-// VERIFICATION APPROVED
+// VERIFICATION BADGE SMS
 // ============================================================
 
 const sendVerificationApproved =
   async ({
     user,
   }) => {
-    return sendMultiChannel({
-      user,
+    return sendTemplateSafely({
+      templateKey:
+        "VERIFICATION_APPROVED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+      },
+
+      priority:
+        SMS_PRIORITY.HIGH,
 
       event:
-        EVENTS.VERIFICATION_APPROVED,
-
-      emailSubject:
-        "Your PoliSync Africa account is verified",
-
-      emailHtml: `
-        <h2>Verification approved</h2>
-        <p>Hello ${safeString(
-          user?.firstName
-        )},</p>
-        <p>Your verification request has been approved by POLISYNC AFRICA.</p>
-        <p>Your verified badge is now active.</p>
-      `,
-
-      emailText:
-        "Your PoliSync Africa verification request has been approved. Your verified badge is now active.",
-
-      smsMessage:
-        "PoliSync Africa: Your verification has been approved and your verified badge is now active.",
-
-      sendEmailNotification:
-        true,
-
-      sendSMSNotification:
-        true,
+        "verification_approved",
     });
   };
-
-// ============================================================
-// VERIFICATION REJECTED
-// ============================================================
 
 const sendVerificationRejected =
   async ({
     user,
     reason,
   }) => {
-    return sendMultiChannel({
-      user,
+    return sendTemplateSafely({
+      templateKey:
+        "VERIFICATION_REJECTED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+
+        reason:
+          reason ||
+          "No reason was provided.",
+      },
+
+      priority:
+        SMS_PRIORITY.HIGH,
 
       event:
-        EVENTS.VERIFICATION_REJECTED,
-
-      emailSubject:
-        "PoliSync Africa verification update",
-
-      emailHtml: `
-        <h2>Verification request update</h2>
-        <p>Hello ${safeString(
-          user?.firstName
-        )},</p>
-        <p>Your verification request was not approved.</p>
-        <p>Reason:</p>
-        <p>${safeString(
-          reason
-        )}</p>
-      `,
-
-      emailText:
-        `Your PoliSync Africa verification request was not approved. Reason: ${safeString(
-          reason
-        )}`,
-
-      smsMessage:
-        `PoliSync Africa: Your verification request was not approved. Reason: ${safeString(
-          reason
-        )}`,
-
-      sendEmailNotification:
-        true,
-
-      sendSMSNotification:
-        true,
+        "verification_rejected",
     });
   };
 
 // ============================================================
-// VERIFICATION REVOKED
+// PASSWORD / SECURITY ALERTS
 // ============================================================
 
-const sendVerificationRevoked =
+const sendPasswordChanged =
   async ({
     user,
+  }) => {
+    return sendTemplateSafely({
+      templateKey:
+        "PASSWORD_CHANGED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+      },
+
+      priority:
+        SMS_PRIORITY.CRITICAL,
+
+      event:
+        "password_changed",
+    });
+  };
+
+const sendNewLoginAlert =
+  async ({
+    user,
+  }) => {
+    return sendTemplateSafely({
+      templateKey:
+        "NEW_LOGIN",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+      },
+
+      priority:
+        SMS_PRIORITY.CRITICAL,
+
+      event:
+        "new_login",
+    });
+  };
+
+// ============================================================
+// ELECTION RESULT SMS
+// ============================================================
+//
+// IMPORTANT:
+//
+// These use sendTemplateSafely().
+//
+// Therefore, if Arkesel fails, the election result operation
+// itself is NOT affected.
+//
+// ============================================================
+
+const sendResultReceived =
+  async ({
+    user,
+    resultReference,
+  }) => {
+    return sendTemplateSafely({
+      templateKey:
+        "RESULT_RECEIVED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+
+        resultReference:
+          resultReference ||
+          "N/A",
+      },
+
+      priority:
+        SMS_PRIORITY.NORMAL,
+
+      event:
+        "result_received",
+    });
+  };
+
+const sendResultSubmissionFailed =
+  async ({
+    user,
+    resultReference,
+  }) => {
+    return sendTemplateSafely({
+      templateKey:
+        "RESULT_SUBMISSION_FAILED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+
+        resultReference:
+          resultReference ||
+          "N/A",
+      },
+
+      priority:
+        SMS_PRIORITY.ELECTION_RESULT_FAILURE,
+
+      event:
+        "result_submission_failed",
+    });
+  };
+
+// ============================================================
+// POLLING AGENT SMS
+// ============================================================
+
+const sendPollingAgentApproved =
+  async ({
+    user,
+    pollingStation,
+    constituency,
+  }) => {
+    return sendTemplateSafely({
+      templateKey:
+        "POLLING_AGENT_APPROVED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+
+        pollingStation:
+          pollingStation ||
+          "your assigned polling station",
+
+        constituency:
+          constituency ||
+          "your constituency",
+      },
+
+      priority:
+        SMS_PRIORITY.HIGH,
+
+      event:
+        "polling_agent_approved",
+    });
+  };
+
+const sendPollingAgentRejected =
+  async ({
+    user,
+    pollingStation,
+    constituency,
     reason,
   }) => {
-    return sendMultiChannel({
-      user,
+    return sendTemplateSafely({
+      templateKey:
+        "POLLING_AGENT_REJECTED",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+
+        pollingStation:
+          pollingStation ||
+          "your assigned polling station",
+
+        constituency:
+          constituency ||
+          "your constituency",
+
+        reason:
+          reason ||
+          "No reason was provided.",
+      },
+
+      priority:
+        SMS_PRIORITY.HIGH,
 
       event:
-        EVENTS.VERIFICATION_REVOKED,
+        "polling_agent_rejected",
+    });
+  };
 
-      emailSubject:
-        "Your PoliSync Africa verification was revoked",
+const sendPollingAgentAssignment =
+  async ({
+    user,
+    pollingStation,
+    constituency,
+  }) => {
+    return sendTemplateSafely({
+      templateKey:
+        "POLLING_AGENT_ASSIGNMENT",
 
-      emailHtml: `
-        <h2>Verification revoked</h2>
-        <p>Hello ${safeString(
-          user?.firstName
-        )},</p>
-        <p>Your PoliSync Africa verified badge has been revoked.</p>
-        <p>Reason:</p>
-        <p>${safeString(
-          reason
-        )}</p>
-      `,
+      to:
+        user.phone,
 
-      emailText:
-        `Your PoliSync Africa verified badge has been revoked. Reason: ${safeString(
-          reason
-        )}`,
+      data: {
+        firstName:
+          user.firstName,
 
-      smsMessage:
-        `PoliSync Africa: Your verified badge has been revoked. Reason: ${safeString(
-          reason
-        )}`,
+        pollingStation:
+          pollingStation ||
+          "your assigned polling station",
 
-      sendEmailNotification:
-        true,
+        constituency:
+          constituency ||
+          "your constituency",
+      },
 
-      sendSMSNotification:
-        true,
+      priority:
+        SMS_PRIORITY.HIGH,
+
+      event:
+        "polling_agent_assignment",
     });
   };
 
 // ============================================================
-// SECURITY ALERT
+// GENERAL SMS
 // ============================================================
 
-const sendSecurityAlert =
+const sendImportantNotice =
   async ({
     user,
-    message,
   }) => {
-    return sendMultiChannel({
-      user,
+    return sendTemplateSafely({
+      templateKey:
+        "IMPORTANT_NOTICE",
+
+      to:
+        user.phone,
+
+      data: {
+        firstName:
+          user.firstName,
+      },
+
+      priority:
+        SMS_PRIORITY.NORMAL,
 
       event:
-        EVENTS.SECURITY_ALERT,
-
-      emailSubject:
-        "PoliSync Africa security alert",
-
-      emailHtml: `
-        <h2>Security Alert</h2>
-        <p>${safeString(
-          message
-        )}</p>
-      `,
-
-      emailText:
-        safeString(message),
-
-      smsMessage:
-        `PoliSync Africa security alert: ${safeString(
-          message
-        )}`,
-
-      sendEmailNotification:
-        true,
-
-      sendSMSNotification:
-        true,
+        "important_notice",
     });
   };
 
@@ -669,23 +1112,93 @@ const sendSecurityAlert =
 // ============================================================
 
 module.exports = {
-  CHANNELS,
-  EVENTS,
+  // ----------------------------------------------------------
+  // Core SMS
+  // ----------------------------------------------------------
 
-  sendEmail,
   sendSMS,
-  sendMultiChannel,
 
-  sendEmailVerification,
+  sendTemplateSMS,
+
+  sendSafely,
+
+  sendTemplateSafely,
+
+  // ----------------------------------------------------------
+  // OTP
+  // ----------------------------------------------------------
+
   sendPhoneVerification,
+
   sendPasswordReset,
-  sendPasswordChanged,
+
+  sendLoginVerification,
+
+  verifySMSOTP,
+
+  generateOTP,
+
+  verifyOTP,
+
+  // ----------------------------------------------------------
+  // Account
+  // ----------------------------------------------------------
+
+  sendAccountPending,
 
   sendAccountApproved,
 
-  sendVerificationApproved,
-  sendVerificationRejected,
-  sendVerificationRevoked,
+  sendAccountRejected,
 
-  sendSecurityAlert,
+  sendAccountSuspended,
+
+  sendAccountReactivated,
+
+  sendAccountDeactivated,
+
+  // ----------------------------------------------------------
+  // Verification
+  // ----------------------------------------------------------
+
+  sendVerificationApproved,
+
+  sendVerificationRejected,
+
+  // ----------------------------------------------------------
+  // Security
+  // ----------------------------------------------------------
+
+  sendPasswordChanged,
+
+  sendNewLoginAlert,
+
+  // ----------------------------------------------------------
+  // Election results
+  // ----------------------------------------------------------
+
+  sendResultReceived,
+
+  sendResultSubmissionFailed,
+
+  // ----------------------------------------------------------
+  // Polling agents
+  // ----------------------------------------------------------
+
+  sendPollingAgentApproved,
+
+  sendPollingAgentRejected,
+
+  sendPollingAgentAssignment,
+
+  // ----------------------------------------------------------
+  // General
+  // ----------------------------------------------------------
+
+  sendImportantNotice,
+
+  // ----------------------------------------------------------
+  // Constants
+  // ----------------------------------------------------------
+
+  SMS_PRIORITY,
 };
