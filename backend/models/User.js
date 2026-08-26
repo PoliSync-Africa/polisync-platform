@@ -186,62 +186,22 @@ const userSchema = new mongoose.Schema(
     // ============================================================
 
     // ============================================================
-    // ACCOUNT STATUS
-    // ============================================================
-
-    accountStatus: {
-      type: String,
-      enum: [
-        "pending",
-        "approved",
-        "rejected",
-        "suspended",
-        "deactivated",
-      ],
-      required: true,
-      default: "pending",
-      index: true,
-    },
-
-    approvedAt: {
-      type: Date,
-      default: null,
-    },
-
-    approvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-
-    suspendedAt: {
-      type: Date,
-      default: null,
-    },
-
-    suspensionReason: {
-      type: String,
-      default: null,
-      trim: true,
-    },
-
-    // ============================================================
     // VERIFICATION
     // ============================================================
-    // Verification is separate from email/phone verification.
+    // Every account may request a verified badge.
     //
-    // Ordinary users must REQUEST verification.
+    // ONLY the PoliSync Africa Super Admin can:
+    // - approve
+    // - reject
+    // - revoke
     //
-    // ONLY the PoliSync Africa Super Admin may approve, reject,
-    // or revoke a verification request.
-    //
-    // The controller/service layer must enforce the Super Admin
-    // authorization before changing reviewed fields.
+    // The verification controller enforces this authorization
+    // server-side.
     // ============================================================
 
     verification: {
       // ----------------------------------------------------------
-      // VERIFIED BADGE
+      // VERIFIED STATE
       // ----------------------------------------------------------
 
       isVerified: {
@@ -251,7 +211,7 @@ const userSchema = new mongoose.Schema(
       },
 
       // ----------------------------------------------------------
-      // VERIFICATION REQUEST STATUS
+      // VERIFICATION STATUS
       // ----------------------------------------------------------
 
       status: {
@@ -295,9 +255,9 @@ const userSchema = new mongoose.Schema(
 
       requestReason: {
         type: String,
-        default: null,
         trim: true,
         maxlength: 2000,
+        default: null,
       },
 
       // ----------------------------------------------------------
@@ -316,34 +276,79 @@ const userSchema = new mongoose.Schema(
       },
 
       // ----------------------------------------------------------
-      // REJECTION / REVOCATION INFORMATION
+      // REJECTION
       // ----------------------------------------------------------
 
       rejectionReason: {
         type: String,
-        default: null,
         trim: true,
         maxlength: 2000,
+        default: null,
       },
+
+      // ----------------------------------------------------------
+      // REVOCATION
+      // ----------------------------------------------------------
 
       revocationReason: {
         type: String,
-        default: null,
         trim: true,
         maxlength: 2000,
+        default: null,
       },
 
       // ----------------------------------------------------------
-      // OFFICIAL BADGE
+      // BADGE
       // ----------------------------------------------------------
-      // This is the official PoliSync Africa verification badge.
-      // The frontend can use this asset when isVerified = true.
+      // This points to the official PoliSync verified badge asset.
+      // The actual image file should be stored in the frontend
+      // public/assets or your configured media storage.
       // ----------------------------------------------------------
 
       badgeAsset: {
         type: String,
         default: "/verified-badge.png",
       },
+    },
+
+    // ============================================================
+    // ACCOUNT STATUS
+    // ============================================================
+
+    accountStatus: {
+      type: String,
+      enum: [
+        "pending",
+        "approved",
+        "rejected",
+        "suspended",
+        "deactivated",
+      ],
+      required: true,
+      default: "pending",
+      index: true,
+    },
+
+    approvedAt: {
+      type: Date,
+      default: null,
+    },
+
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    suspendedAt: {
+      type: Date,
+      default: null,
+    },
+
+    suspensionReason: {
+      type: String,
+      default: null,
+      trim: true,
     },
 
     // ============================================================
@@ -398,6 +403,35 @@ const userSchema = new mongoose.Schema(
       },
 
       // ----------------------------------------------------------
+      // PROFILE VIEWERS
+      // ----------------------------------------------------------
+      // Controls whether the user can see the people who viewed
+      // their profile.
+      // ----------------------------------------------------------
+
+      showProfileViewers: {
+        type: Boolean,
+        default: true,
+      },
+
+      // ----------------------------------------------------------
+      // PROFILE VIEW PRIVACY
+      // ----------------------------------------------------------
+      // Controls whether this user may appear in another person's
+      // "Who viewed my profile?" history.
+      // ----------------------------------------------------------
+
+      profileViewPrivacy: {
+        type: String,
+        enum: [
+          "everyone",
+          "organizations_only",
+          "nobody",
+        ],
+        default: "everyone",
+      },
+
+      // ----------------------------------------------------------
       // LOCATION SHARING
       // ----------------------------------------------------------
 
@@ -448,43 +482,15 @@ const userSchema = new mongoose.Schema(
         ],
         default: "until_turned_off",
       },
-
-      // ----------------------------------------------------------
-      // PROFILE VIEW HISTORY
-      // ----------------------------------------------------------
-      // Controls whether the owner can see who viewed the profile.
-      // ----------------------------------------------------------
-
-      showProfileViewers: {
-        type: Boolean,
-        default: true,
-      },
-
-      // ----------------------------------------------------------
-      // PROFILE VIEW PRIVACY
-      // ----------------------------------------------------------
-      // Controls whether this user appears in another person's
-      // profile-view history.
-      // ----------------------------------------------------------
-
-      profileViewPrivacy: {
-        type: String,
-        enum: [
-          "everyone",
-          "organizations_only",
-          "nobody",
-        ],
-        default: "everyone",
-      },
     },
 
     // ============================================================
     // LOCATION PERMISSION
     // ============================================================
-    // Records whether the user has granted location permission
-    // to PoliSync.
+    // Records whether the user granted location permission to
+    // PoliSync Africa.
     //
-    // It does NOT override browser/device permissions.
+    // This does NOT override browser/device permissions.
     // ============================================================
 
     locationPermissionGranted: {
@@ -495,11 +501,11 @@ const userSchema = new mongoose.Schema(
     // ============================================================
     // CURRENT LOCATION
     // ============================================================
-    // Coordinates are stored only when location sharing has been
-    // explicitly enabled.
+    // Stored only when the user explicitly enables location
+    // sharing.
     //
-    // Google Maps can use permitted coordinates to display the
-    // user's location.
+    // Google Maps can use these coordinates to display the
+    // permitted user's current location.
     // ============================================================
 
     currentLocation: {
@@ -610,46 +616,49 @@ const userSchema = new mongoose.Schema(
 // ORDINARY USER VALIDATION
 // ============================================================
 
-userSchema.pre("validate", function (next) {
-  if (this.platformRole === "user") {
-    if (!this.firstName) {
-      this.invalidate(
-        "firstName",
-        "First name is required."
-      );
+userSchema.pre(
+  "validate",
+  function (next) {
+    if (this.platformRole === "user") {
+      if (!this.firstName) {
+        this.invalidate(
+          "firstName",
+          "First name is required."
+        );
+      }
+
+      if (!this.lastName) {
+        this.invalidate(
+          "lastName",
+          "Last name is required."
+        );
+      }
+
+      if (!this.dateOfBirth) {
+        this.invalidate(
+          "dateOfBirth",
+          "Date of birth is required."
+        );
+      }
+
+      if (!this.identificationType) {
+        this.invalidate(
+          "identificationType",
+          "Identification type is required."
+        );
+      }
+
+      if (!this.identificationNumber) {
+        this.invalidate(
+          "identificationNumber",
+          "Identification number is required."
+        );
+      }
     }
 
-    if (!this.lastName) {
-      this.invalidate(
-        "lastName",
-        "Last name is required."
-      );
-    }
-
-    if (!this.dateOfBirth) {
-      this.invalidate(
-        "dateOfBirth",
-        "Date of birth is required."
-      );
-    }
-
-    if (!this.identificationType) {
-      this.invalidate(
-        "identificationType",
-        "Identification type is required."
-      );
-    }
-
-    if (!this.identificationNumber) {
-      this.invalidate(
-        "identificationNumber",
-        "Identification number is required."
-      );
-    }
+    next();
   }
-
-  next();
-});
+);
 
 // ============================================================
 // SUPER ADMIN PLATFORM IDENTITY
@@ -658,89 +667,160 @@ userSchema.pre("validate", function (next) {
 // platform.
 //
 // Public identity:
-//   POLISYNC AFRICA
-//   @polisync.africa
 //
-// The private administrator's personal identity must never
-// become the platform's public identity.
-// ============================================================
-
-userSchema.pre("validate", function (next) {
-  if (this.platformRole === "super_admin") {
-    this.displayName = "POLISYNC AFRICA";
-
-    this.username = "polisync.africa";
-
-    this.firstName = "POLISYNC";
-    this.middleName = "";
-    this.lastName = "AFRICA";
-
-    this.identificationType = null;
-    this.identificationNumber = null;
-    this.dateOfBirth = null;
-
-    // ----------------------------------------------------------
-    // SUPER ADMIN IS THE OFFICIAL PLATFORM ACCOUNT
-    // ----------------------------------------------------------
-
-    this.verification.isVerified = true;
-
-    this.verification.status = "approved";
-
-    this.verification.verificationType =
-      "platform";
-
-    this.verification.badgeAsset =
-      "/verified-badge.png";
-
-    // ----------------------------------------------------------
-    // PLATFORM ACCOUNT HAS NO PERSONAL LOCATION
-    // ----------------------------------------------------------
-
-    this.locationPermissionGranted = false;
-
-    this.privacy.shareLocation = false;
-
-    this.privacy.locationVisibility =
-      "nobody";
-
-    this.currentLocation = {
-      latitude: null,
-      longitude: null,
-      accuracy: null,
-      updatedAt: null,
-    };
-
-    this.locationExpiresAt = null;
-  }
-
-  next();
-});
-
-// ============================================================
-// VERIFICATION STATE SAFETY
-// ============================================================
-// Ordinary users cannot become verified merely by setting
-// isVerified=true during ordinary account creation.
+// Display name: POLISYNC AFRICA
+// Username:     polisync.africa
 //
-// Approval/rejection/revocation must be performed through the
-// protected Super Admin verification controller.
+// The private controller's personal identity must never become
+// the platform's public identity.
 // ============================================================
 
-userSchema.pre("validate", function (next) {
-  if (this.platformRole === "user") {
+userSchema.pre(
+  "validate",
+  function (next) {
     if (
-      this.verification.status ===
-      "not_requested"
+      this.platformRole ===
+      "super_admin"
     ) {
-      this.verification.isVerified = false;
+      // --------------------------------------------------------
+      // PLATFORM PUBLIC IDENTITY
+      // --------------------------------------------------------
+
+      this.displayName =
+        "POLISYNC AFRICA";
+
+      this.username =
+        "polisync.africa";
+
+      this.firstName =
+        "POLISYNC";
+
+      this.middleName =
+        "";
+
+      this.lastName =
+        "AFRICA";
+
+      // --------------------------------------------------------
+      // NO ORDINARY IDENTIFICATION
+      // --------------------------------------------------------
+
+      this.identificationType =
+        null;
+
+      this.identificationNumber =
+        null;
+
+      this.dateOfBirth =
+        null;
+
+      // --------------------------------------------------------
+      // PLATFORM IS PERMANENTLY VERIFIED
+      // --------------------------------------------------------
+
+      if (!this.verification) {
+        this.verification = {};
+      }
+
+      this.verification.isVerified =
+        true;
+
+      this.verification.status =
+        "approved";
+
+      this.verification.verificationType =
+        "platform";
+
+      this.verification.badgeAsset =
+        "/verified-badge.png";
+
+      // --------------------------------------------------------
+      // PLATFORM HAS NO PERSONAL LOCATION
+      // --------------------------------------------------------
+
+      this.locationPermissionGranted =
+        false;
+
+      this.privacy.shareLocation =
+        false;
+
+      this.privacy.locationVisibility =
+        "nobody";
+
+      this.currentLocation = {
+        latitude: null,
+        longitude: null,
+        accuracy: null,
+        updatedAt: null,
+      };
+
+      this.locationExpiresAt =
+        null;
+
+      // --------------------------------------------------------
+      // PLATFORM PRESENCE
+      // --------------------------------------------------------
+      // POLISYNC AFRICA can still appear online/offline based on
+      // actual platform sessions. This does not represent the
+      // private administrator's physical location.
+      // --------------------------------------------------------
+    }
+
+    next();
+  }
+);
+
+// ============================================================
+// VERIFICATION SAFETY VALIDATION
+// ============================================================
+
+userSchema.pre(
+  "validate",
+  function (next) {
+    // ----------------------------------------------------------
+    // SUPER ADMIN
+    // ----------------------------------------------------------
+
+    if (
+      this.platformRole ===
+      "super_admin"
+    ) {
+      this.verification.isVerified =
+        true;
+
+      this.verification.status =
+        "approved";
+
+      this.verification.verificationType =
+        "platform";
+
+      this.verification.badgeAsset =
+        "/verified-badge.png";
+
+      return next();
+    }
+
+    // ----------------------------------------------------------
+    // ORDINARY USERS
+    // ----------------------------------------------------------
+
+    if (
+      this.verification.isVerified &&
+      this.verification.status !==
+        "approved"
+    ) {
+      this.invalidate(
+        "verification.isVerified",
+        "An account cannot be verified unless its verification status is approved."
+      );
     }
 
     if (
       this.verification.status ===
-      "pending"
+      "approved"
     ) {
-      this.verification.isVerified = false;
+      this.verification.isVerified =
+        true;
     }
 
     if (
@@ -749,120 +829,164 @@ userSchema.pre("validate", function (next) {
       this.verification.status ===
         "revoked"
     ) {
-      this.verification.isVerified = false;
+      this.verification.isVerified =
+        false;
     }
 
     if (
-      this.verification.status ===
-      "approved"
+      this.verification.isVerified
     ) {
-      this.verification.isVerified = true;
+      this.verification.badgeAsset =
+        "/verified-badge.png";
     }
-  }
 
-  next();
-});
+    next();
+  }
+);
 
 // ============================================================
 // LOCATION SAFETY VALIDATION
 // ============================================================
 
-userSchema.pre("validate", function (next) {
-  if (!this.privacy.shareLocation) {
-    this.privacy.locationVisibility =
-      "nobody";
+userSchema.pre(
+  "validate",
+  function (next) {
+    if (
+      !this.privacy.shareLocation
+    ) {
+      this.privacy.locationVisibility =
+        "nobody";
 
-    this.locationExpiresAt = null;
+      this.locationExpiresAt =
+        null;
+    }
+
+    if (
+      this.privacy.shareLocation &&
+      !this.locationPermissionGranted
+    ) {
+      this.privacy.shareLocation =
+        false;
+
+      this.privacy.locationVisibility =
+        "nobody";
+
+      this.locationExpiresAt =
+        null;
+    }
+
+    next();
   }
+);
 
-  if (
-    this.privacy.shareLocation &&
-    !this.locationPermissionGranted
-  ) {
-    this.privacy.shareLocation = false;
+// ============================================================
+// PROFILE VIEW PRIVACY VALIDATION
+// ============================================================
 
-    this.privacy.locationVisibility =
-      "nobody";
+userSchema.pre(
+  "validate",
+  function (next) {
+    const allowedValues = [
+      "everyone",
+      "organizations_only",
+      "nobody",
+    ];
 
-    this.locationExpiresAt = null;
+    if (
+      !allowedValues.includes(
+        this.privacy.profileViewPrivacy
+      )
+    ) {
+      this.privacy.profileViewPrivacy =
+        "everyone";
+    }
+
+    next();
   }
-
-  next();
-});
+);
 
 // ============================================================
 // LOCATION EXPIRATION VALIDATION
 // ============================================================
 
-userSchema.pre("save", function (next) {
-  if (
-    this.privacy &&
-    this.privacy.shareLocation &&
-    this.locationExpiresAt &&
-    this.locationExpiresAt <= new Date()
-  ) {
-    this.privacy.shareLocation = false;
+userSchema.pre(
+  "save",
+  function (next) {
+    if (
+      this.privacy &&
+      this.privacy.shareLocation &&
+      this.locationExpiresAt &&
+      this.locationExpiresAt <=
+        new Date()
+    ) {
+      this.privacy.shareLocation =
+        false;
 
-    this.privacy.locationVisibility =
-      "nobody";
+      this.privacy.locationVisibility =
+        "nobody";
 
-    this.locationExpiresAt = null;
+      this.locationExpiresAt =
+        null;
+    }
+
+    next();
   }
-
-  next();
-});
+);
 
 // ============================================================
 // NORMALIZATION
 // ============================================================
 
-userSchema.pre("save", function (next) {
-  if (this.username) {
-    this.username =
-      this.username
-        .toLowerCase()
-        .trim();
-  }
+userSchema.pre(
+  "save",
+  function (next) {
+    if (this.username) {
+      this.username =
+        this.username
+          .toLowerCase()
+          .trim();
+    }
 
-  if (this.email) {
-    this.email =
-      this.email
-        .toLowerCase()
-        .trim();
-  }
+    if (this.email) {
+      this.email =
+        this.email
+          .toLowerCase()
+          .trim();
+    }
 
-  if (this.phone) {
-    this.phone =
-      this.phone.trim();
-  }
+    if (this.phone) {
+      this.phone =
+        this.phone.trim();
+    }
 
-  if (this.identificationNumber) {
-    this.identificationNumber =
-      this.identificationNumber.trim();
-  }
+    if (this.identificationNumber) {
+      this.identificationNumber =
+        this.identificationNumber.trim();
+    }
 
-  if (this.firstName) {
-    this.firstName =
-      this.firstName.trim();
-  }
+    if (this.firstName) {
+      this.firstName =
+        this.firstName.trim();
+    }
 
-  if (this.middleName) {
-    this.middleName =
-      this.middleName.trim();
-  }
+    if (this.middleName) {
+      this.middleName =
+        this.middleName.trim();
+    }
 
-  if (this.lastName) {
-    this.lastName =
-      this.lastName.trim();
-  }
+    if (this.lastName) {
+      this.lastName =
+        this.lastName.trim();
+    }
 
-  if (this.displayName) {
-    this.displayName =
-      this.displayName.trim();
-  }
+    if (this.displayName) {
+      this.displayName =
+        this.displayName.trim();
+    }
 
-  next();
-});
+    next();
+  }
+);
 
 // ============================================================
 // PUBLIC IDENTITY
@@ -887,16 +1011,21 @@ userSchema.methods.getPublicIdentity =
         isPlatformAccount:
           true,
 
-        isVerified:
-          true,
+        verified: true,
 
-        verificationType:
-          "platform",
-
-        badgeAsset:
+        verificationBadge:
           "/verified-badge.png",
       };
     }
+
+    const isVerified =
+      Boolean(
+        this.verification &&
+          this.verification
+            .isVerified &&
+          this.verification.status ===
+            "approved"
+      );
 
     return {
       displayName:
@@ -912,55 +1041,113 @@ userSchema.methods.getPublicIdentity =
       isPlatformAccount:
         false,
 
-      isVerified:
-        this.verification.isVerified,
+      verified:
+        isVerified,
 
-      verificationType:
-        this.verification.verificationType,
-
-      badgeAsset:
-        this.verification.isVerified
-          ? this.verification.badgeAsset
+      verificationBadge:
+        isVerified
+          ? "/verified-badge.png"
           : null,
     };
   };
 
 // ============================================================
-// VERIFICATION PUBLIC STATUS
-// ============================================================
-// This exposes only safe public verification information.
-// Private review information is never exposed.
+// VERIFICATION PUBLIC IDENTITY
 // ============================================================
 
 userSchema.methods.getPublicVerification =
   function () {
-    const verified =
+    if (
       this.platformRole ===
-        "super_admin" ||
-      this.verification.isVerified;
+      "super_admin"
+    ) {
+      return {
+        isVerified: true,
 
-    if (!verified) {
+        status:
+          "approved",
+
+        verificationType:
+          "platform",
+
+        badgeAsset:
+          "/verified-badge.png",
+      };
+    }
+
+    if (
+      !this.verification
+    ) {
       return {
         isVerified: false,
-        badgeAsset: null,
-        verificationType: null,
+
+        status:
+          "not_requested",
+
+        verificationType:
+          null,
+
+        badgeAsset:
+          null,
       };
     }
 
     return {
-      isVerified: true,
+      isVerified:
+        Boolean(
+          this.verification
+            .isVerified
+        ),
 
-      badgeAsset:
-        this.verification.badgeAsset ||
-        "/verified-badge.png",
+      status:
+        this.verification
+          .status,
 
       verificationType:
-        this.platformRole ===
-        "super_admin"
-          ? "platform"
-          : this.verification
-              .verificationType,
+        this.verification
+          .verificationType,
+
+      badgeAsset:
+        this.verification
+          .isVerified
+          ? "/verified-badge.png"
+          : null,
     };
+  };
+
+// ============================================================
+// CAN APPEAR IN PROFILE VIEW HISTORY
+// ============================================================
+// Determines whether THIS USER can appear in another user's
+// "Who viewed my profile?" list.
+//
+// Actual organization membership authorization is handled by
+// the controller/service layer.
+// ============================================================
+
+userSchema.methods.canAppearInProfileViews =
+  function ({
+    viewerIsOrganizationMember = false,
+  } = {}) {
+    const privacy =
+      this.privacy
+        ?.profileViewPrivacy;
+
+    if (
+      privacy === "nobody"
+    ) {
+      return false;
+    }
+
+    if (
+      privacy ===
+        "organizations_only" &&
+      !viewerIsOrganizationMember
+    ) {
+      return false;
+    }
+
+    return true;
   };
 
 // ============================================================
@@ -972,6 +1159,7 @@ userSchema.methods.canShareLocationWith =
     viewerId = null,
     viewerIsOrganizationMember = false,
   } = {}) {
+    // Platform Super Admin has no personal location.
     if (
       this.platformRole ===
       "super_admin"
@@ -993,13 +1181,15 @@ userSchema.methods.canShareLocationWith =
 
     if (
       this.locationExpiresAt &&
-      this.locationExpiresAt <= new Date()
+      this.locationExpiresAt <=
+        new Date()
     ) {
       return false;
     }
 
     const visibility =
-      this.privacy.locationVisibility;
+      this.privacy
+        .locationVisibility;
 
     if (
       visibility === "nobody"
@@ -1026,8 +1216,8 @@ userSchema.methods.canShareLocationWith =
         "selected_people" &&
       viewerId
     ) {
-      // Selected-person authorization must be checked by the
-      // controller/service layer.
+      // Selected-person authorization must be implemented in
+      // the service/controller against an access list.
       return false;
     }
 
@@ -1055,19 +1245,25 @@ userSchema.methods.getPublicLocation =
 
     if (
       !this.currentLocation ||
-      this.currentLocation.latitude ===
-        null ||
-      this.currentLocation.longitude ===
-        null
+      this.currentLocation
+        .latitude === null ||
+      this.currentLocation
+        .longitude === null
     ) {
       return null;
     }
 
     const precision =
-      this.privacy.locationPrecision;
+      this.privacy
+        .locationPrecision;
+
+    // ----------------------------------------------------------
+    // APPROXIMATE LOCATION
+    // ----------------------------------------------------------
 
     if (
-      precision === "approximate"
+      precision ===
+      "approximate"
     ) {
       const latitude =
         Math.round(
@@ -1084,26 +1280,39 @@ userSchema.methods.getPublicLocation =
       return {
         latitude,
         longitude,
-        precision: "approximate",
+
+        precision:
+          "approximate",
+
         updatedAt:
-          this.currentLocation.updatedAt,
+          this.currentLocation
+            .updatedAt,
       };
     }
 
+    // ----------------------------------------------------------
+    // EXACT LOCATION
+    // ----------------------------------------------------------
+
     return {
       latitude:
-        this.currentLocation.latitude,
+        this.currentLocation
+          .latitude,
 
       longitude:
-        this.currentLocation.longitude,
+        this.currentLocation
+          .longitude,
 
       accuracy:
-        this.currentLocation.accuracy,
+        this.currentLocation
+          .accuracy,
 
-      precision: "exact",
+      precision:
+        "exact",
 
       updatedAt:
-        this.currentLocation.updatedAt,
+        this.currentLocation
+          .updatedAt,
     };
   };
 
@@ -1116,7 +1325,8 @@ userSchema.methods.getPublicPresence =
     const presence = {};
 
     if (
-      this.privacy.showOnlineStatus
+      this.privacy
+        .showOnlineStatus
     ) {
       presence.isOnline =
         this.isOnline;
@@ -1133,46 +1343,6 @@ userSchema.methods.getPublicPresence =
   };
 
 // ============================================================
-// PROFILE VIEW VISIBILITY
-// ============================================================
-// Determines whether this user may appear in another user's
-// "Who viewed my profile" history.
-//
-// Detailed recording/query authorization belongs in
-// ProfileView.js and the controller/service layer.
-// ============================================================
-
-userSchema.methods.canAppearInProfileViews =
-  function ({
-    viewerIsOrganizationMember = false,
-  } = {}) {
-    const privacy =
-      this.privacy.profileViewPrivacy;
-
-    if (
-      privacy === "nobody"
-    ) {
-      return false;
-    }
-
-    if (
-      privacy === "everyone"
-    ) {
-      return true;
-    }
-
-    if (
-      privacy ===
-        "organizations_only" &&
-      viewerIsOrganizationMember
-    ) {
-      return true;
-    }
-
-    return false;
-  };
-
-// ============================================================
 // SAFE PUBLIC USER PROFILE
 // ============================================================
 // Never expose:
@@ -1180,8 +1350,7 @@ userSchema.methods.canAppearInProfileViews =
 // - identification number
 // - private email
 // - private phone
-// - security secrets
-// - verification review details
+// - private authentication settings
 // - unauthorized location
 // ============================================================
 
@@ -1226,15 +1395,121 @@ userSchema.methods.toPublicProfile =
       verified:
         verification.isVerified,
 
-      verificationType:
-        verification.verificationType,
-
       verificationBadge:
         verification.badgeAsset,
+
+      verificationStatus:
+        verification.status,
 
       ...presence,
 
       location,
+    };
+  };
+
+// ============================================================
+// SAFE ADMIN PROFILE
+// ============================================================
+// This is intended for authorized administrative interfaces.
+// It should NOT be used as a public profile response.
+// ============================================================
+
+userSchema.methods.toAdminProfile =
+  function () {
+    const identity =
+      this.getPublicIdentity();
+
+    const verification =
+      this.getPublicVerification();
+
+    return {
+      id: this._id,
+
+      displayName:
+        identity.displayName,
+
+      username:
+        identity.username,
+
+      platformRole:
+        identity.platformRole,
+
+      firstName:
+        this.firstName,
+
+      middleName:
+        this.middleName,
+
+      lastName:
+        this.lastName,
+
+      dateOfBirth:
+        this.dateOfBirth,
+
+      nationality:
+        this.nationality,
+
+      profilePhoto:
+        this.profilePhoto,
+
+      email:
+        this.email,
+
+      phone:
+        this.phone,
+
+      identificationType:
+        this.identificationType,
+
+      identificationNumber:
+        this.identificationNumber,
+
+      accountStatus:
+        this.accountStatus,
+
+      emailVerified:
+        this.emailVerified,
+
+      phoneVerified:
+        this.phoneVerified,
+
+      twoFactorEnabled:
+        this.twoFactorEnabled,
+
+      twoFactorMethod:
+        this.twoFactorMethod,
+
+      verification,
+
+      privacy:
+        this.privacy,
+
+      locationPermissionGranted:
+        this.locationPermissionGranted,
+
+      currentLocation:
+        this.currentLocation,
+
+      locationExpiresAt:
+        this.locationExpiresAt,
+
+      isOnline:
+        this.isOnline,
+
+      lastLoginAt:
+        this.lastLoginAt,
+
+      lastSeenAt:
+        this.lastSeenAt,
+
+      joinedAt:
+        this.joinedAt,
+
+      createdAt:
+        this.createdAt,
+
+      updatedAt:
+        this.updatedAt,
     };
   };
 
