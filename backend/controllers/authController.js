@@ -1514,230 +1514,339 @@ exports.resendPhoneVerification =
 // LOGIN USER
 // ============================================================
 
-exports.login = async (
-  req,
-  res
-) => {
+// ============================================================
+// LOGIN
+// ============================================================
+// Authentication:
+//   1. Email
+//   2. Password
+//
+// Platform roles:
+//   - super_admin
+//   - user
+//
+// Organization roles:
+//   - national_party_admin
+//   - regional_admin
+//   - constituency_admin
+//   - polling_station_agent
+//
+// NO Country Admin.
+// ============================================================
+
+exports.login = async (req, res) => {
   try {
-    const {
-      email,
-      password,
-    } = req.body;
+    const { email, password } = req.body || {};
+
+    // ----------------------------------------------------------
+    // REQUIRED FIELDS
+    // ----------------------------------------------------------
 
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-
-        message:
-          "Email and password are required.",
+        message: "Email and password are required.",
       });
     }
 
-    const normalizedEmail =
-      String(email)
-        .trim()
-        .toLowerCase();
+    // ----------------------------------------------------------
+    // NORMALIZE EMAIL
+    // ----------------------------------------------------------
 
-    const user =
-      await User.findOne({
-        email:
-          normalizedEmail,
-      }).select(
-        "+password"
+    const normalizedEmail = String(email)
+      .trim()
+      .toLowerCase();
+
+    if (!normalizedEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Email address is required.",
+      });
+    }
+
+    if (!String(password).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // JWT CONFIGURATION
+    // ----------------------------------------------------------
+
+    if (!process.env.JWT_SECRET) {
+      console.error(
+        "POLISYNC AUTH ERROR: JWT_SECRET is not configured."
       );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Authentication service is not properly configured.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // FIND USER
+    // ----------------------------------------------------------
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    }).select("+password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-
-        message:
-          "Invalid email or password.",
+        message: "Invalid email or password.",
       });
     }
 
-    // --------------------------------------------------------
-    // ACCOUNT STATUS
-    // --------------------------------------------------------
+    // ----------------------------------------------------------
+    // VERIFY PASSWORD
+    // ----------------------------------------------------------
 
-    if (
-      user.accountStatus ===
-      "suspended"
-    ) {
-      return res.status(403).json({
-        success: false,
+    const passwordMatches = await bcrypt.compare(
+      String(password),
+      user.password
+    );
 
-        message:
-          "Your account has been suspended.",
-      });
-    }
-
-    if (
-      user.accountStatus ===
-      "deactivated"
-    ) {
-      return res.status(403).json({
-        success: false,
-
-        message:
-          "Your account has been deactivated.",
-      });
-    }
-
-    if (
-      user.accountStatus ===
-      "rejected"
-    ) {
-      return res.status(403).json({
-        success: false,
-
-        message:
-          "Your account registration was rejected.",
-      });
-    }
-
-    // --------------------------------------------------------
-    // PASSWORD
-    // --------------------------------------------------------
-
-    const validPassword =
-      await bcrypt.compare(
-        password,
-        user.password
-      );
-
-    if (!validPassword) {
+    if (!passwordMatches) {
       return res.status(401).json({
         success: false,
-
-        message:
-          "Invalid email or password.",
+        message: "Invalid email or password.",
       });
     }
 
-    // --------------------------------------------------------
-    // UPDATE PRESENCE
-    // --------------------------------------------------------
+    // ----------------------------------------------------------
+    // ACCOUNT STATUS
+    // ----------------------------------------------------------
 
-    user.lastLoginAt =
-      new Date();
+    if (user.accountStatus === "suspended") {
+      return res.status(403).json({
+        success: false,
+        message: "This account has been suspended.",
+      });
+    }
 
-    user.lastSeenAt =
-      new Date();
+    if (user.accountStatus === "deactivated") {
+      return res.status(403).json({
+        success: false,
+        message: "This account has been deactivated.",
+      });
+    }
 
-    user.isOnline =
-      true;
+    if (user.accountStatus === "rejected") {
+      return res.status(403).json({
+        success: false,
+        message: "This account has been rejected.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // SUPER ADMIN
+    // ----------------------------------------------------------
+
+    if (user.platformRole === "super_admin") {
+      if (user.accountStatus !== "approved") {
+        return res.status(403).json({
+          success: false,
+          message:
+            "The Super Admin account is not approved.",
+        });
+      }
+
+      // Super Admin must verify the email first.
+      if (!user.emailVerified) {
+        return res.status(403).json({
+          success: false,
+          code: "EMAIL_NOT_VERIFIED",
+          message:
+            "Please verify your email before accessing PoliSync Africa.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // UPDATE LOGIN INFORMATION
+      // --------------------------------------------------------
+
+      user.lastLoginAt = new Date();
+      user.isOnline = true;
+
+      await user.save();
+
+      // --------------------------------------------------------
+      // CREATE SUPER ADMIN TOKEN
+      // --------------------------------------------------------
+
+      const token = jwt.sign(
+        {
+          userId: user._id.toString(),
+          platformRole: "super_admin",
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "7d",
+        }
+      );
+
+      // --------------------------------------------------------
+      // SUPER ADMIN RESPONSE
+      // --------------------------------------------------------
+
+      return res.status(200).json({
+        success: true,
+
+        message: "Welcome to PoliSync Africa.",
+
+        token,
+
+        user: {
+          id: user._id,
+          displayName: "POLISYNC AFRICA",
+          username: "polisync.africa",
+          platformRole: "super_admin",
+          isPlatformAccount: true,
+          verified: true,
+          verificationBadge: "/verified-badge.png",
+          accountStatus: "approved",
+        },
+
+        workspace: {
+          type: "super_admin",
+          name: "PoliSync Africa Super Admin",
+        },
+      });
+    }
+
+    // ----------------------------------------------------------
+    // ORDINARY PLATFORM USER
+    // ----------------------------------------------------------
+
+    if (user.platformRole !== "user") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This account has an invalid platform role.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // ACCOUNT APPROVAL
+    // ----------------------------------------------------------
+
+    if (user.accountStatus !== "approved") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your account has not yet been approved.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // EMAIL VERIFICATION
+    // ----------------------------------------------------------
+
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        success: false,
+        code: "EMAIL_NOT_VERIFIED",
+        message:
+          "Please verify your email before logging in.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // UPDATE LOGIN INFORMATION
+    // ----------------------------------------------------------
+
+    user.lastLoginAt = new Date();
+    user.isOnline = true;
 
     await user.save();
 
-    // --------------------------------------------------------
-    // GENERATE JWT
-    // --------------------------------------------------------
+    // ----------------------------------------------------------
+    // CREATE ORDINARY USER TOKEN
+    // ----------------------------------------------------------
 
-    const token =
-      generateToken(user);
+    const token = jwt.sign(
+      {
+        userId: user._id.toString(),
+        platformRole: "user",
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
 
-    // --------------------------------------------------------
-    // SECURITY ALERT
-    // --------------------------------------------------------
-
-    try {
-      await sendSecurityAlert({
-        user,
-
-        message:
-          "A successful login to your PoliSync Africa account was detected.",
-      });
-    } catch (
-      notificationError
-    ) {
-      console.error(
-        "Login security notification failed:",
-        notificationError
-      );
-    }
-
-    // --------------------------------------------------------
-    // PUBLIC IDENTITY
-    // --------------------------------------------------------
-
-    const identity =
-      user.getPublicIdentity();
-
-    // --------------------------------------------------------
-    // RESPONSE
-    // --------------------------------------------------------
+    // ----------------------------------------------------------
+    // ORDINARY USER RESPONSE
+    // ----------------------------------------------------------
+    //
+    // OrganizationMembership determines:
+    //
+    // National Party Admin
+    // Regional Admin
+    // Constituency Admin
+    // Polling Station Agent
+    //
+    // NO Country Admin.
+    // ----------------------------------------------------------
 
     return res.status(200).json({
       success: true,
 
-      message:
-        "Login successful.",
+      message: "Login successful.",
 
       token,
 
       user: {
-        id:
-          user._id,
+        id: user._id,
 
         displayName:
-          identity.displayName,
+          user.displayName ||
+          `${user.firstName} ${user.lastName}`.trim(),
 
-        username:
-          identity.username,
+        username: user.username,
 
-        firstName:
-          user.firstName,
+        platformRole: "user",
 
-        middleName:
-          user.middleName,
+        isPlatformAccount: false,
 
-        lastName:
-          user.lastName,
+        verified: Boolean(
+          user.verification &&
+            user.verification.isVerified &&
+            user.verification.status === "approved"
+        ),
 
-        email:
-          user.email,
+        verificationBadge:
+          user.verification &&
+          user.verification.isVerified
+            ? "/verified-badge.png"
+            : null,
 
-        phone:
-          user.phone,
+        accountStatus: user.accountStatus,
+      },
 
-        platformRole:
-          user.platformRole,
-
-        accountStatus:
-          user.accountStatus,
-
-        emailVerified:
-          user.emailVerified,
-
-        phoneVerified:
-          user.phoneVerified,
-
-        twoFactorEnabled:
-          user.twoFactorEnabled,
-
-        verification:
-          user.getPublicVerification(),
-
-        presence:
-          user.getPublicPresence(),
+      workspace: {
+        type: "organization",
+        requiresMembership: true,
       },
     });
   } catch (error) {
     console.error(
-      "Login error:",
+      "PoliSync login error:",
       error
     );
 
     return res.status(500).json({
       success: false,
-
       message:
-        error.message ||
-        "Login failed.",
+        "Unable to complete login at this time.",
     });
   }
 };
-
 // ============================================================
 // LOGOUT / PRESENCE
 // ============================================================
