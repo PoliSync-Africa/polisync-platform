@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 const User = require("../models/User");
 
+const {
+  sendAccountApproved,
+} = require("../services/notificationService");
+
 // ============================================================
 // CONSTANTS
 // ============================================================
@@ -43,17 +47,17 @@ const isValidObjectId = (id) => {
 // ============================================================
 // SUPER ADMIN AUTHORIZATION
 // ============================================================
-// IMPORTANT:
-//
-// Only the PoliSync Africa Super Admin may:
+// ONLY THE POLISYNC AFRICA SUPER ADMIN MAY:
 //
 // - approve verification
 // - reject verification
 // - revoke verification
+// - inspect verification requests
+// - view pending verification requests
 //
-// Being a party admin, organization admin, candidate,
-// regional admin, constituency officer, or any other role
-// does NOT grant verification authority.
+// Party admins, organization admins, candidates,
+// regional admins, constituency officers and other
+// administrators do NOT receive verification authority.
 // ============================================================
 
 const requireSuperAdmin = async (
@@ -127,14 +131,7 @@ const requireSuperAdmin = async (
 // ============================================================
 // POST /api/verification/request
 //
-// Any eligible ordinary user may request verification.
-//
-// A user cannot approve their own request.
-//
-// A new request becomes:
-//
-// status = pending
-// isVerified = false
+// Any eligible approved user may request verification.
 // ============================================================
 
 exports.requestVerification =
@@ -167,9 +164,6 @@ exports.requestVerification =
 
       // --------------------------------------------------------
       // SUPER ADMIN
-      // --------------------------------------------------------
-      // POLISYNC AFRICA is already verified.
-      // It does not need to submit a request.
       // --------------------------------------------------------
 
       if (
@@ -219,10 +213,6 @@ exports.requestVerification =
             "Rejected accounts cannot request verification.",
         });
       }
-
-      // --------------------------------------------------------
-      // ACCOUNT APPROVAL
-      // --------------------------------------------------------
 
       if (
         user.accountStatus !==
@@ -384,8 +374,6 @@ exports.requestVerification =
 // GET MY VERIFICATION STATUS
 // ============================================================
 // GET /api/verification/me
-//
-// Allows a user to see their own verification status.
 // ============================================================
 
 exports.getMyVerificationStatus =
@@ -501,8 +489,6 @@ exports.getMyVerificationStatus =
 // GET /api/verification/admin/pending
 //
 // SUPER ADMIN ONLY.
-//
-// Other administrators are explicitly denied.
 // ============================================================
 
 exports.getPendingVerificationRequests =
@@ -661,11 +647,25 @@ exports.getPendingVerificationRequests =
 // PATCH /api/verification/admin/:userId/approve
 //
 // SUPER ADMIN ONLY.
+//
+// IMPORTANT:
+// The account is saved as approved BEFORE notification
+// delivery is attempted.
+//
+// Therefore:
+//
+// APPROVAL SUCCESS + SMS/EMAIL FAILURE
+//
+// does NOT undo the approval.
 // ============================================================
 
 exports.approveVerification =
   async (req, res) => {
     try {
+      // --------------------------------------------------------
+      // SUPER ADMIN AUTHORIZATION
+      // --------------------------------------------------------
+
       const superAdmin =
         await requireSuperAdmin(
           req,
@@ -675,6 +675,10 @@ exports.approveVerification =
       if (!superAdmin) {
         return;
       }
+
+      // --------------------------------------------------------
+      // TARGET USER
+      // --------------------------------------------------------
 
       const targetUserId =
         req.params.userId;
@@ -691,6 +695,10 @@ exports.approveVerification =
         });
       }
 
+      // --------------------------------------------------------
+      // FIND USER
+      // --------------------------------------------------------
+
       const user =
         await User.findById(
           targetUserId
@@ -704,6 +712,10 @@ exports.approveVerification =
         });
       }
 
+      // --------------------------------------------------------
+      // SUPER ADMIN CANNOT BE APPROVED
+      // --------------------------------------------------------
+
       if (
         user.platformRole ===
         SUPER_ADMIN_ROLE
@@ -715,9 +727,14 @@ exports.approveVerification =
         });
       }
 
+      // --------------------------------------------------------
+      // REQUEST MUST BE PENDING
+      // --------------------------------------------------------
+
       if (
+        !user.verification ||
         user.verification.status !==
-        "pending"
+          "pending"
       ) {
         return res.status(409).json({
           success: false,
@@ -727,7 +744,7 @@ exports.approveVerification =
       }
 
       // --------------------------------------------------------
-      // APPROVE
+      // APPROVE VERIFICATION
       // --------------------------------------------------------
 
       user.verification.isVerified =
@@ -753,19 +770,68 @@ exports.approveVerification =
 
       await user.save();
 
+      // --------------------------------------------------------
+      // NOTIFY USER
+      // --------------------------------------------------------
+      //
+      // Notification failure MUST NOT undo approval.
+      // --------------------------------------------------------
+
+      let notificationSent =
+        false;
+
+      let notificationError =
+        null;
+
+      try {
+        if (
+          typeof sendAccountApproved ===
+          "function"
+        ) {
+          await sendAccountApproved({
+            user,
+          });
+
+          notificationSent =
+            true;
+        } else {
+          notificationError =
+            "sendAccountApproved is not available in notificationService.";
+        }
+      } catch (
+        notificationException
+      ) {
+        notificationError =
+          notificationException.message ||
+          "Notification delivery failed.";
+
+        console.error(
+          "Account approval notification error:",
+          notificationException
+        );
+      }
+
+      // --------------------------------------------------------
+      // SUCCESS RESPONSE
+      // --------------------------------------------------------
+
       return res.status(200).json({
         success: true,
 
         message:
           "Verification approved successfully.",
 
+        notificationSent,
+
+        notificationError,
+
         user: {
           id: user._id,
 
           displayName:
             user.displayName ||
-            `${user.firstName} ${
-              user.lastName
+            `${user.firstName || ""} ${
+              user.lastName || ""
             }`.trim(),
 
           username:
@@ -790,6 +856,9 @@ exports.approveVerification =
 
           username:
             "polisync.africa",
+
+          platformRole:
+            "super_admin",
         },
       });
     } catch (error) {
@@ -868,8 +937,9 @@ exports.rejectVerification =
       }
 
       if (
+        !user.verification ||
         user.verification.status !==
-        "pending"
+          "pending"
       ) {
         return res.status(409).json({
           success: false,
@@ -939,8 +1009,8 @@ exports.rejectVerification =
 
           displayName:
             user.displayName ||
-            `${user.firstName} ${
-              user.lastName
+            `${user.firstName || ""} ${
+              user.lastName || ""
             }`.trim(),
 
           username:
@@ -958,6 +1028,9 @@ exports.rejectVerification =
 
           username:
             "polisync.africa",
+
+          platformRole:
+            "super_admin",
         },
       });
     } catch (error) {
@@ -981,8 +1054,6 @@ exports.rejectVerification =
 // PATCH /api/verification/admin/:userId/revoke
 //
 // SUPER ADMIN ONLY.
-//
-// This removes an existing verified badge.
 // ============================================================
 
 exports.revokeVerification =
@@ -1038,6 +1109,7 @@ exports.revokeVerification =
       }
 
       if (
+        !user.verification ||
         !user.verification.isVerified
       ) {
         return res.status(409).json({
@@ -1108,8 +1180,8 @@ exports.revokeVerification =
 
           displayName:
             user.displayName ||
-            `${user.firstName} ${
-              user.lastName
+            `${user.firstName || ""} ${
+              user.lastName || ""
             }`.trim(),
 
           username:
@@ -1127,6 +1199,9 @@ exports.revokeVerification =
 
           username:
             "polisync.africa",
+
+          platformRole:
+            "super_admin",
         },
       });
     } catch (error) {
@@ -1150,8 +1225,6 @@ exports.revokeVerification =
 // GET /api/verification/admin/:userId
 //
 // SUPER ADMIN ONLY.
-//
-// Allows the Super Admin to inspect an individual request.
 // ============================================================
 
 exports.getVerificationRequest =
