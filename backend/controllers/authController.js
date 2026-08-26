@@ -7,7 +7,6 @@ const VerificationToken = require("../models/VerificationToken");
 
 const {
   sendEmailVerification,
-  sendPhoneVerification,
   sendPasswordReset,
   sendPasswordChanged,
   sendSecurityAlert,
@@ -15,6 +14,7 @@ const {
 
 const {
   verifyOTP,
+  sendPhoneVerificationOTP,
 } = require("../services/arkeselOtpService");
 
 // ============================================================
@@ -32,23 +32,30 @@ const {
 // - Password change
 // - Security notifications
 // - JWT authentication
+// - Logout / presence
 //
-// IMPORTANT:
+// EMAIL OTP
+// ------------------------------------------------------------
+// PoliSync generates and securely stores email verification
+// codes through VerificationToken.
 //
-// EMAIL OTP:
-// PoliSync generates and securely stores the email verification
-// code through VerificationToken.
+// SMS OTP
+// ------------------------------------------------------------
+// Arkesel generates, delivers, expires and verifies SMS OTPs.
 //
-// PHONE/SMS OTP:
-// Arkesel generates, delivers, expires and verifies the OTP.
+// PoliSync does NOT store Arkesel SMS OTPs.
 //
-// PoliSync only updates:
+// After successful Arkesel verification:
 //
 //     user.phoneVerified = true
 //
-// after Arkesel confirms the OTP.
+// IMPORTANT
+// ------------------------------------------------------------
+// SMS failures must NEVER cancel account creation.
+// SMS failures must NEVER stop email verification.
+// SMS failures must NEVER stop other system notifications.
 //
-// SMS delivery failures do NOT cancel account creation.
+// SMS uses FIRST NAME ONLY.
 // ============================================================
 
 // ============================================================
@@ -149,13 +156,14 @@ const createUsername = async (
 };
 
 // ============================================================
-// GENERATE VERIFICATION CODE
+// GENERATE POLISYNC VERIFICATION CODE
 // ============================================================
 //
-// Used ONLY for PoliSync-managed codes such as email
-// verification and password reset.
+// Used ONLY for:
+// - Email verification
+// - Password reset
 //
-// DO NOT use this for SMS OTP.
+// NOT used for SMS OTP.
 // Arkesel generates SMS OTPs.
 // ============================================================
 
@@ -297,7 +305,6 @@ const findActiveToken =
         $expr: {
           $lt: [
             "$attempts",
-
             "$maxAttempts",
           ],
         },
@@ -311,7 +318,9 @@ const findActiveToken =
 // VERIFY POLISYNC CODE
 // ============================================================
 //
-// Used ONLY for email/password-reset codes.
+// Used ONLY for:
+// - Email verification
+// - Password reset
 // ============================================================
 
 const verifyCode =
@@ -377,6 +386,15 @@ const verifyCode =
 
 // ============================================================
 // NORMALIZE GHANA PHONE
+// ============================================================
+//
+// Accepts:
+// 0241234567
+// +233241234567
+// 233241234567
+//
+// Returns:
+// 233241234567
 // ============================================================
 
 const normalizeGhanaPhone = (
@@ -825,18 +843,22 @@ exports.register = async (
     //
     // IMPORTANT:
     //
-    // We do NOT call createVerificationToken()
-    // for SMS.
-    //
     // Arkesel generates the OTP.
     //
-    // notificationService.sendPhoneVerification()
-    // receives:
+    // We DO NOT create a VerificationToken for SMS.
     //
-    // phone
-    // firstName
+    // The SMS service receives:
     //
-    // so the SMS remains personalized using FIRST NAME ONLY.
+    //     phone
+    //     firstName
+    //
+    // Therefore the SMS can be personalized:
+    //
+    //     Hello Daniel, ...
+    //
+    // Only FIRST NAME is used.
+    //
+    // SMS failure does NOT cancel registration.
     // ========================================================
 
     let phoneNotification =
@@ -844,7 +866,7 @@ exports.register = async (
 
     try {
       phoneNotification =
-        await sendPhoneVerification({
+        await sendPhoneVerificationOTP({
           phone:
             user.phone,
 
@@ -1068,14 +1090,13 @@ exports.verifyEmail = async (
 // VERIFY PHONE THROUGH ARKESEL
 // ============================================================
 //
-// Arkesel is authoritative for the SMS OTP.
+// Arkesel is authoritative for SMS OTP verification.
 //
-// PoliSync does NOT compare the OTP against MongoDB.
+// PoliSync does NOT compare the SMS OTP against MongoDB.
 //
-// Successful Arkesel verification causes:
+// Successful Arkesel verification:
 //
 //     user.phoneVerified = true
-//
 // ============================================================
 
 exports.verifyPhone = async (
@@ -1432,14 +1453,14 @@ exports.resendPhoneVerification =
       }
 
       // --------------------------------------------------------
-      // ARKESEL GENERATES AND SENDS A NEW OTP
+      // ARKESEL GENERATES AND SENDS NEW OTP
       // --------------------------------------------------------
 
       let notification;
 
       try {
         notification =
-          await sendPhoneVerification({
+          await sendPhoneVerificationOTP({
             phone:
               user.phone,
 
