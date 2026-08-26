@@ -1,0 +1,201 @@
+const mongoose = require("mongoose");
+
+// ============================================================
+// POLISYNC AFRICA VERIFICATION TOKEN MODEL
+// ============================================================
+//
+// Used for:
+// - Email verification
+// - Phone verification
+// - Password reset
+// - Other short-lived authentication challenges
+//
+// IMPORTANT:
+// Raw verification codes are NEVER stored in MongoDB.
+// Only a cryptographic hash of the code is stored.
+// ============================================================
+
+const verificationTokenSchema =
+  new mongoose.Schema(
+    {
+      // ========================================================
+      // USER
+      // ========================================================
+
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+        index: true,
+      },
+
+      // ========================================================
+      // TOKEN PURPOSE
+      // ========================================================
+
+      purpose: {
+        type: String,
+        enum: [
+          "email_verification",
+          "phone_verification",
+          "password_reset",
+          "two_factor_authentication",
+          "login_verification",
+        ],
+        required: true,
+        index: true,
+      },
+
+      // ========================================================
+      // TOKEN HASH
+      // ========================================================
+      // Never store the actual OTP/code.
+      // ========================================================
+
+      tokenHash: {
+        type: String,
+        required: true,
+        index: true,
+      },
+
+      // ========================================================
+      // EXPIRATION
+      // ========================================================
+
+      expiresAt: {
+        type: Date,
+        required: true,
+        index: true,
+      },
+
+      // ========================================================
+      // USAGE
+      // ========================================================
+
+      usedAt: {
+        type: Date,
+        default: null,
+      },
+
+      // ========================================================
+      // ATTEMPT CONTROL
+      // ========================================================
+
+      attempts: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+
+      maxAttempts: {
+        type: Number,
+        default: 5,
+        min: 1,
+      },
+
+      // ========================================================
+      // DELIVERY CHANNEL
+      // ========================================================
+
+      channel: {
+        type: String,
+        enum: [
+          "email",
+          "sms",
+        ],
+        required: true,
+      },
+
+      // ========================================================
+      // SECURITY / AUDIT
+      // ========================================================
+
+      requestedIp: {
+        type: String,
+        default: null,
+        trim: true,
+      },
+
+      userAgent: {
+        type: String,
+        default: null,
+        trim: true,
+      },
+    },
+    {
+      timestamps: true,
+    }
+  );
+
+// ============================================================
+// AUTOMATIC EXPIRATION
+// ============================================================
+//
+// MongoDB automatically removes expired token documents.
+// ============================================================
+
+verificationTokenSchema.index(
+  {
+    expiresAt: 1,
+  },
+  {
+    expireAfterSeconds: 0,
+  }
+);
+
+// ============================================================
+// PREVENT UNLIMITED ATTEMPTS
+// ============================================================
+
+verificationTokenSchema.pre(
+  "validate",
+  function (next) {
+    if (
+      this.attempts >
+      this.maxAttempts
+    ) {
+      this.attempts =
+        this.maxAttempts;
+    }
+
+    next();
+  }
+);
+
+// ============================================================
+// HELPER: TOKEN ACTIVE
+// ============================================================
+
+verificationTokenSchema.methods.isActive =
+  function () {
+    if (this.usedAt) {
+      return false;
+    }
+
+    if (
+      this.expiresAt <=
+      new Date()
+    ) {
+      return false;
+    }
+
+    if (
+      this.attempts >=
+      this.maxAttempts
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
+// ============================================================
+// MODEL
+// ============================================================
+
+module.exports =
+  mongoose.models.VerificationToken ||
+  mongoose.model(
+    "VerificationToken",
+    verificationTokenSchema
+  );
