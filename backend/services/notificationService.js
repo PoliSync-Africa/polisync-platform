@@ -1,37 +1,45 @@
 require("dotenv").config();
 
 // ============================================================
-// POLISYNC AFRICA — CENTRAL SMS NOTIFICATION SERVICE
+// POLISYNC AFRICA — CENTRAL NOTIFICATION SERVICE
 // ============================================================
 //
-// This service is the central dispatcher for PoliSync SMS.
-//
 // Responsibilities:
-// - Render centralized SMS templates
-// - Send ordinary transactional SMS through Arkesel
-// - Send OTP through Arkesel OTP service
-// - Personalize messages
-// - Protect the main application from SMS failures
-// - Provide structured notification results
+//
+// - Central SMS dispatcher
+// - Arkesel ordinary SMS
+// - Arkesel OTP
+// - Phone verification OTP
+// - Password reset OTP
+// - Login / 2FA OTP
+// - Central SMS templates
+// - Account notifications
+// - Verification notifications
+// - Security notifications
+// - Election-result notifications
+// - Polling-agent notifications
+// - Safe notification delivery
 //
 // IMPORTANT:
-// SMS failure MUST NOT automatically fail the main platform
-// operation that triggered the notification.
 //
-// Example:
+// 1. SMS/OTP failures must NOT break the main platform operation.
 //
-// Election result submission
-//        |
-//        +--> Save result
-//        |
-//        +--> Attempt SMS
-//                 |
-//                 +--> SMS succeeds
-//                 |
-//                 +--> SMS fails
+// 2. Arkesel is authoritative for SMS OTP verification.
 //
-// The result operation remains independent from SMS delivery.
+// 3. PoliSync NEVER marks phoneVerified = true unless
+//    Arkesel confirms the OTP.
 //
+// 4. SMS personalization uses FIRST NAME ONLY.
+//
+// 5. No OTP is logged.
+//
+// 6. No OTP is stored by this service.
+//
+// 7. Do not create a second SMS/OTP provider inside controllers.
+// ============================================================
+
+// ============================================================
+// SERVICES
 // ============================================================
 
 const {
@@ -61,7 +69,10 @@ const SMS_SENDER_ID =
   process.env.SMS_SENDER_ID ||
   "POLISYNC";
 
-const SMS_REQUEST_TIMEOUT_MS = 15000;
+const SMS_REQUEST_TIMEOUT_MS =
+  Number(
+    process.env.SMS_REQUEST_TIMEOUT_MS
+  ) || 15000;
 
 // ============================================================
 // SMS PRIORITIES
@@ -77,35 +88,45 @@ const SMS_PRIORITY = {
 };
 
 // ============================================================
-// VALIDATE ORDINARY SMS CONFIGURATION
+// FIRST NAME
+// ============================================================
+//
+// Always use first name only in SMS.
+//
+// Example:
+//
+// Daniel Amo Nyamekye
+//
+// SMS:
+//
+// Hello Daniel,
+//
 // ============================================================
 
-const validateSMSConfiguration = () => {
-  if (!ARKESEL_API_KEY) {
-    throw new Error(
-      "ARKESEL_API_KEY is not configured."
-    );
-  }
-
-  if (!ARKESEL_SMS_API_URL) {
-    throw new Error(
-      "ARKESEL_API_URL is not configured."
-    );
-  }
-
-  if (!SMS_SENDER_ID) {
-    throw new Error(
-      "SMS_SENDER_ID is not configured."
-    );
-  }
-
+const getFirstName = (
+  userOrFirstName
+) => {
   if (
-    SMS_SENDER_ID.length > 11
+    typeof userOrFirstName ===
+    "string"
   ) {
-    throw new Error(
-      "SMS_SENDER_ID must not exceed 11 characters."
+    return (
+      userOrFirstName
+        .trim()
+        .split(/\s+/)[0] ||
+      "User"
     );
   }
+
+  return (
+    String(
+      userOrFirstName?.firstName ||
+      ""
+    )
+      .trim()
+      .split(/\s+/)[0] ||
+    "User"
+  );
 };
 
 // ============================================================
@@ -124,11 +145,8 @@ const normalizePhone = (
       .trim()
       .replace(/\s+/g, "");
 
-  // ----------------------------------------------------------
   // Ghana local format
   // 0241234567
-  // ----------------------------------------------------------
-
   if (
     /^0\d{9}$/.test(
       normalized
@@ -139,10 +157,8 @@ const normalizePhone = (
       normalized.slice(1);
   }
 
-  // ----------------------------------------------------------
-  // Ghana international format without +
-  // ----------------------------------------------------------
-
+  // Ghana international format
+  // 233241234567
   if (
     /^233\d{9}$/.test(
       normalized
@@ -152,10 +168,6 @@ const normalizePhone = (
       "+" +
       normalized;
   }
-
-  // ----------------------------------------------------------
-  // Final validation
-  // ----------------------------------------------------------
 
   if (
     !/^\+233\d{9}$/.test(
@@ -169,7 +181,40 @@ const normalizePhone = (
 };
 
 // ============================================================
-// CREATE TIMEOUT SIGNAL
+// VALIDATE SMS CONFIGURATION
+// ============================================================
+
+const validateSMSConfiguration =
+  () => {
+    if (!ARKESEL_API_KEY) {
+      throw new Error(
+        "ARKESEL_API_KEY is not configured."
+      );
+    }
+
+    if (!ARKESEL_SMS_API_URL) {
+      throw new Error(
+        "ARKESEL_API_URL is not configured."
+      );
+    }
+
+    if (!SMS_SENDER_ID) {
+      throw new Error(
+        "SMS_SENDER_ID is not configured."
+      );
+    }
+
+    if (
+      SMS_SENDER_ID.length > 11
+    ) {
+      throw new Error(
+        "SMS_SENDER_ID must not exceed 11 characters."
+      );
+    }
+  };
+
+// ============================================================
+// CREATE REQUEST TIMEOUT
 // ============================================================
 
 const createTimeoutSignal =
@@ -203,7 +248,9 @@ const createTimeoutSignal =
 // ============================================================
 
 const parseProviderResponse =
-  async (response) => {
+  async (
+    response
+  ) => {
     const contentType =
       response.headers.get(
         "content-type"
@@ -233,9 +280,9 @@ const parseProviderResponse =
 // SEND ORDINARY SMS THROUGH ARKESEL
 // ============================================================
 //
-// This is for non-OTP SMS.
+// This is NOT OTP.
 //
-// OTP must use arkeselOtpService.js.
+// OTP must go through arkeselOtpService.js.
 //
 // ============================================================
 
@@ -310,17 +357,35 @@ const sendSMS = async ({
       error?.name ===
       "AbortError"
     ) {
-      throw new Error(
-        "Arkesel SMS request timed out."
-      );
+      const timeoutError =
+        new Error(
+          "Arkesel SMS request timed out."
+        );
+
+      timeoutError.provider =
+        "arkesel";
+
+      timeoutError.providerCode =
+        "TIMEOUT";
+
+      throw timeoutError;
     }
 
-    throw new Error(
-      `Unable to connect to Arkesel SMS service: ${
-        error.message ||
-        "network error"
-      }`
-    );
+    const networkError =
+      new Error(
+        `Unable to connect to Arkesel SMS service: ${
+          error?.message ||
+          "network error"
+        }`
+      );
+
+    networkError.provider =
+      "arkesel";
+
+    networkError.providerCode =
+      "NETWORK_ERROR";
+
+    throw networkError;
   }
 
   const data =
@@ -329,23 +394,28 @@ const sendSMS = async ({
     );
 
   if (!response.ok) {
-    const error =
+    const providerError =
       new Error(
         data?.message ||
           data?.error ||
           `Arkesel returned HTTP ${response.status}.`
       );
 
-    error.provider =
+    providerError.provider =
       "arkesel";
 
-    error.httpStatus =
+    providerError.httpStatus =
       response.status;
 
-    error.providerResponse =
+    providerError.providerResponse =
       data;
 
-    throw error;
+    providerError.providerCode =
+      data?.code ||
+      data?.errorCode ||
+      null;
+
+    throw providerError;
   }
 
   return {
@@ -375,18 +445,6 @@ const sendSMS = async ({
 // ============================================================
 // SEND TEMPLATE SMS
 // ============================================================
-//
-// Example:
-//
-// sendTemplateSMS({
-//   templateKey: "ACCOUNT_APPROVED",
-//   to: user.phone,
-//   data: {
-//     firstName: user.firstName
-//   }
-// });
-//
-// ============================================================
 
 const sendTemplateSMS =
   async ({
@@ -400,7 +458,14 @@ const sendTemplateSMS =
     const rendered =
       createSMS(
         templateKey,
-        data
+        {
+          ...data,
+
+          firstName:
+            getFirstName(
+              data.firstName
+            ),
+        }
       );
 
     return sendSMS({
@@ -419,90 +484,91 @@ const sendTemplateSMS =
 // SAFE SMS DELIVERY
 // ============================================================
 //
-// This method is designed for notifications that MUST NOT
-// break the primary operation.
-//
-// Example:
-//
-// Result saved successfully.
-// SMS fails.
-// Result still remains successful.
+// SMS failure NEVER breaks the main operation.
 //
 // ============================================================
 
-const sendSafely = async ({
-  to,
-  message,
-  priority =
-    SMS_PRIORITY.NORMAL,
-  event = "general",
-}) => {
-  try {
-    const result =
-      await sendSMS({
-        to,
+const sendSafely =
+  async ({
+    to,
+    message,
+    priority =
+      SMS_PRIORITY.NORMAL,
+    event = "general",
+  }) => {
+    try {
+      const result =
+        await sendSMS({
+          to,
+          message,
+          priority,
+          event,
+        });
 
-        message,
+      return {
+        success: true,
 
-        priority,
+        delivered: true,
 
-        event,
-      });
+        failed: false,
 
-    return {
-      success: true,
+        ...result,
+      };
+    } catch (error) {
+      console.error(
+        "PoliSync SMS notification failed:",
+        {
+          event,
 
-      delivered:
-        true,
+          priority,
 
-      failed:
-        false,
+          provider:
+            error?.provider ||
+            "arkesel",
 
-      ...result,
-    };
-  } catch (error) {
-    console.error(
-      "PoliSync SMS notification failed:",
-      {
+          providerCode:
+            error?.providerCode ||
+            null,
+
+          httpStatus:
+            error?.httpStatus ||
+            null,
+
+          error:
+            error?.message ||
+            "Unknown SMS error",
+        }
+      );
+
+      return {
+        success: false,
+
+        delivered: false,
+
+        failed: true,
+
         event,
 
         priority,
 
         error:
-          error.message,
-      }
-    );
+          error?.message ||
+          "SMS delivery failed.",
 
-    return {
-      success: false,
+        provider:
+          error?.provider ||
+          "arkesel",
 
-      delivered:
-        false,
+        providerCode:
+          error?.providerCode ||
+          null,
 
-      failed:
-        true,
-
-      event,
-
-      priority,
-
-      error:
-        error.message,
-
-      provider:
-        error.provider ||
-        "arkesel",
-
-      providerCode:
-        error.providerCode ||
-        null,
-
-      httpStatus:
-        error.httpStatus ||
-        null,
-    };
-  }
-};
+        httpStatus:
+          error?.httpStatus ||
+          null,
+      };
+    }
+  };
 
 // ============================================================
 // SAFE TEMPLATE SMS
@@ -521,7 +587,14 @@ const sendTemplateSafely =
       const rendered =
         createSMS(
           templateKey,
-          data
+          {
+            ...data,
+
+            firstName:
+              getFirstName(
+                data.firstName
+              ),
+          }
         );
 
       return sendSafely({
@@ -541,18 +614,17 @@ const sendTemplateSafely =
           templateKey,
 
           error:
-            error.message,
+            error?.message ||
+            "Template rendering failed.",
         }
       );
 
       return {
         success: false,
 
-        delivered:
-          false,
+        delivered: false,
 
-        failed:
-          true,
+        failed: true,
 
         event,
 
@@ -561,7 +633,8 @@ const sendTemplateSafely =
         templateKey,
 
         error:
-          error.message,
+          error?.message ||
+          "SMS template failed.",
       };
     }
   };
@@ -569,33 +642,181 @@ const sendTemplateSafely =
 // ============================================================
 // PHONE VERIFICATION OTP
 // ============================================================
+//
+// Arkesel generates and sends the OTP.
+//
+// PoliSync does NOT generate or store this OTP.
+//
+// ============================================================
 
 const sendPhoneVerification =
   async ({
     phone,
     firstName,
   }) => {
-    return sendPhoneVerificationOTP({
-      phone,
+    const normalizedPhone =
+      normalizePhone(phone);
 
-      firstName,
-    });
+    if (!normalizedPhone) {
+      return {
+        success: false,
+
+        delivered: false,
+
+        failed: true,
+
+        provider:
+          "arkesel",
+
+        error:
+          "A valid Ghana phone number is required.",
+      };
+    }
+
+    try {
+      return await sendPhoneVerificationOTP(
+        {
+          phone:
+            normalizedPhone,
+
+          firstName:
+            getFirstName(
+              firstName
+            ),
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Arkesel phone verification OTP failed:",
+        {
+          provider:
+            "arkesel",
+
+          error:
+            error?.message ||
+            "OTP request failed.",
+        }
+      );
+
+      return {
+        success: false,
+
+        delivered: false,
+
+        failed: true,
+
+        provider:
+          "arkesel",
+
+        providerCode:
+          error?.providerCode ||
+          null,
+
+        error:
+          error?.message ||
+          "Unable to send phone verification OTP.",
+      };
+    }
   };
 
 // ============================================================
 // PASSWORD RESET OTP
+// ============================================================
+//
+// Kept compatible with both:
+//
+// sendPasswordReset({
+//   phone,
+//   firstName
+// })
+//
+// and:
+//
+// sendPasswordReset({
+//   user
+// })
+//
 // ============================================================
 
 const sendPasswordReset =
   async ({
     phone,
     firstName,
+    user,
   }) => {
-    return sendPasswordResetOTP({
-      phone,
+    const targetPhone =
+      phone ||
+      user?.phone;
 
-      firstName,
-    });
+    const targetFirstName =
+      firstName ||
+      user?.firstName;
+
+    const normalizedPhone =
+      normalizePhone(
+        targetPhone
+      );
+
+    if (!normalizedPhone) {
+      return {
+        success: false,
+
+        delivered: false,
+
+        failed: true,
+
+        provider:
+          "arkesel",
+
+        error:
+          "A valid Ghana phone number is required.",
+      };
+    }
+
+    try {
+      return await sendPasswordResetOTP(
+        {
+          phone:
+            normalizedPhone,
+
+          firstName:
+            getFirstName(
+              targetFirstName
+            ),
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Arkesel password reset OTP failed:",
+        {
+          provider:
+            "arkesel",
+
+          error:
+            error?.message ||
+            "OTP request failed.",
+        }
+      );
+
+      return {
+        success: false,
+
+        delivered: false,
+
+        failed: true,
+
+        provider:
+          "arkesel",
+
+        providerCode:
+          error?.providerCode ||
+          null,
+
+        error:
+          error?.message ||
+          "Unable to send password reset OTP.",
+      };
+    }
   };
 
 // ============================================================
@@ -606,16 +827,91 @@ const sendLoginVerification =
   async ({
     phone,
     firstName,
+    user,
   }) => {
-    return sendLoginOTP({
-      phone,
+    const targetPhone =
+      phone ||
+      user?.phone;
 
-      firstName,
-    });
+    const targetFirstName =
+      firstName ||
+      user?.firstName;
+
+    const normalizedPhone =
+      normalizePhone(
+        targetPhone
+      );
+
+    if (!normalizedPhone) {
+      return {
+        success: false,
+
+        delivered: false,
+
+        failed: true,
+
+        provider:
+          "arkesel",
+
+        error:
+          "A valid Ghana phone number is required.",
+      };
+    }
+
+    try {
+      return await sendLoginOTP(
+        {
+          phone:
+            normalizedPhone,
+
+          firstName:
+            getFirstName(
+              targetFirstName
+            ),
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Arkesel login OTP failed:",
+        {
+          provider:
+            "arkesel",
+
+          error:
+            error?.message ||
+            "OTP request failed.",
+        }
+      );
+
+      return {
+        success: false,
+
+        delivered: false,
+
+        failed: true,
+
+        provider:
+          "arkesel",
+
+        providerCode:
+          error?.providerCode ||
+          null,
+
+        error:
+          error?.message ||
+          "Unable to send login OTP.",
+      };
+    }
   };
 
 // ============================================================
 // VERIFY ARKESEL OTP
+// ============================================================
+//
+// IMPORTANT:
+//
+// Only Arkesel can confirm the SMS OTP.
+//
 // ============================================================
 
 const verifySMSOTP =
@@ -623,11 +919,110 @@ const verifySMSOTP =
     phone,
     code,
   }) => {
-    return verifyOTP({
-      phone,
+    const normalizedPhone =
+      normalizePhone(phone);
 
-      code,
-    });
+    if (!normalizedPhone) {
+      return {
+        success: false,
+
+        verified: false,
+
+        provider:
+          "arkesel",
+
+        message:
+          "A valid Ghana phone number is required.",
+      };
+    }
+
+    const normalizedCode =
+      String(code || "").trim();
+
+    if (
+      !/^\d{4,15}$/.test(
+        normalizedCode
+      )
+    ) {
+      return {
+        success: false,
+
+        verified: false,
+
+        provider:
+          "arkesel",
+
+        message:
+          "Invalid OTP format.",
+      };
+    }
+
+    try {
+      const result =
+        await verifyOTP({
+          phone:
+            normalizedPhone,
+
+          code:
+            normalizedCode,
+        });
+
+      return {
+        success:
+          Boolean(
+            result?.success
+          ),
+
+        verified:
+          Boolean(
+            result?.verified
+          ),
+
+        provider:
+          "arkesel",
+
+        message:
+          result?.message ||
+          (
+            result?.verified
+              ? "OTP verified successfully."
+              : "Invalid or expired OTP."
+          ),
+
+        providerCode:
+          result?.providerCode ||
+          null,
+      };
+    } catch (error) {
+      console.error(
+        "Arkesel OTP verification failed:",
+        {
+          provider:
+            "arkesel",
+
+          error:
+            error?.message ||
+            "OTP verification failed.",
+        }
+      );
+
+      return {
+        success: false,
+
+        verified: false,
+
+        provider:
+          "arkesel",
+
+        providerCode:
+          error?.providerCode ||
+          null,
+
+        message:
+          error?.message ||
+          "Unable to verify OTP right now.",
+      };
+    }
   };
 
 // ============================================================
@@ -637,8 +1032,8 @@ const verifySMSOTP =
 const sendAccountPending =
   async ({
     user,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "ACCOUNT_PENDING",
 
@@ -647,7 +1042,9 @@ const sendAccountPending =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
       },
 
       priority:
@@ -656,13 +1053,12 @@ const sendAccountPending =
       event:
         "account_pending",
     });
-  };
 
 const sendAccountApproved =
   async ({
     user,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "ACCOUNT_APPROVED",
 
@@ -671,7 +1067,9 @@ const sendAccountApproved =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
       },
 
       priority:
@@ -680,14 +1078,13 @@ const sendAccountApproved =
       event:
         "account_approved",
     });
-  };
 
 const sendAccountRejected =
   async ({
     user,
     reason,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "ACCOUNT_REJECTED",
 
@@ -696,7 +1093,9 @@ const sendAccountRejected =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
 
         reason:
           reason ||
@@ -709,14 +1108,13 @@ const sendAccountRejected =
       event:
         "account_rejected",
     });
-  };
 
 const sendAccountSuspended =
   async ({
     user,
     reason,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "ACCOUNT_SUSPENDED",
 
@@ -725,7 +1123,9 @@ const sendAccountSuspended =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
 
         reason:
           reason ||
@@ -738,13 +1138,12 @@ const sendAccountSuspended =
       event:
         "account_suspended",
     });
-  };
 
 const sendAccountReactivated =
   async ({
     user,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "ACCOUNT_REACTIVATED",
 
@@ -753,7 +1152,9 @@ const sendAccountReactivated =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
       },
 
       priority:
@@ -762,13 +1163,12 @@ const sendAccountReactivated =
       event:
         "account_reactivated",
     });
-  };
 
 const sendAccountDeactivated =
   async ({
     user,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "ACCOUNT_DEACTIVATED",
 
@@ -777,7 +1177,9 @@ const sendAccountDeactivated =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
       },
 
       priority:
@@ -786,7 +1188,6 @@ const sendAccountDeactivated =
       event:
         "account_deactivated",
     });
-  };
 
 // ============================================================
 // VERIFICATION BADGE SMS
@@ -795,8 +1196,8 @@ const sendAccountDeactivated =
 const sendVerificationApproved =
   async ({
     user,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "VERIFICATION_APPROVED",
 
@@ -805,7 +1206,9 @@ const sendVerificationApproved =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
       },
 
       priority:
@@ -814,14 +1217,13 @@ const sendVerificationApproved =
       event:
         "verification_approved",
     });
-  };
 
 const sendVerificationRejected =
   async ({
     user,
     reason,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "VERIFICATION_REJECTED",
 
@@ -830,7 +1232,9 @@ const sendVerificationRejected =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
 
         reason:
           reason ||
@@ -843,7 +1247,6 @@ const sendVerificationRejected =
       event:
         "verification_rejected",
     });
-  };
 
 // ============================================================
 // PASSWORD / SECURITY ALERTS
@@ -852,8 +1255,8 @@ const sendVerificationRejected =
 const sendPasswordChanged =
   async ({
     user,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "PASSWORD_CHANGED",
 
@@ -862,7 +1265,9 @@ const sendPasswordChanged =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
       },
 
       priority:
@@ -871,13 +1276,12 @@ const sendPasswordChanged =
       event:
         "password_changed",
     });
-  };
 
 const sendNewLoginAlert =
   async ({
     user,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "NEW_LOGIN",
 
@@ -886,7 +1290,9 @@ const sendNewLoginAlert =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
       },
 
       priority:
@@ -895,27 +1301,17 @@ const sendNewLoginAlert =
       event:
         "new_login",
     });
-  };
 
 // ============================================================
 // ELECTION RESULT SMS
-// ============================================================
-//
-// IMPORTANT:
-//
-// These use sendTemplateSafely().
-//
-// Therefore, if Arkesel fails, the election result operation
-// itself is NOT affected.
-//
 // ============================================================
 
 const sendResultReceived =
   async ({
     user,
     resultReference,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "RESULT_RECEIVED",
 
@@ -924,7 +1320,9 @@ const sendResultReceived =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
 
         resultReference:
           resultReference ||
@@ -937,14 +1335,13 @@ const sendResultReceived =
       event:
         "result_received",
     });
-  };
 
 const sendResultSubmissionFailed =
   async ({
     user,
     resultReference,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "RESULT_SUBMISSION_FAILED",
 
@@ -953,7 +1350,9 @@ const sendResultSubmissionFailed =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
 
         resultReference:
           resultReference ||
@@ -966,7 +1365,6 @@ const sendResultSubmissionFailed =
       event:
         "result_submission_failed",
     });
-  };
 
 // ============================================================
 // POLLING AGENT SMS
@@ -977,8 +1375,8 @@ const sendPollingAgentApproved =
     user,
     pollingStation,
     constituency,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "POLLING_AGENT_APPROVED",
 
@@ -987,7 +1385,9 @@ const sendPollingAgentApproved =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
 
         pollingStation:
           pollingStation ||
@@ -1004,7 +1404,6 @@ const sendPollingAgentApproved =
       event:
         "polling_agent_approved",
     });
-  };
 
 const sendPollingAgentRejected =
   async ({
@@ -1012,8 +1411,8 @@ const sendPollingAgentRejected =
     pollingStation,
     constituency,
     reason,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "POLLING_AGENT_REJECTED",
 
@@ -1022,7 +1421,9 @@ const sendPollingAgentRejected =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
 
         pollingStation:
           pollingStation ||
@@ -1043,15 +1444,14 @@ const sendPollingAgentRejected =
       event:
         "polling_agent_rejected",
     });
-  };
 
 const sendPollingAgentAssignment =
   async ({
     user,
     pollingStation,
     constituency,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "POLLING_AGENT_ASSIGNMENT",
 
@@ -1060,7 +1460,9 @@ const sendPollingAgentAssignment =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
 
         pollingStation:
           pollingStation ||
@@ -1077,7 +1479,6 @@ const sendPollingAgentAssignment =
       event:
         "polling_agent_assignment",
     });
-  };
 
 // ============================================================
 // GENERAL SMS
@@ -1086,8 +1487,8 @@ const sendPollingAgentAssignment =
 const sendImportantNotice =
   async ({
     user,
-  }) => {
-    return sendTemplateSafely({
+  }) =>
+    sendTemplateSafely({
       templateKey:
         "IMPORTANT_NOTICE",
 
@@ -1096,7 +1497,9 @@ const sendImportantNotice =
 
       data: {
         firstName:
-          user.firstName,
+          getFirstName(
+            user
+          ),
       },
 
       priority:
@@ -1105,100 +1508,54 @@ const sendImportantNotice =
       event:
         "important_notice",
     });
-  };
 
 // ============================================================
-// EXPORT
+// EXPORTS
 // ============================================================
 
 module.exports = {
-  // ----------------------------------------------------------
   // Core SMS
-  // ----------------------------------------------------------
-
   sendSMS,
-
   sendTemplateSMS,
-
   sendSafely,
-
   sendTemplateSafely,
 
-  // ----------------------------------------------------------
   // OTP
-  // ----------------------------------------------------------
-
   sendPhoneVerification,
-
   sendPasswordReset,
-
   sendLoginVerification,
-
   verifySMSOTP,
-
   generateOTP,
-
   verifyOTP,
 
-  // ----------------------------------------------------------
   // Account
-  // ----------------------------------------------------------
-
   sendAccountPending,
-
   sendAccountApproved,
-
   sendAccountRejected,
-
   sendAccountSuspended,
-
   sendAccountReactivated,
-
   sendAccountDeactivated,
 
-  // ----------------------------------------------------------
   // Verification
-  // ----------------------------------------------------------
-
   sendVerificationApproved,
-
   sendVerificationRejected,
 
-  // ----------------------------------------------------------
   // Security
-  // ----------------------------------------------------------
-
   sendPasswordChanged,
-
   sendNewLoginAlert,
 
-  // ----------------------------------------------------------
   // Election results
-  // ----------------------------------------------------------
-
   sendResultReceived,
-
   sendResultSubmissionFailed,
 
-  // ----------------------------------------------------------
   // Polling agents
-  // ----------------------------------------------------------
-
   sendPollingAgentApproved,
-
   sendPollingAgentRejected,
-
   sendPollingAgentAssignment,
 
-  // ----------------------------------------------------------
   // General
-  // ----------------------------------------------------------
-
   sendImportantNotice,
 
-  // ----------------------------------------------------------
   // Constants
-  // ----------------------------------------------------------
-
   SMS_PRIORITY,
 };
