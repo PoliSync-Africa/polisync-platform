@@ -309,33 +309,24 @@ export default function LoginPage() {
       }}
     >
       <div
-        style={{
-          width:
-            "100%",
+  style={{
+    width: "100%",
+    maxWidth: "680px",
+    margin: "0 auto",
 
-          maxWidth:
-            "440px",
+    background: "#FFFFFF",
 
-          background:
-            "#FFFFFF",
+    border: "3px solid #B89A4A",
+    borderRadius: "42px",
 
-          borderRadius:
-            "30px",
+    padding: "40px 34px",
 
-          padding:
-            "28px 26px 24px",
+    boxSizing: "border-box",
 
-          boxShadow:
-            "0 20px 60px rgba(0,0,0,.08)",
-
-          border:
-            "1px solid rgba(0,0,0,.05)",
-
-          boxSizing:
-            "border-box",
-        }}
-      >
-
+    boxShadow:
+      "0 12px 35px rgba(0, 0, 0, 0.08)",
+  }}
+>
         {/* ==================================================
             POLISYNC LOGO
         ================================================== */}
