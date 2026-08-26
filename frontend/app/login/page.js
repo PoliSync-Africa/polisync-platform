@@ -53,15 +53,11 @@ export default function LoginPage() {
 
     try {
       // ========================================================
-      // POLISYNC AUTHENTICATION API
+      // POLISYNC PRODUCTION BACKEND
       // ========================================================
 
-      const apiBaseUrl =
-        process.env.NEXT_PUBLIC_API_URL ||
-        "";
-
       const response = await fetch(
-        `${apiBaseUrl}/api/auth/login`,
+        "https://polysync-platform-1.onrender.com/api/auth/login",
         {
           method: "POST",
 
@@ -73,8 +69,6 @@ export default function LoginPage() {
               "application/json",
           },
 
-          credentials: "include",
-
           body: JSON.stringify({
             email:
               normalizedEmail,
@@ -85,7 +79,7 @@ export default function LoginPage() {
       );
 
       // ========================================================
-      // READ RESPONSE
+      // READ SERVER RESPONSE
       // ========================================================
 
       let data = null;
@@ -100,13 +94,15 @@ export default function LoginPage() {
           "application/json"
         )
       ) {
-        data = await response.json();
+        data =
+          await response.json();
       } else {
         const text =
           await response.text();
 
         try {
-          data = JSON.parse(text);
+          data =
+            JSON.parse(text);
         } catch {
           data = {
             message:
@@ -117,7 +113,7 @@ export default function LoginPage() {
       }
 
       // ========================================================
-      // FAILED LOGIN
+      // LOGIN FAILED
       // ========================================================
 
       if (
@@ -134,7 +130,7 @@ export default function LoginPage() {
       }
 
       // ========================================================
-      // LOGIN SUCCESS
+      // SAVE AUTHENTICATION TOKEN
       // ========================================================
 
       if (data.token) {
@@ -152,7 +148,7 @@ export default function LoginPage() {
       }
 
       // ========================================================
-      // STORE USER SESSION
+      // SAVE USER INFORMATION
       // ========================================================
 
       if (data.user) {
@@ -175,7 +171,7 @@ export default function LoginPage() {
       }
 
       // ========================================================
-      // SUCCESS REDIRECTION
+      // SUCCESS
       // ========================================================
 
       window.location.href =
@@ -349,9 +345,7 @@ export default function LoginPage() {
           }
         >
 
-          {/* =================================================
-              EMAIL
-          ================================================= */}
+          {/* EMAIL */}
 
           <div
             style={{
@@ -424,9 +418,7 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* =================================================
-              PASSWORD
-          ================================================= */}
+          {/* PASSWORD */}
 
           <div
             style={{
@@ -568,9 +560,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* =================================================
-              REMEMBER / FORGOT
-          ================================================= */}
+          {/* REMEMBER / FORGOT */}
 
           <div
             style={{
@@ -657,9 +647,7 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          {/* =================================================
-              ERROR
-          ================================================= */}
+          {/* ERROR */}
 
           {error && (
             <div
@@ -694,9 +682,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* =================================================
-              LOGIN BUTTON
-          ================================================= */}
+          {/* LOGIN BUTTON */}
 
           <button
             type="submit"
