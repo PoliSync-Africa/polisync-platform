@@ -56,28 +56,122 @@ export default function LoginPage() {
       // POLISYNC PRODUCTION BACKEND
       // ========================================================
 
-      const response = await fetch(
-        "https://polysync-platform-1.onrender.com/api/auth/login",
-        {
-          method: "POST",
+      async function handleLogin(event) {
+  event.preventDefault();
 
-          headers: {
-            "Content-Type":
-              "application/json",
+  setError("");
 
-            Accept:
-              "application/json",
-          },
+  const cleanEmail = email.trim();
 
-          body: JSON.stringify({
-            email:
-              normalizedEmail,
+  if (!cleanEmail) {
+    setError("Please enter your email address.");
+    return;
+  }
 
-            password,
-          }),
-        }
+  if (!password) {
+    setError("Please enter your password.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    // ============================================================
+    // POLISYNC PRODUCTION BACKEND
+    // ============================================================
+
+    const API_URL = (
+      process.env.NEXT_PUBLIC_API_URL || ""
+    ).replace(/\/+$/, "");
+
+    if (!API_URL) {
+      throw new Error(
+        "Production API URL is not configured."
       );
+    }
 
+    // ============================================================
+    // LOGIN REQUEST
+    // ============================================================
+
+    const response = await fetch(
+      `${API_URL}/api/auth/login`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+
+        credentials: "include",
+
+        body: JSON.stringify({
+          email: cleanEmail,
+          password,
+        }),
+      }
+    );
+
+    // ============================================================
+    // SERVER RESPONSE
+    // ============================================================
+
+    let data = {};
+
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
+
+    // ============================================================
+    // LOGIN ERROR
+    // ============================================================
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          data.error ||
+          "Invalid email or password."
+      );
+    }
+
+    // ============================================================
+    // SAVE TOKEN
+    // ============================================================
+
+    const token =
+      data.token ||
+      data.accessToken ||
+      data.access_token ||
+      null;
+
+    if (token) {
+      if (rememberMe) {
+        localStorage.setItem(
+          "polisync_token",
+          token
+        );
+      } else {
+        sessionStorage.setItem(
+          "polisync_token",
+          token
+        );
+      }
+    }
+
+    // ============================================================
+    // SAVE USER
+    // ============================================================
+
+    if (data.user) {
+      const storage = rememberMe
+        ? localStorage
+        : sessionStorage;
+
+      storage.setItem(
+        "
       // ========================================================
       // READ SERVER RESPONSE
       // ========================================================
