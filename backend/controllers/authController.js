@@ -13,6 +13,10 @@ const {
   sendSecurityAlert,
 } = require("../services/notificationService");
 
+const {
+  verifyOTP,
+} = require("../services/arkeselOtpService");
+
 // ============================================================
 // POLISYNC AFRICA AUTHENTICATION CONTROLLER
 // ============================================================
@@ -21,7 +25,7 @@ const {
 // - Registration
 // - Login
 // - Email verification
-// - Phone verification
+// - Phone verification through Arkesel
 // - Resending verification codes
 // - Forgot password
 // - Password reset
@@ -29,8 +33,22 @@ const {
 // - Security notifications
 // - JWT authentication
 //
-// Sensitive OTP/reset codes are NEVER stored directly in MongoDB.
-// Only cryptographic hashes are stored through VerificationToken.
+// IMPORTANT:
+//
+// EMAIL OTP:
+// PoliSync generates and securely stores the email verification
+// code through VerificationToken.
+//
+// PHONE/SMS OTP:
+// Arkesel generates, delivers, expires and verifies the OTP.
+//
+// PoliSync only updates:
+//
+//     user.phoneVerified = true
+//
+// after Arkesel confirms the OTP.
+//
+// SMS delivery failures do NOT cancel account creation.
 // ============================================================
 
 // ============================================================
@@ -59,12 +77,19 @@ const generateToken = (user) => {
   return jwt.sign(
     {
       id: user._id,
+
       platformRole:
         user.platformRole,
-      email: user.email,
-      username: user.username,
+
+      email:
+        user.email,
+
+      username:
+        user.username,
     },
+
     process.env.JWT_SECRET,
+
     {
       expiresIn: "7d",
     }
@@ -126,6 +151,13 @@ const createUsername = async (
 // ============================================================
 // GENERATE VERIFICATION CODE
 // ============================================================
+//
+// Used ONLY for PoliSync-managed codes such as email
+// verification and password reset.
+//
+// DO NOT use this for SMS OTP.
+// Arkesel generates SMS OTPs.
+// ============================================================
 
 const generateVerificationCode =
   () => {
@@ -167,7 +199,14 @@ const getExpirationDate = (
 };
 
 // ============================================================
-// CREATE VERIFICATION TOKEN
+// CREATE POLISYNC VERIFICATION TOKEN
+// ============================================================
+//
+// Used for:
+// - Email verification
+// - Password reset
+//
+// NOT used for Arkesel SMS OTP.
 // ============================================================
 
 const createVerificationToken =
@@ -179,14 +218,12 @@ const createVerificationToken =
     userAgent = null,
     expiryMinutes,
   }) => {
-    // --------------------------------------------------------
-    // Remove previous active tokens for the same purpose.
-    // --------------------------------------------------------
-
     await VerificationToken.deleteMany(
       {
         userId,
+
         purpose,
+
         usedAt: null,
       }
     );
@@ -203,29 +240,38 @@ const createVerificationToken =
       await VerificationToken.create(
         {
           userId,
+
           purpose,
+
           tokenHash,
+
           channel,
+
           expiresAt:
             getExpirationDate(
               expiryMinutes
             ),
+
           attempts: 0,
+
           maxAttempts:
             MAX_TOKEN_ATTEMPTS,
+
           requestedIp,
+
           userAgent,
         }
       );
 
     return {
       token,
+
       code,
     };
   };
 
 // ============================================================
-// FIND ACTIVE TOKEN
+// FIND ACTIVE POLISYNC TOKEN
 // ============================================================
 
 const findActiveToken =
@@ -237,15 +283,21 @@ const findActiveToken =
     return VerificationToken.findOne(
       {
         userId,
+
         purpose,
+
         channel,
+
         usedAt: null,
+
         expiresAt: {
           $gt: new Date(),
         },
+
         $expr: {
           $lt: [
             "$attempts",
+
             "$maxAttempts",
           ],
         },
@@ -256,7 +308,10 @@ const findActiveToken =
   };
 
 // ============================================================
-// VERIFY CODE
+// VERIFY POLISYNC CODE
+// ============================================================
+//
+// Used ONLY for email/password-reset codes.
 // ============================================================
 
 const verifyCode =
@@ -269,13 +324,16 @@ const verifyCode =
     const token =
       await findActiveToken({
         userId,
+
         purpose,
+
         channel,
       });
 
     if (!token) {
       return {
         success: false,
+
         reason:
           "expired_or_missing",
       };
@@ -296,6 +354,7 @@ const verifyCode =
 
       return {
         success: false,
+
         reason:
           token.attempts >=
           token.maxAttempts
@@ -311,9 +370,51 @@ const verifyCode =
 
     return {
       success: true,
+
       token,
     };
   };
+
+// ============================================================
+// NORMALIZE GHANA PHONE
+// ============================================================
+
+const normalizeGhanaPhone = (
+  phone
+) => {
+  let normalized =
+    String(phone || "")
+      .trim();
+
+  if (
+    /^0\d{9}$/.test(
+      normalized
+    )
+  ) {
+    normalized =
+      "233" +
+      normalized.slice(1);
+  }
+
+  if (
+    /^\+233\d{9}$/.test(
+      normalized
+    )
+  ) {
+    normalized =
+      normalized.slice(1);
+  }
+
+  if (
+    !/^233\d{9}$/.test(
+      normalized
+    )
+  ) {
+    return null;
+  }
+
+  return normalized;
+};
 
 // ============================================================
 // REGISTER USER
@@ -354,6 +455,7 @@ exports.register = async (
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "First name, last name, date of birth, identification details, email, phone and password are required.",
       });
@@ -377,6 +479,7 @@ exports.register = async (
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "Invalid identification type.",
       });
@@ -396,6 +499,7 @@ exports.register = async (
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "Phone number must be in Ghana format, for example +233XXXXXXXXX.",
       });
@@ -423,6 +527,7 @@ exports.register = async (
     if (existingEmail) {
       return res.status(409).json({
         success: false,
+
         message:
           "An account with this email already exists.",
       });
@@ -441,6 +546,7 @@ exports.register = async (
     if (existingPhone) {
       return res.status(409).json({
         success: false,
+
         message:
           "An account with this phone number already exists.",
       });
@@ -464,6 +570,7 @@ exports.register = async (
     if (existingIdentification) {
       return res.status(409).json({
         success: false,
+
         message:
           "An account with this identification number already exists.",
       });
@@ -490,6 +597,7 @@ exports.register = async (
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "Username may only contain lowercase letters, numbers, dots, underscores and hyphens.",
       });
@@ -501,6 +609,7 @@ exports.register = async (
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "Username must contain between 3 and 30 characters.",
       });
@@ -515,6 +624,7 @@ exports.register = async (
     if (existingUsername) {
       return res.status(409).json({
         success: false,
+
         message:
           "Username is already taken.",
       });
@@ -530,6 +640,7 @@ exports.register = async (
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "Password must contain at least 8 characters.",
       });
@@ -655,9 +766,9 @@ exports.register = async (
         },
       });
 
-    // --------------------------------------------------------
-    // CREATE EMAIL VERIFICATION CODE
-    // --------------------------------------------------------
+    // ========================================================
+    // EMAIL VERIFICATION
+    // ========================================================
 
     const emailVerification =
       await createVerificationToken(
@@ -684,75 +795,65 @@ exports.register = async (
         }
       );
 
-    // --------------------------------------------------------
-    // CREATE PHONE VERIFICATION CODE
-    // --------------------------------------------------------
-
-    const phoneVerification =
-      await createVerificationToken(
-        {
-          userId:
-            user._id,
-
-          purpose:
-            "phone_verification",
-
-          channel:
-            "sms",
-
-          requestedIp:
-            req.ip,
-
-          userAgent:
-            req.get(
-              "user-agent"
-            ),
-
-          expiryMinutes:
-            VERIFICATION_CODE_EXPIRY_MINUTES,
-        }
-      );
-
-    // --------------------------------------------------------
+    // ========================================================
     // SEND EMAIL VERIFICATION
-    // --------------------------------------------------------
+    // ========================================================
 
-    let emailNotification = null;
+    let emailNotification =
+      null;
 
     try {
       emailNotification =
-        await sendEmailVerification(
-          {
-            user,
+        await sendEmailVerification({
+          user,
 
-            code:
-              emailVerification.code,
-          }
-        );
-    } catch (notificationError) {
+          code:
+            emailVerification.code,
+        });
+    } catch (
+      notificationError
+    ) {
       console.error(
         "Registration email notification failed:",
         notificationError
       );
     }
 
-    // --------------------------------------------------------
-    // SEND PHONE VERIFICATION
-    // --------------------------------------------------------
+    // ========================================================
+    // SEND ARKESEL PHONE OTP
+    // ========================================================
+    //
+    // IMPORTANT:
+    //
+    // We do NOT call createVerificationToken()
+    // for SMS.
+    //
+    // Arkesel generates the OTP.
+    //
+    // notificationService.sendPhoneVerification()
+    // receives:
+    //
+    // phone
+    // firstName
+    //
+    // so the SMS remains personalized using FIRST NAME ONLY.
+    // ========================================================
 
-    let phoneNotification = null;
+    let phoneNotification =
+      null;
 
     try {
       phoneNotification =
-        await sendPhoneVerification(
-          {
-            user,
+        await sendPhoneVerification({
+          phone:
+            user.phone,
 
-            code:
-              phoneVerification.code,
-          }
-        );
-    } catch (notificationError) {
+          firstName:
+            user.firstName,
+        });
+    } catch (
+      notificationError
+    ) {
       console.error(
         "Registration SMS notification failed:",
         notificationError
@@ -827,6 +928,7 @@ exports.register = async (
 
     return res.status(500).json({
       success: false,
+
       message:
         error.message ||
         "Registration failed.",
@@ -851,6 +953,7 @@ exports.verifyEmail = async (
     if (!email || !code) {
       return res.status(400).json({
         success: false,
+
         message:
           "Email and verification code are required.",
       });
@@ -870,6 +973,7 @@ exports.verifyEmail = async (
     if (!user) {
       return res.status(404).json({
         success: false,
+
         message:
           "Account not found.",
       });
@@ -880,6 +984,7 @@ exports.verifyEmail = async (
     ) {
       return res.status(200).json({
         success: true,
+
         message:
           "Email address is already verified.",
       });
@@ -903,6 +1008,7 @@ exports.verifyEmail = async (
     if (!result.success) {
       return res.status(400).json({
         success: false,
+
         message:
           result.reason ===
           "too_many_attempts"
@@ -950,6 +1056,7 @@ exports.verifyEmail = async (
 
     return res.status(500).json({
       success: false,
+
       message:
         error.message ||
         "Email verification failed.",
@@ -958,7 +1065,17 @@ exports.verifyEmail = async (
 };
 
 // ============================================================
-// VERIFY PHONE
+// VERIFY PHONE THROUGH ARKESEL
+// ============================================================
+//
+// Arkesel is authoritative for the SMS OTP.
+//
+// PoliSync does NOT compare the OTP against MongoDB.
+//
+// Successful Arkesel verification causes:
+//
+//     user.phoneVerified = true
+//
 // ============================================================
 
 exports.verifyPhone = async (
@@ -974,6 +1091,7 @@ exports.verifyPhone = async (
     if (!phone || !code) {
       return res.status(400).json({
         success: false,
+
         message:
           "Phone number and verification code are required.",
       });
@@ -981,6 +1099,19 @@ exports.verifyPhone = async (
 
     const normalizedPhone =
       String(phone).trim();
+
+    if (
+      !/^\+233\d{9}$/.test(
+        normalizedPhone
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Phone number must be in Ghana format, for example +233XXXXXXXXX.",
+      });
+    }
 
     const user =
       await User.findOne({
@@ -991,6 +1122,7 @@ exports.verifyPhone = async (
     if (!user) {
       return res.status(404).json({
         success: false,
+
         message:
           "Account not found.",
       });
@@ -1001,39 +1133,86 @@ exports.verifyPhone = async (
     ) {
       return res.status(200).json({
         success: true,
+
+        verified: true,
+
         message:
           "Phone number is already verified.",
       });
     }
 
-    const result =
-      await verifyCode({
-        userId:
-          user._id,
+    const normalizedCode =
+      String(code).trim();
 
-        purpose:
-          "phone_verification",
-
-        channel:
-          "sms",
-
-        code:
-          String(code).trim(),
-      });
-
-    if (!result.success) {
+    if (
+      !/^\d{4,15}$/.test(
+        normalizedCode
+      )
+    ) {
       return res.status(400).json({
         success: false,
+
         message:
-          result.reason ===
-          "too_many_attempts"
-            ? "Too many incorrect attempts. Please request a new verification code."
-            : result.reason ===
-              "expired_or_missing"
-            ? "Verification code has expired or is no longer available."
-            : "Invalid verification code.",
+          "Invalid OTP format.",
       });
     }
+
+    // --------------------------------------------------------
+    // VERIFY WITH ARKESEL
+    // --------------------------------------------------------
+
+    let arkeselResult;
+
+    try {
+      arkeselResult =
+        await verifyOTP({
+          phone:
+            normalizedPhone,
+
+          code:
+            normalizedCode,
+        });
+    } catch (
+      arkeselError
+    ) {
+      console.error(
+        "Arkesel phone OTP verification error:",
+        arkeselError
+      );
+
+      return res.status(502).json({
+        success: false,
+
+        message:
+          "Unable to verify the phone verification code right now. Please try again.",
+      });
+    }
+
+    if (
+      !arkeselResult?.success ||
+      !arkeselResult?.verified
+    ) {
+      return res.status(400).json({
+        success: false,
+
+        verified: false,
+
+        message:
+          arkeselResult?.message ||
+          "Invalid or expired verification code.",
+
+        provider:
+          "arkesel",
+
+        providerCode:
+          arkeselResult?.providerCode ||
+          null,
+      });
+    }
+
+    // --------------------------------------------------------
+    // ARKESEL CONFIRMED OTP
+    // --------------------------------------------------------
 
     user.phoneVerified =
       true;
@@ -1042,6 +1221,8 @@ exports.verifyPhone = async (
 
     return res.status(200).json({
       success: true,
+
+      verified: true,
 
       message:
         "Phone number verified successfully.",
@@ -1068,6 +1249,7 @@ exports.verifyPhone = async (
 
     return res.status(500).json({
       success: false,
+
       message:
         error.message ||
         "Phone verification failed.",
@@ -1092,6 +1274,7 @@ exports.resendEmailVerification =
       if (!email) {
         return res.status(400).json({
           success: false,
+
           message:
             "Email is required.",
         });
@@ -1111,6 +1294,7 @@ exports.resendEmailVerification =
       if (!user) {
         return res.status(404).json({
           success: false,
+
           message:
             "Account not found.",
         });
@@ -1121,6 +1305,7 @@ exports.resendEmailVerification =
       ) {
         return res.status(200).json({
           success: true,
+
           message:
             "Email is already verified.",
         });
@@ -1153,15 +1338,15 @@ exports.resendEmailVerification =
           }
         );
 
-      await sendEmailVerification(
-        {
-          user,
-          code,
-        }
-      );
+      await sendEmailVerification({
+        user,
+
+        code,
+      });
 
       return res.status(200).json({
         success: true,
+
         message:
           "A new email verification code has been sent.",
       });
@@ -1173,6 +1358,7 @@ exports.resendEmailVerification =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Unable to resend email verification code.",
@@ -1181,7 +1367,7 @@ exports.resendEmailVerification =
   };
 
 // ============================================================
-// RESEND PHONE VERIFICATION
+// RESEND PHONE VERIFICATION THROUGH ARKESEL
 // ============================================================
 
 exports.resendPhoneVerification =
@@ -1197,6 +1383,7 @@ exports.resendPhoneVerification =
       if (!phone) {
         return res.status(400).json({
           success: false,
+
           message:
             "Phone number is required.",
         });
@@ -1204,6 +1391,19 @@ exports.resendPhoneVerification =
 
       const normalizedPhone =
         String(phone).trim();
+
+      if (
+        !/^\+233\d{9}$/.test(
+          normalizedPhone
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "Phone number must be in Ghana format, for example +233XXXXXXXXX.",
+        });
+      }
 
       const user =
         await User.findOne({
@@ -1214,6 +1414,7 @@ exports.resendPhoneVerification =
       if (!user) {
         return res.status(404).json({
           success: false,
+
           message:
             "Account not found.",
         });
@@ -1224,49 +1425,53 @@ exports.resendPhoneVerification =
       ) {
         return res.status(200).json({
           success: true,
+
           message:
             "Phone number is already verified.",
         });
       }
 
-      const {
-        code,
-      } =
-        await createVerificationToken(
-          {
-            userId:
-              user._id,
+      // --------------------------------------------------------
+      // ARKESEL GENERATES AND SENDS A NEW OTP
+      // --------------------------------------------------------
 
-            purpose:
-              "phone_verification",
+      let notification;
 
-            channel:
-              "sms",
+      try {
+        notification =
+          await sendPhoneVerification({
+            phone:
+              user.phone,
 
-            requestedIp:
-              req.ip,
-
-            userAgent:
-              req.get(
-                "user-agent"
-              ),
-
-            expiryMinutes:
-              VERIFICATION_CODE_EXPIRY_MINUTES,
-          }
+            firstName:
+              user.firstName,
+          });
+      } catch (
+        notificationError
+      ) {
+        console.error(
+          "Resend SMS notification failed:",
+          notificationError
         );
 
-      await sendPhoneVerification(
-        {
-          user,
-          code,
-        }
-      );
+        return res.status(502).json({
+          success: false,
+
+          message:
+            "Unable to send a new phone verification code. Please try again.",
+        });
+      }
 
       return res.status(200).json({
         success: true,
+
         message:
           "A new phone verification code has been sent.",
+
+        notification:
+          Boolean(
+            notification?.success
+          ),
       });
     } catch (error) {
       console.error(
@@ -1276,6 +1481,7 @@ exports.resendPhoneVerification =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Unable to resend phone verification code.",
@@ -1300,6 +1506,7 @@ exports.login = async (
     if (!email || !password) {
       return res.status(400).json({
         success: false,
+
         message:
           "Email and password are required.",
       });
@@ -1321,6 +1528,7 @@ exports.login = async (
     if (!user) {
       return res.status(401).json({
         success: false,
+
         message:
           "Invalid email or password.",
       });
@@ -1336,6 +1544,7 @@ exports.login = async (
     ) {
       return res.status(403).json({
         success: false,
+
         message:
           "Your account has been suspended.",
       });
@@ -1347,6 +1556,7 @@ exports.login = async (
     ) {
       return res.status(403).json({
         success: false,
+
         message:
           "Your account has been deactivated.",
       });
@@ -1358,6 +1568,7 @@ exports.login = async (
     ) {
       return res.status(403).json({
         success: false,
+
         message:
           "Your account registration was rejected.",
       });
@@ -1376,6 +1587,7 @@ exports.login = async (
     if (!validPassword) {
       return res.status(401).json({
         success: false,
+
         message:
           "Invalid email or password.",
       });
@@ -1408,15 +1620,15 @@ exports.login = async (
     // --------------------------------------------------------
 
     try {
-      await sendSecurityAlert(
-        {
-          user,
+      await sendSecurityAlert({
+        user,
 
-          message:
-            "A successful login to your PoliSync Africa account was detected.",
-        }
-      );
-    } catch (notificationError) {
+        message:
+          "A successful login to your PoliSync Africa account was detected.",
+      });
+    } catch (
+      notificationError
+    ) {
       console.error(
         "Login security notification failed:",
         notificationError
@@ -1497,6 +1709,7 @@ exports.login = async (
 
     return res.status(500).json({
       success: false,
+
       message:
         error.message ||
         "Login failed.",
@@ -1533,6 +1746,7 @@ exports.logout = async (
 
     return res.status(200).json({
       success: true,
+
       message:
         "Logout successful.",
     });
@@ -1544,6 +1758,7 @@ exports.logout = async (
 
     return res.status(500).json({
       success: false,
+
       message:
         error.message ||
         "Logout failed.",
@@ -1568,6 +1783,7 @@ exports.forgotPassword =
       if (!email) {
         return res.status(400).json({
           success: false,
+
           message:
             "Email is required.",
         });
@@ -1587,12 +1803,11 @@ exports.forgotPassword =
       // ------------------------------------------------------
       // SECURITY
       // ------------------------------------------------------
-      // Do not reveal whether an email exists.
-      // ------------------------------------------------------
 
       if (!user) {
         return res.status(200).json({
           success: true,
+
           message:
             "If an account exists for this email, a password reset code has been sent.",
         });
@@ -1634,13 +1849,14 @@ exports.forgotPassword =
       // ------------------------------------------------------
 
       try {
-        await sendPasswordReset(
-          {
-            user,
-            code,
-          }
-        );
-      } catch (notificationError) {
+        await sendPasswordReset({
+          user,
+
+          code,
+        });
+      } catch (
+        notificationError
+      ) {
         console.error(
           "Password reset notification failed:",
           notificationError
@@ -1649,6 +1865,7 @@ exports.forgotPassword =
 
       return res.status(200).json({
         success: true,
+
         message:
           "If an account exists for this email, a password reset code has been sent.",
       });
@@ -1660,6 +1877,7 @@ exports.forgotPassword =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Password reset request failed.",
@@ -1685,6 +1903,7 @@ exports.verifyPasswordReset =
       if (!email || !code) {
         return res.status(400).json({
           success: false,
+
           message:
             "Email and password reset code are required.",
         });
@@ -1704,6 +1923,7 @@ exports.verifyPasswordReset =
       if (!user) {
         return res.status(400).json({
           success: false,
+
           message:
             "Invalid or expired password reset code.",
         });
@@ -1727,6 +1947,7 @@ exports.verifyPasswordReset =
       if (!result.success) {
         return res.status(400).json({
           success: false,
+
           message:
             "Invalid or expired password reset code.",
         });
@@ -1749,6 +1970,7 @@ exports.verifyPasswordReset =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Password reset verification failed.",
@@ -1779,6 +2001,7 @@ exports.resetPassword =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "Email, reset code and new password are required.",
         });
@@ -1790,6 +2013,7 @@ exports.resetPassword =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "New password must contain at least 8 characters.",
         });
@@ -1811,6 +2035,7 @@ exports.resetPassword =
       if (!user) {
         return res.status(400).json({
           success: false,
+
           message:
             "Invalid or expired password reset code.",
         });
@@ -1834,6 +2059,7 @@ exports.resetPassword =
       if (!result.success) {
         return res.status(400).json({
           success: false,
+
           message:
             "Invalid or expired password reset code.",
         });
@@ -1850,17 +2076,13 @@ exports.resetPassword =
 
       await user.save();
 
-      // ------------------------------------------------------
-      // SECURITY NOTIFICATION
-      // ------------------------------------------------------
-
       try {
-        await sendPasswordChanged(
-          {
-            user,
-          }
-        );
-      } catch (notificationError) {
+        await sendPasswordChanged({
+          user,
+        });
+      } catch (
+        notificationError
+      ) {
         console.error(
           "Password changed notification failed:",
           notificationError
@@ -1869,6 +2091,7 @@ exports.resetPassword =
 
       return res.status(200).json({
         success: true,
+
         message:
           "Password reset successfully. You can now log in with your new password.",
       });
@@ -1880,6 +2103,7 @@ exports.resetPassword =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Password reset failed.",
@@ -1908,6 +2132,7 @@ exports.changePassword =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "Current password and new password are required.",
         });
@@ -1919,6 +2144,7 @@ exports.changePassword =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "New password must contain at least 8 characters.",
         });
@@ -1930,6 +2156,7 @@ exports.changePassword =
       if (!userId) {
         return res.status(401).json({
           success: false,
+
           message:
             "Authentication is required.",
         });
@@ -1945,6 +2172,7 @@ exports.changePassword =
       if (!user) {
         return res.status(404).json({
           success: false,
+
           message:
             "Account not found.",
         });
@@ -1959,6 +2187,7 @@ exports.changePassword =
       if (!validPassword) {
         return res.status(401).json({
           success: false,
+
           message:
             "Current password is incorrect.",
         });
@@ -1970,6 +2199,7 @@ exports.changePassword =
       ) {
         return res.status(400).json({
           success: false,
+
           message:
             "New password must be different from your current password.",
         });
@@ -1983,17 +2213,13 @@ exports.changePassword =
 
       await user.save();
 
-      // ------------------------------------------------------
-      // SECURITY NOTIFICATION
-      // ------------------------------------------------------
-
       try {
-        await sendPasswordChanged(
-          {
-            user,
-          }
-        );
-      } catch (notificationError) {
+        await sendPasswordChanged({
+          user,
+        });
+      } catch (
+        notificationError
+      ) {
         console.error(
           "Password changed notification failed:",
           notificationError
@@ -2002,6 +2228,7 @@ exports.changePassword =
 
       return res.status(200).json({
         success: true,
+
         message:
           "Password changed successfully.",
       });
@@ -2013,6 +2240,7 @@ exports.changePassword =
 
       return res.status(500).json({
         success: false,
+
         message:
           error.message ||
           "Password change failed.",
@@ -2035,6 +2263,7 @@ exports.me = async (
     if (!userId) {
       return res.status(401).json({
         success: false,
+
         message:
           "Authentication is required.",
       });
@@ -2048,6 +2277,7 @@ exports.me = async (
     if (!user) {
       return res.status(404).json({
         success: false,
+
         message:
           "Account not found.",
       });
@@ -2123,6 +2353,7 @@ exports.me = async (
 
     return res.status(500).json({
       success: false,
+
       message:
         error.message ||
         "Unable to retrieve account.",
