@@ -18,43 +18,29 @@
 //
 // ============================================================
 
-const SMS_TEMPLATES =
-  require("../config/smsTemplates");
+const SMS_TEMPLATES = require("../config/smsTemplates");
 
 // ============================================================
 // TEMPLATE VARIABLE REGEX
 // ============================================================
 
-const VARIABLE_PATTERN =
-  /\{\{([a-zA-Z0-9_]+)\}\}/g;
+const VARIABLE_PATTERN = /\{\{([a-zA-Z0-9_]+)\}\}/g;
 
 // ============================================================
 // CONVERT VALUE TO SAFE TEXT
 // ============================================================
 
-const normalizeValue = (
-  value
-) => {
-  if (
-    value === null ||
-    value === undefined
-  ) {
+const normalizeValue = (value) => {
+  if (value === null || value === undefined) {
     return "";
   }
 
-  if (
-    value instanceof Date
-  ) {
+  if (value instanceof Date) {
     return value.toISOString();
   }
 
-  if (
-    typeof value ===
-    "object"
-  ) {
-    return JSON.stringify(
-      value
-    );
+  if (typeof value === "object") {
+    return JSON.stringify(value);
   }
 
   return String(value);
@@ -64,32 +50,19 @@ const normalizeValue = (
 // FIND TEMPLATE
 // ============================================================
 
-const getTemplate = (
-  templateKey
-) => {
+const getTemplate = (templateKey) => {
   if (!templateKey) {
-    throw new Error(
-      "SMS template key is required."
-    );
+    throw new Error("SMS template key is required.");
   }
 
-  const template =
-    SMS_TEMPLATES[
-      templateKey
-    ];
+  const template = SMS_TEMPLATES[templateKey];
 
   if (!template) {
-    throw new Error(
-      `SMS template "${templateKey}" does not exist.`
-    );
+    throw new Error(`SMS template "${templateKey}" does not exist.`);
   }
 
-  if (
-    !template.template
-  ) {
-    throw new Error(
-      `SMS template "${templateKey}" has no message content.`
-    );
+  if (!template.template) {
+    throw new Error(`SMS template "${templateKey}" has no message content.`);
   }
 
   return template;
@@ -99,84 +72,46 @@ const getTemplate = (
 // EXTRACT VARIABLES
 // ============================================================
 
-const getTemplateVariables = (
-  template
-) => {
-  const variables =
-    new Set();
+const getTemplateVariables = (template) => {
+  const variables = new Set();
 
   let match;
 
-  while (
-    (match =
-      VARIABLE_PATTERN.exec(
-        template
-      )) !== null
-  ) {
-    variables.add(
-      match[1]
-    );
+  while ((match = VARIABLE_PATTERN.exec(template)) !== null) {
+    variables.add(match[1]);
   }
 
   // Reset regex state.
-  VARIABLE_PATTERN.lastIndex =
-    0;
+  VARIABLE_PATTERN.lastIndex = 0;
 
-  return Array.from(
-    variables
-  );
+  return Array.from(variables);
 };
 
 // ============================================================
 // VALIDATE TEMPLATE DATA
 // ============================================================
 
-const validateTemplateData = ({
-  templateKey,
-  template,
-  data,
-  strict = true,
-}) => {
-  const variables =
-    getTemplateVariables(
-      template
-    );
+const validateTemplateData = ({ templateKey, template, data, strict = true, }) => {
+  const variables = getTemplateVariables(template);
 
   const missing = [];
 
-  for (
-    const variable of variables
-  ) {
-    const value =
-      data?.[variable];
+  for (const variable of variables) {
+    const value = data?.[variable];
 
-    if (
-      value ===
-        undefined ||
-      value === null ||
-      String(value).trim() ===
-        ""
-    ) {
-      missing.push(
-        variable
-      );
+    if (value === undefined || value === null || String(value).trim() === "") {
+      missing.push(variable);
     }
   }
 
-  if (
-    strict &&
-    missing.length > 0
-  ) {
+  if (strict && missing.length > 0) {
     throw new Error(
-      `Missing SMS template variables for "${templateKey}": ${missing.join(
-        ", "
-      )}.`
+      `Missing SMS template variables for "${templateKey}": ${missing.join( ", " )}.`
     );
   }
 
   return {
-    valid:
-      missing.length === 0,
+    valid: missing.length === 0,
 
     missing,
   };
@@ -189,10 +124,10 @@ const validateTemplateData = ({
 // Example:
 //
 // renderTemplate(
-//   "ACCOUNT_APPROVED",
-//   {
-//     firstName: "Daniel"
-//   }
+// "ACCOUNT_APPROVED",
+// {
+// firstName: "Daniel"
+// }
 // )
 //
 // Returns:
@@ -202,23 +137,12 @@ const validateTemplateData = ({
 //
 // ============================================================
 
-const renderTemplate = (
-  templateKey,
-  data = {},
-  options = {}
-) => {
-  const {
-    strict = true,
-    trim = true,
-  } = options;
+const renderTemplate = (templateKey, data = {}, options = {}) => {
+  const { strict = true, trim = true } = options;
 
-  const templateObject =
-    getTemplate(
-      templateKey
-    );
+  const templateObject = getTemplate(templateKey);
 
-  const template =
-    templateObject.template;
+  const template = templateObject.template;
 
   validateTemplateData({
     templateKey,
@@ -230,61 +154,37 @@ const renderTemplate = (
     strict,
   });
 
-  let message =
-    template.replace(
-      VARIABLE_PATTERN,
-      (
-        fullMatch,
-        variableName
-      ) => {
-        const value =
-          data[
-            variableName
-          ];
+  let message = template.replace(
+    VARIABLE_PATTERN,
+    (fullMatch, variableName) => {
+      const value = data[variableName];
 
-        if (
-          value ===
-            undefined ||
-          value === null
-        ) {
-          return "";
-        }
-
-        return normalizeValue(
-          value
-        );
+      if (value === undefined || value === null) {
+        return "";
       }
-    );
+
+      return normalizeValue(value);
+    }
+  );
 
   // ----------------------------------------------------------
   // SAFETY CHECK
   // ----------------------------------------------------------
 
-  const unresolved =
-    message.match(
-      VARIABLE_PATTERN
-    );
+  const unresolved = message.match(VARIABLE_PATTERN);
 
-  if (
-    unresolved &&
-    unresolved.length > 0
-  ) {
+  if (unresolved && unresolved.length > 0) {
     throw new Error(
-      `SMS template "${templateKey}" contains unresolved variables: ${unresolved.join(
-        ", "
-      )}.`
+      `SMS template "${templateKey}" contains unresolved variables: ${unresolved.join( ", " )}.`
     );
   }
 
   if (trim) {
-    message =
-      message.trim();
+    message = message.trim();
   }
 
   if (!message) {
-    throw new Error(
-      `SMS template "${templateKey}" produced an empty message.`
-    );
+    throw new Error(`SMS template "${templateKey}" produced an empty message.`);
   }
 
   return message;
@@ -298,25 +198,15 @@ const renderTemplate = (
 //
 // ============================================================
 
-const createSMS = (
-  templateKey,
-  data = {},
-  options = {}
-) => {
-  const message =
-    renderTemplate(
-      templateKey,
-      data,
-      options
-    );
+const createSMS = (templateKey, data = {}, options = {}) => {
+  const message = renderTemplate(templateKey, data, options);
 
   return {
     templateKey,
 
     message,
 
-    characterCount:
-      message.length,
+    characterCount: message.length,
   };
 };
 
@@ -328,49 +218,33 @@ const createSMS = (
 //
 // ============================================================
 
-const inspectTemplate = (
-  templateKey,
-  data = {}
-) => {
-  const templateObject =
-    getTemplate(
-      templateKey
-    );
+const inspectTemplate = (templateKey, data = {}) => {
+  const templateObject = getTemplate(templateKey);
 
-  const variables =
-    getTemplateVariables(
-      templateObject.template
-    );
+  const variables = getTemplateVariables(templateObject.template);
 
-  const validation =
-    validateTemplateData({
-      templateKey,
+  const validation = validateTemplateData({
+    templateKey,
 
-      template:
-        templateObject.template,
+    template: templateObject.template,
 
-      data,
+    data,
 
-      strict: false,
-    });
+    strict: false,
+  });
 
   return {
     templateKey,
 
-    name:
-      templateObject.name ||
-      templateKey,
+    name: templateObject.name || templateKey,
 
-    template:
-      templateObject.template,
+    template: templateObject.template,
 
     variables,
 
-    missing:
-      validation.missing,
+    missing: validation.missing,
 
-    ready:
-      validation.valid,
+    ready: validation.valid,
   };
 };
 
@@ -379,33 +253,15 @@ const inspectTemplate = (
 // ============================================================
 
 const listTemplates = () => {
-  return Object.keys(
-    SMS_TEMPLATES
-  ).map(
-    (
-      templateKey
-    ) => ({
-      templateKey,
+  return Object.keys(SMS_TEMPLATES).map((templateKey) => ({
+    templateKey,
 
-      name:
-        SMS_TEMPLATES[
-          templateKey
-        ].name ||
-        templateKey,
+    name: SMS_TEMPLATES[templateKey].name || templateKey,
 
-      template:
-        SMS_TEMPLATES[
-          templateKey
-        ].template,
+    template: SMS_TEMPLATES[templateKey].template,
 
-      variables:
-        getTemplateVariables(
-          SMS_TEMPLATES[
-            templateKey
-          ].template
-        ),
-    })
-  );
+    variables: getTemplateVariables(SMS_TEMPLATES[templateKey].template),
+  }));
 };
 
 // ============================================================
