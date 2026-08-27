@@ -147,6 +147,60 @@ const userSchema = new mongoose.Schema(
     },
 
     // ============================================================
+    // PHONE SECURITY VERIFICATION
+    // ============================================================
+    //
+    // phoneVerified:
+    //   Confirms that the registered phone number has been
+    //   successfully verified.
+    //
+    // lastPhoneVerificationAt:
+    //   Records the most recent successful SMS OTP verification
+    //   used for authentication security.
+    //
+    // PoliSync requires a new phone OTP when more than 24 hours
+    // have passed since the last successful phone verification.
+    //
+    // IMPORTANT:
+    // This field does NOT replace phoneVerified.
+    // ============================================================
+
+    lastPhoneVerificationAt: {
+      type: Date,
+      default: null,
+    },
+
+    // ============================================================
+    // LOGIN OTP SECURITY CHALLENGE
+    // ============================================================
+    //
+    // These fields are used to protect a login OTP challenge.
+    //
+    // The actual SMS OTP must NEVER be stored in plain text.
+    //
+    // The OTP itself is handled by the SMS verification provider.
+    // PoliSync stores only the protected challenge information.
+    // ============================================================
+
+    loginOtpChallengeHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
+
+    loginOtpExpiresAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+
+    loginOtpAttempts: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    // ============================================================
     // TWO-FACTOR AUTHENTICATION
     // ============================================================
 
@@ -301,8 +355,6 @@ const userSchema = new mongoose.Schema(
       // BADGE
       // ----------------------------------------------------------
       // This points to the official PoliSync verified badge asset.
-      // The actual image file should be stored in the frontend
-      // public/assets or your configured media storage.
       // ----------------------------------------------------------
 
       badgeAsset: {
@@ -405,9 +457,6 @@ const userSchema = new mongoose.Schema(
       // ----------------------------------------------------------
       // PROFILE VIEWERS
       // ----------------------------------------------------------
-      // Controls whether the user can see the people who viewed
-      // their profile.
-      // ----------------------------------------------------------
 
       showProfileViewers: {
         type: Boolean,
@@ -416,9 +465,6 @@ const userSchema = new mongoose.Schema(
 
       // ----------------------------------------------------------
       // PROFILE VIEW PRIVACY
-      // ----------------------------------------------------------
-      // Controls whether this user may appear in another person's
-      // "Who viewed my profile?" history.
       // ----------------------------------------------------------
 
       profileViewPrivacy: {
@@ -487,11 +533,6 @@ const userSchema = new mongoose.Schema(
     // ============================================================
     // LOCATION PERMISSION
     // ============================================================
-    // Records whether the user granted location permission to
-    // PoliSync Africa.
-    //
-    // This does NOT override browser/device permissions.
-    // ============================================================
 
     locationPermissionGranted: {
       type: Boolean,
@@ -500,12 +541,6 @@ const userSchema = new mongoose.Schema(
 
     // ============================================================
     // CURRENT LOCATION
-    // ============================================================
-    // Stored only when the user explicitly enables location
-    // sharing.
-    //
-    // Google Maps can use these coordinates to display the
-    // permitted user's current location.
     // ============================================================
 
     currentLocation: {
@@ -663,17 +698,6 @@ userSchema.pre(
 // ============================================================
 // SUPER ADMIN PLATFORM IDENTITY
 // ============================================================
-// The Super Admin represents the entire PoliSync Africa
-// platform.
-//
-// Public identity:
-//
-// Display name: POLISYNC AFRICA
-// Username:     polisync.africa
-//
-// The private controller's personal identity must never become
-// the platform's public identity.
-// ============================================================
 
 userSchema.pre(
   "validate",
@@ -756,14 +780,6 @@ userSchema.pre(
 
       this.locationExpiresAt =
         null;
-
-      // --------------------------------------------------------
-      // PLATFORM PRESENCE
-      // --------------------------------------------------------
-      // POLISYNC AFRICA can still appear online/offline based on
-      // actual platform sessions. This does not represent the
-      // private administrator's physical location.
-      // --------------------------------------------------------
     }
 
     next();
@@ -1118,12 +1134,6 @@ userSchema.methods.getPublicVerification =
 // ============================================================
 // CAN APPEAR IN PROFILE VIEW HISTORY
 // ============================================================
-// Determines whether THIS USER can appear in another user's
-// "Who viewed my profile?" list.
-//
-// Actual organization membership authorization is handled by
-// the controller/service layer.
-// ============================================================
 
 userSchema.methods.canAppearInProfileViews =
   function ({
@@ -1160,6 +1170,7 @@ userSchema.methods.canShareLocationWith =
     viewerIsOrganizationMember = false,
   } = {}) {
     // Platform Super Admin has no personal location.
+
     if (
       this.platformRole ===
       "super_admin"
@@ -1472,6 +1483,9 @@ userSchema.methods.toAdminProfile =
 
       phoneVerified:
         this.phoneVerified,
+
+      lastPhoneVerificationAt:
+        this.lastPhoneVerificationAt,
 
       twoFactorEnabled:
         this.twoFactorEnabled,
