@@ -5,15 +5,12 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 
 // ============================================================
-// POLISYNC AFRICA SUPER ADMIN
+// POLISYNC AFRICA — SUPER ADMIN BOOTSTRAP
 // ============================================================
 
 const SUPER_ADMIN = {
   displayName: "POLISYNC AFRICA",
   username: "polisync.africa",
-
-  // Private account contact details.
-  // These are NOT the public platform identity.
   email: "danielamonyamekye@gmail.com",
   phone: "+233540992581",
 };
@@ -22,7 +19,8 @@ const SUPER_ADMIN = {
 // ENVIRONMENT
 // ============================================================
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI =
+  process.env.MONGODB_URI;
 
 const SUPER_ADMIN_PASSWORD =
   process.env.SUPER_ADMIN_PASSWORD;
@@ -41,7 +39,9 @@ if (!SUPER_ADMIN_PASSWORD) {
   process.exit(1);
 }
 
-if (SUPER_ADMIN_PASSWORD.length < 8) {
+if (
+  SUPER_ADMIN_PASSWORD.length < 8
+) {
   console.error(
     "ERROR: SUPER_ADMIN_PASSWORD must contain at least 8 characters."
   );
@@ -49,7 +49,7 @@ if (SUPER_ADMIN_PASSWORD.length < 8) {
 }
 
 // ============================================================
-// CREATE SUPER ADMIN
+// BOOTSTRAP SUPER ADMIN
 // ============================================================
 
 async function createSuperAdmin() {
@@ -70,9 +70,9 @@ async function createSuperAdmin() {
       "==============================================\n"
     );
 
-    // --------------------------------------------------------
+    // ========================================================
     // CONNECT DATABASE
-    // --------------------------------------------------------
+    // ========================================================
 
     console.log(
       "Connecting to MongoDB..."
@@ -86,48 +86,225 @@ async function createSuperAdmin() {
       "✓ MongoDB connected.\n"
     );
 
-    // --------------------------------------------------------
-    // CHECK EXISTING SUPER ADMIN
-    // --------------------------------------------------------
+    // ========================================================
+    // FIND EXISTING SUPER ADMIN
+    // ========================================================
 
-    const existingSuperAdmin =
+    let user =
       await User.findOne({
-        platformRole: "super_admin",
+        platformRole:
+          "super_admin",
       });
 
-    if (existingSuperAdmin) {
+    // ========================================================
+    // EXISTING SUPER ADMIN
+    // ========================================================
+
+    if (user) {
       console.log(
-        "A Super Admin already exists."
+        "Existing Super Admin found."
       );
 
       console.log(
-        `Public identity: ${existingSuperAdmin.displayName || "POLISYNC AFRICA"}`
+        `Username: ${user.username}`
       );
 
       console.log(
-        `Username: ${existingSuperAdmin.username}`
+        `Email: ${user.email}`
+      );
+
+      // ------------------------------------------------------
+      // ENSURE PLATFORM IDENTITY
+      // ------------------------------------------------------
+
+      user.platformRole =
+        "super_admin";
+
+      user.displayName =
+        "POLISYNC AFRICA";
+
+      user.username =
+        "polisync.africa";
+
+      user.firstName =
+        "POLISYNC";
+
+      user.middleName =
+        "";
+
+      user.lastName =
+        "AFRICA";
+
+      // ------------------------------------------------------
+      // ENSURE PRIVATE CONTACT DETAILS
+      // ------------------------------------------------------
+
+      user.email =
+        SUPER_ADMIN.email;
+
+      user.phone =
+        SUPER_ADMIN.phone;
+
+      // ------------------------------------------------------
+      // SUPER ADMIN ACCOUNT STATUS
+      // ------------------------------------------------------
+
+      user.accountStatus =
+        "approved";
+
+      if (!user.approvedAt) {
+        user.approvedAt =
+          new Date();
+      }
+
+      user.suspendedAt =
+        null;
+
+      user.suspensionReason =
+        null;
+
+      // ------------------------------------------------------
+      // SUPER ADMIN VERIFICATION
+      // ------------------------------------------------------
+      //
+      // Super Admin is a platform-controlled account.
+      //
+      // Email and phone are therefore treated as verified
+      // during the bootstrap process.
+      //
+      // The 24-hour LOGIN OTP security layer remains active.
+      // ------------------------------------------------------
+
+      user.emailVerified =
+        true;
+
+      user.phoneVerified =
+        true;
+
+      // ------------------------------------------------------
+      // SECURITY SETTINGS
+      // ------------------------------------------------------
+
+      user.twoFactorEnabled =
+        false;
+
+      user.twoFactorMethod =
+        null;
+
+      user.passcodeEnabled =
+        false;
+
+      user.biometricEnabled =
+        false;
+
+      // ------------------------------------------------------
+      // FORCE LOGIN OTP ON NEXT LOGIN
+      // ------------------------------------------------------
+      //
+      // Setting this to null means the Super Admin has no
+      // current 24-hour login-phone verification window.
+      //
+      // Therefore the next successful password login will
+      // require the mandatory phone OTP.
+      // ------------------------------------------------------
+
+      user.lastPhoneVerificationAt =
+        null;
+
+      // ------------------------------------------------------
+      // PRIVACY
+      // ------------------------------------------------------
+
+      user.privacy = {
+        messagePrivacy:
+          "nobody",
+
+        profileVisibility:
+          "nobody",
+      };
+
+      // ------------------------------------------------------
+      // DISPLAY SETTINGS
+      // ------------------------------------------------------
+
+      user.displaySettings = {
+        skin: "default",
+
+        theme: "system",
+
+        fontStyle: "default",
+
+        fontSize: "medium",
+      };
+
+      // ------------------------------------------------------
+      // SAVE EXISTING SUPER ADMIN
+      // ------------------------------------------------------
+
+      await user.save();
+
+      console.log(
+        "\n✓ Existing Super Admin has been updated."
       );
 
       console.log(
-        "\nNo new Super Admin was created."
+        "✓ Email verification: VERIFIED"
+      );
+
+      console.log(
+        "✓ Phone verification: VERIFIED"
+      );
+
+      console.log(
+        "✓ Account status: APPROVED"
+      );
+
+      console.log(
+        "✓ Next login will require phone OTP."
+      );
+
+      console.log(
+        "\nPublic identity:"
+      );
+
+      console.log(
+        "POLISYNC AFRICA"
+      );
+
+      console.log(
+        "@polisync.africa"
+      );
+
+      console.log(
+        "\nPrivate account email and phone remain"
+      );
+
+      console.log(
+        "private account credentials."
       );
 
       await mongoose.disconnect();
+
+      console.log(
+        "\nMongoDB connection closed."
+      );
+
       process.exit(0);
     }
 
-    // --------------------------------------------------------
-    // CHECK EMAIL
-    // --------------------------------------------------------
+    // ========================================================
+    // NO SUPER ADMIN — CHECK EMAIL
+    // ========================================================
 
     const existingEmail =
       await User.findOne({
-        email: SUPER_ADMIN.email,
+        email:
+          SUPER_ADMIN.email,
       });
 
     if (existingEmail) {
       console.error(
-        "ERROR: This email already belongs to an account."
+        "ERROR: This email already belongs to another account."
       );
 
       console.error(
@@ -135,21 +312,23 @@ async function createSuperAdmin() {
       );
 
       await mongoose.disconnect();
+
       process.exit(1);
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // CHECK PHONE
-    // --------------------------------------------------------
+    // ========================================================
 
     const existingPhone =
       await User.findOne({
-        phone: SUPER_ADMIN.phone,
+        phone:
+          SUPER_ADMIN.phone,
       });
 
     if (existingPhone) {
       console.error(
-        "ERROR: This phone number already belongs to an account."
+        "ERROR: This phone number already belongs to another account."
       );
 
       console.error(
@@ -157,16 +336,18 @@ async function createSuperAdmin() {
       );
 
       await mongoose.disconnect();
+
       process.exit(1);
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // CHECK USERNAME
-    // --------------------------------------------------------
+    // ========================================================
 
     const existingUsername =
       await User.findOne({
-        username: SUPER_ADMIN.username,
+        username:
+          SUPER_ADMIN.username,
       });
 
     if (existingUsername) {
@@ -179,12 +360,13 @@ async function createSuperAdmin() {
       );
 
       await mongoose.disconnect();
+
       process.exit(1);
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // HASH PASSWORD
-    // --------------------------------------------------------
+    // ========================================================
 
     console.log(
       "Hashing Super Admin password..."
@@ -196,13 +378,14 @@ async function createSuperAdmin() {
         12
       );
 
-    // --------------------------------------------------------
-    // CREATE PLATFORM ACCOUNT
-    // --------------------------------------------------------
+    // ========================================================
+    // CREATE SUPER ADMIN
+    // ========================================================
 
-    const user =
+    user =
       await User.create({
-        platformRole: "super_admin",
+        platformRole:
+          "super_admin",
 
         displayName:
           SUPER_ADMIN.displayName,
@@ -210,72 +393,103 @@ async function createSuperAdmin() {
         username:
           SUPER_ADMIN.username,
 
-        // Internal platform identity.
-        // This is NOT displayed to other users.
-        firstName: "POLISYNC",
+        firstName:
+          "POLISYNC",
 
-        middleName: "",
+        middleName:
+          "",
 
-        lastName: "AFRICA",
+        lastName:
+          "AFRICA",
 
-        // Super Admin does not use ordinary-user
-        // personal identification requirements.
-        dateOfBirth: null,
+        dateOfBirth:
+          null,
 
-        nationality: "Ghanaian",
+        nationality:
+          "Ghanaian",
 
-        identificationType: null,
+        identificationType:
+          null,
 
-        identificationNumber: null,
+        identificationNumber:
+          null,
 
-        // Private account contact details.
-        email: SUPER_ADMIN.email,
+        email:
+          SUPER_ADMIN.email,
 
-        phone: SUPER_ADMIN.phone,
+        phone:
+          SUPER_ADMIN.phone,
 
-        password: hashedPassword,
+        password:
+          hashedPassword,
 
-        emailVerified: false,
+        // Super Admin bootstrap verification.
+        emailVerified:
+          true,
 
-        phoneVerified: false,
+        phoneVerified:
+          true,
 
-        twoFactorEnabled: false,
+        twoFactorEnabled:
+          false,
 
-        twoFactorMethod: null,
+        twoFactorMethod:
+          null,
 
-        passcodeEnabled: false,
+        passcodeEnabled:
+          false,
 
-        biometricEnabled: false,
+        biometricEnabled:
+          false,
 
-        // Super Admin is immediately approved.
-        accountStatus: "approved",
+        accountStatus:
+          "approved",
 
-        approvedAt: new Date(),
+        approvedAt:
+          new Date(),
 
-        approvedBy: null,
+        approvedBy:
+          null,
 
-        suspendedAt: null,
+        suspendedAt:
+          null,
 
-        suspensionReason: null,
+        suspensionReason:
+          null,
+
+        // Force mandatory login OTP on first login.
+        lastPhoneVerificationAt:
+          null,
+
+        lastLoginAt:
+          null,
 
         privacy: {
-          messagePrivacy: "nobody",
-          profileVisibility: "nobody",
+          messagePrivacy:
+            "nobody",
+
+          profileVisibility:
+            "nobody",
         },
 
         displaySettings: {
-          skin: "default",
-          theme: "system",
-          fontStyle: "default",
-          fontSize: "medium",
-        },
+          skin:
+            "default",
 
-        lastLoginAt: null,
+          theme:
+            "system",
+
+          fontStyle:
+            "default",
+
+          fontSize:
+            "medium",
+        },
       });
 
-    // --------------------------------------------------------
+    // ========================================================
     // SUCCESS
-    // --------------------------------------------------------
+    // ========================================================
 
     console.log(
       "\n=============================================="
@@ -311,6 +525,18 @@ async function createSuperAdmin() {
 
     console.log(
       `Account status: ${user.accountStatus}`
+    );
+
+    console.log(
+      "Email verification: VERIFIED"
+    );
+
+    console.log(
+      "Phone verification: VERIFIED"
+    );
+
+    console.log(
+      "Login OTP: REQUIRED ON FIRST LOGIN"
     );
 
     console.log(
@@ -355,7 +581,7 @@ async function createSuperAdmin() {
     );
 
     console.error(
-      "SUPER ADMIN CREATION FAILED"
+      "SUPER ADMIN BOOTSTRAP FAILED"
     );
 
     console.error(
@@ -368,7 +594,7 @@ async function createSuperAdmin() {
 
     try {
       await mongoose.disconnect();
-    } catch (disconnectError) {
+    } catch {
       // Ignore disconnect errors.
     }
 
