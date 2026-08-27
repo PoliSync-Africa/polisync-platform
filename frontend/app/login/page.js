@@ -155,6 +155,65 @@ export default function LoginPage() {
       }
 
       // ========================================================
+      // PHONE OTP REQUIRED
+      // ========================================================
+      //
+      // The backend returns HTTP 202 when:
+      //
+      // 1. Email is correct
+      // 2. Password is correct
+      // 3. Account is eligible
+      // 4. A new phone security OTP is required
+      //
+      // The final JWT is NOT issued yet.
+      // ========================================================
+
+      if (
+        response.status === 202 &&
+        data?.success === true &&
+        data?.code ===
+          "PHONE_OTP_REQUIRED"
+      ) {
+        sessionStorage.setItem(
+          "polisync_login_email",
+          normalizedEmail
+        );
+
+        sessionStorage.setItem(
+          "polisync_login_challenge",
+          String(
+            data.challengeToken || ""
+          )
+        );
+
+        sessionStorage.setItem(
+          "polisync_login_phone",
+          String(
+            data.phone || ""
+          )
+        );
+
+        sessionStorage.setItem(
+          "polisync_login_otp_expires",
+          String(
+            data.expiresAt || ""
+          )
+        );
+
+        sessionStorage.setItem(
+          "polisync_login_otp_minutes",
+          String(
+            data.expiresInMinutes || 5
+          )
+        );
+
+        window.location.href =
+          "/login/verify-phone";
+
+        return;
+      }
+
+      // ========================================================
       // LOGIN FAILED
       // ========================================================
 
@@ -181,7 +240,7 @@ export default function LoginPage() {
       }
 
       // ========================================================
-      // SAVE AUTHENTICATION TOKEN
+      // FINAL LOGIN TOKEN
       // ========================================================
 
       const token =
@@ -190,18 +249,26 @@ export default function LoginPage() {
         data?.access_token ||
         null;
 
-      if (token) {
-        if (remember) {
-          localStorage.setItem(
-            "polisync_token",
-            token
-          );
-        } else {
-          sessionStorage.setItem(
-            "polisync_token",
-            token
-          );
-        }
+      if (!token) {
+        throw new Error(
+          "Login succeeded but no authentication token was returned."
+        );
+      }
+
+      // ========================================================
+      // SAVE AUTHENTICATION TOKEN
+      // ========================================================
+
+      if (remember) {
+        localStorage.setItem(
+          "polisync_token",
+          token
+        );
+      } else {
+        sessionStorage.setItem(
+          "polisync_token",
+          token
+        );
       }
 
       // ========================================================
@@ -243,7 +310,21 @@ export default function LoginPage() {
       }
 
       // ========================================================
-      // LOGIN SUCCESS
+      // SUPER ADMIN WORKSPACE
+      // ========================================================
+
+      if (
+        data?.user?.platformRole ===
+        "super_admin"
+      ) {
+        window.location.href =
+          "/super-admin";
+
+        return;
+      }
+
+      // ========================================================
+      // ORDINARY USER WORKSPACE
       // ========================================================
 
       window.location.href =
@@ -287,7 +368,8 @@ export default function LoginPage() {
   return (
     <main
       style={{
-        minHeight: "100vh",
+        minHeight:
+          "100vh",
 
         background:
           "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)",
@@ -310,19 +392,29 @@ export default function LoginPage() {
     >
       <div
         style={{
-          width: "100%",
-          maxWidth: "680px",
-          margin: "0 auto",
+          width:
+            "100%",
 
-          background: "#FFFFFF",
+          maxWidth:
+            "680px",
 
-          /* Straight continuous gold border */
-          border: "3px solid #B89A4A",
-          borderRadius: "42px",
+          margin:
+            "0 auto",
 
-          padding: "40px 34px",
+          background:
+            "#FFFFFF",
 
-          boxSizing: "border-box",
+          border:
+            "3px solid #B89A4A",
+
+          borderRadius:
+            "42px",
+
+          padding:
+            "40px 34px",
+
+          boxSizing:
+            "border-box",
 
           boxShadow:
             "0 12px 35px rgba(0, 0, 0, 0.08)",
@@ -482,9 +574,6 @@ export default function LoginPage() {
                 padding:
                   "15px 18px",
 
-                height:
-                  "62px",
-
                 borderRadius:
                   "12px",
 
@@ -571,11 +660,8 @@ export default function LoginPage() {
                   padding:
                     "15px 70px 15px 18px",
 
-                  height:
-                    "62px",
-
                   borderRadius:
-                    "12px",
+                    "999px",
 
                   border:
                     "3px solid #B89A4A",
@@ -783,14 +869,11 @@ export default function LoginPage() {
               width:
                 "100%",
 
-              height:
-                "64px",
-
               padding:
                 "16px",
 
               borderRadius:
-                "999px",
+                "12px",
 
               border:
                 "none",
@@ -804,7 +887,7 @@ export default function LoginPage() {
                 "#FFFFFF",
 
               fontSize:
-                "20px",
+                "17px",
 
               fontWeight:
                 "800",
