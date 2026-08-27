@@ -3,16 +3,25 @@ const express = require("express");
 const {
   register,
   login,
+
   forgotPassword,
+
   verifyEmail,
   verifyPhone,
+
   resendEmailVerification,
   resendPhoneVerification,
+
   verifyPasswordReset,
   resetPassword,
+
   changePassword,
+
   me,
   logout,
+
+  verifyLoginPhoneOTP,
+  resendLoginPhoneOTP,
 } = require("../controllers/authController");
 
 const router = express.Router();
@@ -37,6 +46,9 @@ const router = express.Router();
 //
 //     POST /api/auth/resend-email-verification
 //     POST /api/auth/resend-phone-verification
+//
+//     POST /api/auth/verify-login-otp
+//     POST /api/auth/resend-login-otp
 //
 //     POST /api/auth/forgot-password
 //     POST /api/auth/verify-password-reset
@@ -134,6 +146,45 @@ router.post(
 router.post(
   "/resend-phone-verification",
   resendPhoneVerification
+);
+
+
+// ============================================================
+// LOGIN PHONE OTP VERIFICATION
+// ============================================================
+//
+// This is the mandatory security OTP used after
+// email + password authentication when the user's
+// 24-hour login security period has expired.
+//
+// Frontend endpoint:
+//
+//     /api/auth/verify-login-otp
+//
+// ============================================================
+
+router.post(
+  "/verify-login-otp",
+  verifyLoginPhoneOTP
+);
+
+
+// ============================================================
+// RESEND LOGIN PHONE OTP
+// ============================================================
+//
+// Sends a new login security OTP to the user's
+// registered phone number.
+//
+// Frontend endpoint:
+//
+//     /api/auth/resend-login-otp
+//
+// ============================================================
+
+router.post(
+  "/resend-login-otp",
+  resendLoginPhoneOTP
 );
 
 
