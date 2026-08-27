@@ -6,31 +6,30 @@ exports.submitResult = async (req, res) => {
     const existing = await Result.findOne({
       pollingStationCode: req.body.pollingStationCode,
       electionYear: req.body.electionYear,
-      electionType: req.body.electionType
+      electionType: req.body.electionType,
     });
 
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: "Results already submitted for this polling station."
+        message: "Results already submitted for this polling station.",
       });
     }
 
     const result = await Result.create({
       ...req.body,
-      submittedBy: req.user._id
+      submittedBy: req.user._id,
     });
 
     res.status(201).json({
       success: true,
       message: "Election result submitted successfully.",
-      result
+      result,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -47,7 +46,7 @@ exports.dashboard = async (req, res) => {
     let totalVotes = 0;
     let pollingStationsReported = results.length;
 
-    results.forEach(result => {
+    results.forEach((result) => {
       totalVotes += result.totalVotes;
 
       for (const [party, votes] of result.votes.entries()) {
@@ -77,13 +76,12 @@ exports.dashboard = async (req, res) => {
       totalVotes,
       national,
       regions,
-      constituencies
+      constituencies,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -98,13 +96,12 @@ exports.getResults = async (req, res) => {
     res.json({
       success: true,
       count: results.length,
-      results
+      results,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
