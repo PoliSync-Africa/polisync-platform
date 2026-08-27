@@ -8,12 +8,7 @@ const ProfileView = require("../models/ProfileView");
 // ============================================================
 
 const getAuthenticatedUserId = (req) => {
-  return (
-    req.user?.id ||
-    req.user?._id ||
-    req.auth?.id ||
-    null
-  );
+  return req.user?.id || req.user?._id || req.auth?.id || null;
 };
 
 const isValidObjectId = (id) => {
@@ -33,18 +28,13 @@ const getViewerOrganizationMembership = async () => {
 };
 
 const getDeviceType = (req) => {
-  const userAgent =
-    req.headers["user-agent"] || "";
+  const userAgent = req.headers["user-agent"] || "";
 
   if (/tablet|ipad/i.test(userAgent)) {
     return "tablet";
   }
 
-  if (
-    /mobile|iphone|android.*mobile/i.test(
-      userAgent
-    )
-  ) {
+  if (/mobile|iphone|android.*mobile/i.test(userAgent)) {
     return "mobile";
   }
 
@@ -72,24 +62,18 @@ const getDeviceType = (req) => {
 
 exports.viewProfile = async (req, res) => {
   try {
-    const profileUserId =
-      req.params.userId;
+    const profileUserId = req.params.userId;
 
-    const viewerId =
-      getAuthenticatedUserId(req);
+    const viewerId = getAuthenticatedUserId(req);
 
     // ----------------------------------------------------------
     // VALIDATE PROFILE ID
     // ----------------------------------------------------------
 
-    if (
-      !profileUserId ||
-      !isValidObjectId(profileUserId)
-    ) {
+    if (!profileUserId || !isValidObjectId(profileUserId)) {
       return res.status(400).json({
         success: false,
-        message:
-          "Invalid profile user ID.",
+        message: "Invalid profile user ID.",
       });
     }
 
@@ -97,14 +81,12 @@ exports.viewProfile = async (req, res) => {
     // FIND PROFILE
     // ----------------------------------------------------------
 
-    const profileUser =
-      await User.findById(profileUserId);
+    const profileUser = await User.findById(profileUserId);
 
     if (!profileUser) {
       return res.status(404).json({
         success: false,
-        message:
-          "User profile not found.",
+        message: "User profile not found.",
       });
     }
 
@@ -114,12 +96,8 @@ exports.viewProfile = async (req, res) => {
 
     let viewer = null;
 
-    if (
-      viewerId &&
-      isValidObjectId(viewerId)
-    ) {
-      viewer =
-        await User.findById(viewerId);
+    if (viewerId && isValidObjectId(viewerId)) {
+      viewer = await User.findById(viewerId);
     }
 
     // ----------------------------------------------------------
@@ -127,51 +105,40 @@ exports.viewProfile = async (req, res) => {
     // ----------------------------------------------------------
 
     const isOwnProfile =
-      viewer &&
-      viewer._id.toString() ===
-        profileUser._id.toString();
+      viewer && viewer._id.toString() === profileUser._id.toString();
 
     // ----------------------------------------------------------
     // ORGANIZATION MEMBERSHIP
     // ----------------------------------------------------------
 
-    const viewerIsOrganizationMember =
-      viewer
-        ? await getViewerOrganizationMembership({
-            viewer,
-            profileUser,
-          })
-        : false;
+    const viewerIsOrganizationMember = viewer
+      ? await getViewerOrganizationMembership({
+          viewer,
+          profileUser,
+        })
+      : false;
 
     // ----------------------------------------------------------
     // PROFILE VISIBILITY
     // ----------------------------------------------------------
 
-    const profileVisibility =
-      profileUser.privacy
-        .profileVisibility;
+    const profileVisibility = profileUser.privacy.profileVisibility;
 
     if (!isOwnProfile) {
-      if (
-        profileVisibility ===
-        "nobody"
-      ) {
+      if (profileVisibility === "nobody") {
         return res.status(403).json({
           success: false,
-          message:
-            "This profile is private.",
+          message: "This profile is private.",
         });
       }
 
       if (
-        profileVisibility ===
-          "organizations_only" &&
+        profileVisibility === "organizations_only" &&
         !viewerIsOrganizationMember
       ) {
         return res.status(403).json({
           success: false,
-          message:
-            "This profile is only visible to organization members.",
+          message: "This profile is only visible to organization members.",
         });
       }
     }
@@ -187,14 +154,10 @@ exports.viewProfile = async (req, res) => {
     // separately without exposing identities.
     // ----------------------------------------------------------
 
-    if (
-      viewer &&
-      !isOwnProfile
-    ) {
-      const canAppear =
-        viewer.canAppearInProfileViews({
-          viewerIsOrganizationMember,
-        });
+    if (viewer && !isOwnProfile) {
+      const canAppear = viewer.canAppearInProfileViews({
+        viewerIsOrganizationMember,
+      });
 
       if (canAppear) {
         // ------------------------------------------------------
@@ -204,51 +167,35 @@ exports.viewProfile = async (req, res) => {
         // refreshes a profile within a short period.
         // ------------------------------------------------------
 
-        const duplicateWindow =
-          new Date(
-            Date.now() -
-              5 * 60 * 1000
-          );
+        const duplicateWindow = new Date(Date.now() - 5 * 60 * 1000);
 
-        const recentView =
-          await ProfileView.findOne({
-            profileOwner:
-              profileUser._id,
+        const recentView = await ProfileView.findOne({
+          profileOwner: profileUser._id,
 
-            viewer:
-              viewer._id,
+          viewer: viewer._id,
 
-            viewedAt: {
-              $gte:
-                duplicateWindow,
-            },
-          });
+          viewedAt: {
+            $gte: duplicateWindow,
+          },
+        });
 
         if (!recentView) {
           await ProfileView.create({
-            profileOwner:
-              profileUser._id,
+            profileOwner: profileUser._id,
 
-            viewer:
-              viewer._id,
+            viewer: viewer._id,
 
-            viewedAt:
-              new Date(),
+            viewedAt: new Date(),
 
-            viewerPlatformRole:
-              viewer.platformRole,
+            viewerPlatformRole: viewer.platformRole,
 
             viewerIsOrganizationMember,
 
-            viewerVisible:
-              true,
+            viewerVisible: true,
 
-            deviceType:
-              getDeviceType(req),
+            deviceType: getDeviceType(req),
 
-            source:
-              req.query.source ||
-              "direct",
+            source: req.query.source || "direct",
           });
         }
       }
@@ -258,27 +205,21 @@ exports.viewProfile = async (req, res) => {
     // RETURN SAFE PUBLIC PROFILE
     // ----------------------------------------------------------
 
-    const publicProfile =
-      profileUser.toPublicProfile({
-        viewerId,
-        viewerIsOrganizationMember,
-      });
+    const publicProfile = profileUser.toPublicProfile({
+      viewerId,
+      viewerIsOrganizationMember,
+    });
 
     return res.status(200).json({
       success: true,
       user: publicProfile,
     });
   } catch (error) {
-    console.error(
-      "View profile error:",
-      error
-    );
+    console.error("View profile error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        error.message ||
-        "Unable to load profile.",
+      message: error.message || "Unable to load profile.",
     });
   }
 };
@@ -294,33 +235,23 @@ exports.viewProfile = async (req, res) => {
 // The authenticated user can only see THEIR OWN history.
 // ============================================================
 
-exports.getProfileViewers = async (
-  req,
-  res
-) => {
+exports.getProfileViewers = async (req, res) => {
   try {
-    const userId =
-      getAuthenticatedUserId(req);
+    const userId = getAuthenticatedUserId(req);
 
-    if (
-      !userId ||
-      !isValidObjectId(userId)
-    ) {
+    if (!userId || !isValidObjectId(userId)) {
       return res.status(401).json({
         success: false,
-        message:
-          "Authentication required.",
+        message: "Authentication required.",
       });
     }
 
-    const owner =
-      await User.findById(userId);
+    const owner = await User.findById(userId);
 
     if (!owner) {
       return res.status(404).json({
         success: false,
-        message:
-          "Profile owner not found.",
+        message: "Profile owner not found.",
       });
     }
 
@@ -328,13 +259,10 @@ exports.getProfileViewers = async (
     // CHECK OWNER PRIVACY SETTING
     // ----------------------------------------------------------
 
-    if (
-      !owner.privacy.showProfileViewers
-    ) {
+    if (!owner.privacy.showProfileViewers) {
       return res.status(403).json({
         success: false,
-        message:
-          "Profile viewer history is disabled in your privacy settings.",
+        message: "Profile viewer history is disabled in your privacy settings.",
       });
     }
 
@@ -342,55 +270,40 @@ exports.getProfileViewers = async (
     // PAGINATION
     // ----------------------------------------------------------
 
-    const page = Math.max(
-      Number(req.query.page) || 1,
-      1
-    );
+    const page = Math.max(Number(req.query.page) || 1, 1);
 
-    const limit = Math.min(
-      Math.max(
-        Number(req.query.limit) || 20,
-        1
-      ),
-      100
-    );
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
 
-    const skip =
-      (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
     // ----------------------------------------------------------
     // FIND VIEWERS
     // ----------------------------------------------------------
 
-    const [views, total] =
-      await Promise.all([
-        ProfileView.find({
-          profileOwner:
-            owner._id,
+    const [views, total] = await Promise.all([
+      ProfileView.find({
+        profileOwner: owner._id,
 
-          viewerVisible:
-            true,
+        viewerVisible: true,
+      })
+        .sort({
+          viewedAt: -1,
         })
-          .sort({
-            viewedAt: -1,
-          })
-          .skip(skip)
-          .limit(limit)
-          .populate({
-            path: "viewer",
-            select:
-              "displayName username firstName lastName profilePhoto platformRole verification",
-          })
-          .lean(),
+        .skip(skip)
+        .limit(limit)
+        .populate({
+          path: "viewer",
+          select:
+            "displayName username firstName lastName profilePhoto platformRole verification",
+        })
+        .lean(),
 
-        ProfileView.countDocuments({
-          profileOwner:
-            owner._id,
+      ProfileView.countDocuments({
+        profileOwner: owner._id,
 
-          viewerVisible:
-            true,
-        }),
-      ]);
+        viewerVisible: true,
+      }),
+    ]);
 
     // ----------------------------------------------------------
     // FILTER VIEWERS
@@ -403,84 +316,56 @@ exports.getProfileViewers = async (
         continue;
       }
 
-      const viewer =
-        view.viewer;
+      const viewer = view.viewer;
 
-      const verification =
-        viewer.verification;
+      const verification = viewer.verification;
 
       const isVerified =
-        viewer.platformRole ===
-          "super_admin" ||
-        Boolean(
-          verification &&
-            verification.isVerified
-        );
+        viewer.platformRole === "super_admin" ||
+        Boolean(verification && verification.isVerified);
 
       let displayName;
 
       let username;
 
-      if (
-        viewer.platformRole ===
-        "super_admin"
-      ) {
-        displayName =
-          "POLISYNC AFRICA";
+      if (viewer.platformRole === "super_admin") {
+        displayName = "POLISYNC AFRICA";
 
-        username =
-          "polisync.africa";
+        username = "polisync.africa";
       } else {
         displayName =
           viewer.displayName ||
-          `${viewer.firstName || ""} ${
-            viewer.lastName || ""
-          }`.trim();
+          `${viewer.firstName || ""} ${viewer.lastName || ""}`.trim();
 
-        username =
-          viewer.username;
+        username = viewer.username;
       }
 
       results.push({
         id: view._id,
 
-        viewedAt:
-          view.viewedAt,
+        viewedAt: view.viewedAt,
 
         viewer: {
-          id:
-            viewer._id,
+          id: viewer._id,
 
           displayName,
 
           username,
 
-          profilePhoto:
-            viewer.profilePhoto ||
-            null,
+          profilePhoto: viewer.profilePhoto || null,
 
-          platformRole:
-            viewer.platformRole,
+          platformRole: viewer.platformRole,
 
-          isPlatformAccount:
-            viewer.platformRole ===
-            "super_admin",
+          isPlatformAccount: viewer.platformRole === "super_admin",
 
-          verified:
-            isVerified,
+          verified: isVerified,
 
-          verificationBadge:
-            isVerified
-              ? "/verified-badge.png"
-              : null,
+          verificationBadge: isVerified ? "/verified-badge.png" : null,
         },
 
-        source:
-          view.source,
+        source: view.source,
 
-        organizationId:
-          view.organizationId ||
-          null,
+        organizationId: view.organizationId || null,
       });
     }
 
@@ -493,23 +378,15 @@ exports.getProfileViewers = async (
         page,
         limit,
         total,
-        totalPages:
-          Math.ceil(
-            total / limit
-          ),
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
-    console.error(
-      "Get profile viewers error:",
-      error
-    );
+    console.error("Get profile viewers error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        error.message ||
-        "Unable to load profile viewers.",
+      message: error.message || "Unable to load profile viewers.",
     });
   }
 };
@@ -522,46 +399,34 @@ exports.getProfileViewers = async (
 // Allows a user to clear their own profile-view history.
 // ============================================================
 
-exports.clearProfileViewHistory =
-  async (req, res) => {
-    try {
-      const userId =
-        getAuthenticatedUserId(req);
+exports.clearProfileViewHistory = async (req, res) => {
+  try {
+    const userId = getAuthenticatedUserId(req);
 
-      if (
-        !userId ||
-        !isValidObjectId(userId)
-      ) {
-        return res.status(401).json({
-          success: false,
-          message:
-            "Authentication required.",
-        });
-      }
-
-      await ProfileView.deleteMany({
-        profileOwner: userId,
-      });
-
-      return res.status(200).json({
-        success: true,
-        message:
-          "Profile view history cleared.",
-      });
-    } catch (error) {
-      console.error(
-        "Clear profile view history error:",
-        error
-      );
-
-      return res.status(500).json({
+    if (!userId || !isValidObjectId(userId)) {
+      return res.status(401).json({
         success: false,
-        message:
-          error.message ||
-          "Unable to clear profile view history.",
+        message: "Authentication required.",
       });
     }
-  };
+
+    await ProfileView.deleteMany({
+      profileOwner: userId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile view history cleared.",
+    });
+  } catch (error) {
+    console.error("Clear profile view history error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Unable to clear profile view history.",
+    });
+  }
+};
 
 // ============================================================
 // UPDATE PROFILE VIEW PRIVACY
@@ -574,123 +439,75 @@ exports.clearProfileViewHistory =
 // profileViewPrivacy
 // ============================================================
 
-exports.updateProfileViewPrivacy =
-  async (req, res) => {
-    try {
-      const userId =
-        getAuthenticatedUserId(req);
+exports.updateProfileViewPrivacy = async (req, res) => {
+  try {
+    const userId = getAuthenticatedUserId(req);
 
-      if (
-        !userId ||
-        !isValidObjectId(userId)
-      ) {
-        return res.status(401).json({
-          success: false,
-          message:
-            "Authentication required.",
-        });
-      }
-
-      const {
-        showProfileViewers,
-        profileViewPrivacy,
-      } = req.body;
-
-      const allowedPrivacyValues = [
-        "everyone",
-        "organizations_only",
-        "nobody",
-      ];
-
-      if (
-        typeof showProfileViewers !==
-        "undefined"
-      ) {
-        if (
-          typeof showProfileViewers !==
-          "boolean"
-        ) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "showProfileViewers must be true or false.",
-          });
-        }
-      }
-
-      if (
-        typeof profileViewPrivacy !==
-        "undefined"
-      ) {
-        if (
-          !allowedPrivacyValues.includes(
-            profileViewPrivacy
-          )
-        ) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "Invalid profile-view privacy setting.",
-          });
-        }
-      }
-
-      const user =
-        await User.findById(userId);
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message:
-            "User not found.",
-        });
-      }
-
-      if (
-        typeof showProfileViewers !==
-        "undefined"
-      ) {
-        user.privacy.showProfileViewers =
-          showProfileViewers;
-      }
-
-      if (
-        typeof profileViewPrivacy !==
-        "undefined"
-      ) {
-        user.privacy.profileViewPrivacy =
-          profileViewPrivacy;
-      }
-
-      await user.save();
-
-      return res.status(200).json({
-        success: true,
-
-        message:
-          "Profile-view privacy settings updated.",
-
-        privacy: {
-          showProfileViewers:
-            user.privacy
-              .showProfileViewers,
-
-          profileViewPrivacy:
-            user.privacy
-              .profileViewPrivacy,
-        },
-      });
-    } catch (error) {
-      console.error(
-        "Update profile-view privacy error:",
-        error
-      );
-
-      return res.status(500).json({
+    if (!userId || !isValidObjectId(userId)) {
+      return res.status(401).json({
         success: false,
-        message:
-          error.message ||
-          "Unable to update profile-view privacy.",
+        message: "Authentication required.",
       });
     }
-  };
+
+    const { showProfileViewers, profileViewPrivacy } = req.body;
+
+    const allowedPrivacyValues = ["everyone", "organizations_only", "nobody"];
+
+    if (typeof showProfileViewers !== "undefined") {
+      if (typeof showProfileViewers !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          message: "showProfileViewers must be true or false.",
+        });
+      }
+    }
+
+    if (typeof profileViewPrivacy !== "undefined") {
+      if (!allowedPrivacyValues.includes(profileViewPrivacy)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid profile-view privacy setting.",
+        });
+      }
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (typeof showProfileViewers !== "undefined") {
+      user.privacy.showProfileViewers = showProfileViewers;
+    }
+
+    if (typeof profileViewPrivacy !== "undefined") {
+      user.privacy.profileViewPrivacy = profileViewPrivacy;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+
+      message: "Profile-view privacy settings updated.",
+
+      privacy: {
+        showProfileViewers: user.privacy.showProfileViewers,
+
+        profileViewPrivacy: user.privacy.profileViewPrivacy,
+      },
+    });
+  } catch (error) {
+    console.error("Update profile-view privacy error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Unable to update profile-view privacy.",
+    });
+  }
+};
