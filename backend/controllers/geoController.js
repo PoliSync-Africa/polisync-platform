@@ -1,4 +1,3 @@
-
 const geoService = require("../services/geography/geoService");
 const GeoUnit = require("../models/GeoUnit");
 
@@ -7,7 +6,7 @@ exports.getRegions = async (req, res) => {
 
   res.json({
     success: true,
-    data: regions
+    data: regions,
   });
 };
 
@@ -16,7 +15,7 @@ exports.getChildren = async (req, res) => {
 
   res.json({
     success: true,
-    data: children
+    data: children,
   });
 };
 
@@ -25,6 +24,6 @@ exports.createGeoUnit = async (req, res) => {
 
   res.status(201).json({
     success: true,
-    data: unit
+    data: unit,
   });
 };
