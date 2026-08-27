@@ -6,16 +6,25 @@ const User = require("../models/User");
 const VerificationToken = require("../models/VerificationToken");
 
 const {
-  sendEmailVerification,
   sendPasswordReset,
   sendPasswordChanged,
-  sendSecurityAlert,
 } = require("../services/notificationService");
+
+const {
+  sendEmailVerification,
+  sendSecurityAlert,
+} = require("../services/emailService");
 
 const {
   verifyOTP,
   sendPhoneVerificationOTP,
 } = require("../services/arkeselOtpService");
+
+const {
+  requirePhoneOtpIfExpired,
+  verifyLoginOtp,
+  resendLoginOtp,
+} = require("../middleware/phoneOtpSecurity");
 
 // ============================================================
 // POLISYNC AFRICA AUTHENTICATION CONTROLLER
@@ -47,7 +56,7 @@ const {
 //
 // After successful Arkesel verification:
 //
-//     user.phoneVerified = true
+// user.phoneVerified = true
 //
 // IMPORTANT
 // ------------------------------------------------------------
@@ -76,23 +85,18 @@ const PASSWORD_MIN_LENGTH = 8;
 
 const generateToken = (user) => {
   if (!process.env.JWT_SECRET) {
-    throw new Error(
-      "JWT_SECRET is not configured."
-    );
+    throw new Error("JWT_SECRET is not configured.");
   }
 
   return jwt.sign(
     {
       id: user._id,
 
-      platformRole:
-        user.platformRole,
+      platformRole: user.platformRole,
 
-      email:
-        user.email,
+      email: user.email,
 
-      username:
-        user.username,
+      username: user.username,
     },
 
     process.env.JWT_SECRET,
@@ -107,34 +111,19 @@ const generateToken = (user) => {
 // CREATE USERNAME
 // ============================================================
 
-const createUsername = async (
-  firstName,
-  lastName
-) => {
-  const safeFirstName =
-    String(firstName || "")
-      .toLowerCase()
-      .replace(
-        /[^a-z0-9]/g,
-        ""
-      );
+const createUsername = async (firstName, lastName) => {
+  const safeFirstName = String(firstName || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 
-  const safeLastName =
-    String(lastName || "")
-      .toLowerCase()
-      .replace(
-        /[^a-z0-9]/g,
-        ""
-      );
+  const safeLastName = String(lastName || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 
   const base =
     `${safeFirstName}.${safeLastName}`
-      .replace(
-        /[^a-z0-9._-]/g,
-        ""
-      )
-      .slice(0, 24) ||
-    "user";
+      .replace(/[^a-z0-9._-]/g, "")
+      .slice(0, 24) || "user";
 
   let username = base;
 
@@ -145,9 +134,7 @@ const createUsername = async (
       username,
     })
   ) {
-    username =
-      `${base}${counter}`
-        .slice(0, 30);
+    username = `${base}${counter}`.slice(0, 30);
 
     counter++;
   }
@@ -167,43 +154,24 @@ const createUsername = async (
 // Arkesel generates SMS OTPs.
 // ============================================================
 
-const generateVerificationCode =
-  () => {
-    return crypto
-      .randomInt(
-        100000,
-        1000000
-      )
-      .toString();
-  };
+const generateVerificationCode = () => {
+  return crypto.randomInt(100000, 1000000).toString();
+};
 
 // ============================================================
 // HASH VERIFICATION CODE
 // ============================================================
 
-const hashVerificationCode =
-  (code) => {
-    return crypto
-      .createHash("sha256")
-      .update(
-        String(code)
-      )
-      .digest("hex");
-  };
+const hashVerificationCode = (code) => {
+  return crypto.createHash("sha256").update(String(code)).digest("hex");
+};
 
 // ============================================================
 // GET EXPIRATION DATE
 // ============================================================
 
-const getExpirationDate = (
-  minutes
-) => {
-  return new Date(
-    Date.now() +
-      minutes *
-        60 *
-        1000
-  );
+const getExpirationDate = (minutes) => {
+  return new Date(Date.now() + minutes * 60 * 1000);
 };
 
 // ============================================================
@@ -217,102 +185,78 @@ const getExpirationDate = (
 // NOT used for Arkesel SMS OTP.
 // ============================================================
 
-const createVerificationToken =
-  async ({
+const createVerificationToken = async ({
+  userId,
+  purpose,
+  channel,
+  requestedIp = null,
+  userAgent = null,
+  expiryMinutes,
+}) => {
+  await VerificationToken.deleteMany({
     userId,
+
     purpose,
+
+    usedAt: null,
+  });
+
+  const code = generateVerificationCode();
+
+  const tokenHash = hashVerificationCode(code);
+
+  const token = await VerificationToken.create({
+    userId,
+
+    purpose,
+
+    tokenHash,
+
     channel,
-    requestedIp = null,
-    userAgent = null,
-    expiryMinutes,
-  }) => {
-    await VerificationToken.deleteMany(
-      {
-        userId,
 
-        purpose,
+    expiresAt: getExpirationDate(expiryMinutes),
 
-        usedAt: null,
-      }
-    );
+    attempts: 0,
 
-    const code =
-      generateVerificationCode();
+    maxAttempts: MAX_TOKEN_ATTEMPTS,
 
-    const tokenHash =
-      hashVerificationCode(
-        code
-      );
+    requestedIp,
 
-    const token =
-      await VerificationToken.create(
-        {
-          userId,
+    userAgent,
+  });
 
-          purpose,
+  return {
+    token,
 
-          tokenHash,
-
-          channel,
-
-          expiresAt:
-            getExpirationDate(
-              expiryMinutes
-            ),
-
-          attempts: 0,
-
-          maxAttempts:
-            MAX_TOKEN_ATTEMPTS,
-
-          requestedIp,
-
-          userAgent,
-        }
-      );
-
-    return {
-      token,
-
-      code,
-    };
+    code,
   };
+};
 
 // ============================================================
 // FIND ACTIVE POLISYNC TOKEN
 // ============================================================
 
-const findActiveToken =
-  async ({
+const findActiveToken = async ({ userId, purpose, channel }) => {
+  return VerificationToken.findOne({
     userId,
+
     purpose,
+
     channel,
-  }) => {
-    return VerificationToken.findOne(
-      {
-        userId,
 
-        purpose,
+    usedAt: null,
 
-        channel,
+    expiresAt: {
+      $gt: new Date(),
+    },
 
-        usedAt: null,
-
-        expiresAt: {
-          $gt: new Date(),
-        },
-
-        $expr: {
-          $lt: [
-            "$attempts",
-            "$maxAttempts",
-          ],
-        },
-      }
-    ).sort({
-      createdAt: -1,
-    });
-  };
+    $expr: {
+      $lt: ["$attempts", "$maxAttempts"],
+    },
+  }).sort({
+    createdAt: -1,
+  });
+};
 
 // ============================================================
 // VERIFY POLISYNC CODE
@@ -323,66 +267,50 @@ const findActiveToken =
 // - Password reset
 // ============================================================
 
-const verifyCode =
-  async ({
+const verifyCode = async ({ userId, purpose, channel, code }) => {
+  const token = await findActiveToken({
     userId,
+
     purpose,
+
     channel,
-    code,
-  }) => {
-    const token =
-      await findActiveToken({
-        userId,
+  });
 
-        purpose,
+  if (!token) {
+    return {
+      success: false,
 
-        channel,
-      });
+      reason: "expired_or_missing",
+    };
+  }
 
-    if (!token) {
-      return {
-        success: false,
+  token.attempts += 1;
 
-        reason:
-          "expired_or_missing",
-      };
-    }
+  const suppliedHash = hashVerificationCode(code);
 
-    token.attempts += 1;
-
-    const suppliedHash =
-      hashVerificationCode(
-        code
-      );
-
-    if (
-      suppliedHash !==
-      token.tokenHash
-    ) {
-      await token.save();
-
-      return {
-        success: false,
-
-        reason:
-          token.attempts >=
-          token.maxAttempts
-            ? "too_many_attempts"
-            : "invalid_code",
-      };
-    }
-
-    token.usedAt =
-      new Date();
-
+  if (suppliedHash !== token.tokenHash) {
     await token.save();
 
     return {
-      success: true,
+      success: false,
 
-      token,
+      reason:
+        token.attempts >= token.maxAttempts
+          ? "too_many_attempts"
+          : "invalid_code",
     };
+  }
+
+  token.usedAt = new Date();
+
+  await token.save();
+
+  return {
+    success: true,
+
+    token,
   };
+};
 
 // ============================================================
 // NORMALIZE GHANA PHONE
@@ -397,37 +325,18 @@ const verifyCode =
 // 233241234567
 // ============================================================
 
-const normalizeGhanaPhone = (
-  phone
-) => {
-  let normalized =
-    String(phone || "")
-      .trim();
+const normalizeGhanaPhone = (phone) => {
+  let normalized = String(phone || "").trim();
 
-  if (
-    /^0\d{9}$/.test(
-      normalized
-    )
-  ) {
-    normalized =
-      "233" +
-      normalized.slice(1);
+  if (/^0\d{9}$/.test(normalized)) {
+    normalized = "233" + normalized.slice(1);
   }
 
-  if (
-    /^\+233\d{9}$/.test(
-      normalized
-    )
-  ) {
-    normalized =
-      normalized.slice(1);
+  if (/^\+233\d{9}$/.test(normalized)) {
+    normalized = normalized.slice(1);
   }
 
-  if (
-    !/^233\d{9}$/.test(
-      normalized
-    )
-  ) {
+  if (!/^233\d{9}$/.test(normalized)) {
     return null;
   }
 
@@ -438,10 +347,7 @@ const normalizeGhanaPhone = (
 // REGISTER USER
 // ============================================================
 
-exports.register = async (
-  req,
-  res
-) => {
+exports.register = async (req, res) => {
   try {
     const {
       username,
@@ -483,23 +389,13 @@ exports.register = async (
     // IDENTIFICATION TYPE
     // --------------------------------------------------------
 
-    const allowedIdentificationTypes =
-      [
-        "passport",
-        "ghana_card",
-        "voter_id",
-      ];
+    const allowedIdentificationTypes = ["passport", "ghana_card", "voter_id"];
 
-    if (
-      !allowedIdentificationTypes.includes(
-        identificationType
-      )
-    ) {
+    if (!allowedIdentificationTypes.includes(identificationType)) {
       return res.status(400).json({
         success: false,
 
-        message:
-          "Invalid identification type.",
+        message: "Invalid identification type.",
       });
     }
 
@@ -507,14 +403,9 @@ exports.register = async (
     // PHONE
     // --------------------------------------------------------
 
-    const normalizedPhone =
-      String(phone).trim();
+    const normalizedPhone = String(phone).trim();
 
-    if (
-      !/^\+233\d{9}$/.test(
-        normalizedPhone
-      )
-    ) {
+    if (!/^\+233\d{9}$/.test(normalizedPhone)) {
       return res.status(400).json({
         success: false,
 
@@ -527,27 +418,21 @@ exports.register = async (
     // EMAIL
     // --------------------------------------------------------
 
-    const normalizedEmail =
-      String(email)
-        .trim()
-        .toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
 
     // --------------------------------------------------------
     // CHECK EMAIL
     // --------------------------------------------------------
 
-    const existingEmail =
-      await User.findOne({
-        email:
-          normalizedEmail,
-      });
+    const existingEmail = await User.findOne({
+      email: normalizedEmail,
+    });
 
     if (existingEmail) {
       return res.status(409).json({
         success: false,
 
-        message:
-          "An account with this email already exists.",
+        message: "An account with this email already exists.",
       });
     }
 
@@ -555,18 +440,15 @@ exports.register = async (
     // CHECK PHONE
     // --------------------------------------------------------
 
-    const existingPhone =
-      await User.findOne({
-        phone:
-          normalizedPhone,
-      });
+    const existingPhone = await User.findOne({
+      phone: normalizedPhone,
+    });
 
     if (existingPhone) {
       return res.status(409).json({
         success: false,
 
-        message:
-          "An account with this phone number already exists.",
+        message: "An account with this phone number already exists.",
       });
     }
 
@@ -574,23 +456,17 @@ exports.register = async (
     // CHECK IDENTIFICATION
     // --------------------------------------------------------
 
-    const normalizedIdentification =
-      String(
-        identificationNumber
-      ).trim();
+    const normalizedIdentification = String(identificationNumber).trim();
 
-    const existingIdentification =
-      await User.findOne({
-        identificationNumber:
-          normalizedIdentification,
-      });
+    const existingIdentification = await User.findOne({
+      identificationNumber: normalizedIdentification,
+    });
 
     if (existingIdentification) {
       return res.status(409).json({
         success: false,
 
-        message:
-          "An account with this identification number already exists.",
+        message: "An account with this identification number already exists.",
       });
     }
 
@@ -598,21 +474,11 @@ exports.register = async (
     // USERNAME
     // --------------------------------------------------------
 
-    let finalUsername =
-      username
-        ? String(username)
-            .toLowerCase()
-            .trim()
-        : await createUsername(
-            firstName,
-            lastName
-          );
+    let finalUsername = username
+      ? String(username).toLowerCase().trim()
+      : await createUsername(firstName, lastName);
 
-    if (
-      !/^[a-z0-9._-]+$/.test(
-        finalUsername
-      )
-    ) {
+    if (!/^[a-z0-9._-]+$/.test(finalUsername)) {
       return res.status(400).json({
         success: false,
 
@@ -621,30 +487,23 @@ exports.register = async (
       });
     }
 
-    if (
-      finalUsername.length < 3 ||
-      finalUsername.length > 30
-    ) {
+    if (finalUsername.length < 3 || finalUsername.length > 30) {
       return res.status(400).json({
         success: false,
 
-        message:
-          "Username must contain between 3 and 30 characters.",
+        message: "Username must contain between 3 and 30 characters.",
       });
     }
 
-    const existingUsername =
-      await User.findOne({
-        username:
-          finalUsername,
-      });
+    const existingUsername = await User.findOne({
+      username: finalUsername,
+    });
 
     if (existingUsername) {
       return res.status(409).json({
         success: false,
 
-        message:
-          "Username is already taken.",
+        message: "Username is already taken.",
       });
     }
 
@@ -652,185 +511,121 @@ exports.register = async (
     // PASSWORD
     // --------------------------------------------------------
 
-    if (
-      String(password).length <
-      PASSWORD_MIN_LENGTH
-    ) {
+    if (String(password).length < PASSWORD_MIN_LENGTH) {
       return res.status(400).json({
         success: false,
 
-        message:
-          "Password must contain at least 8 characters.",
+        message: "Password must contain at least 8 characters.",
       });
     }
 
-    const hashedPassword =
-      await bcrypt.hash(
-        password,
-        12
-      );
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // --------------------------------------------------------
     // CREATE USER
     // --------------------------------------------------------
 
-    const user =
-      await User.create({
-        platformRole:
-          "user",
+    const user = await User.create({
+      platformRole: "user",
 
-        username:
-          finalUsername,
+      username: finalUsername,
 
-        firstName:
-          String(firstName).trim(),
+      firstName: String(firstName).trim(),
 
-        middleName:
-          middleName
-            ? String(
-                middleName
-              ).trim()
-            : "",
+      middleName: middleName ? String(middleName).trim() : "",
 
-        lastName:
-          String(lastName).trim(),
+      lastName: String(lastName).trim(),
 
-        dateOfBirth,
+      dateOfBirth,
 
-        nationality:
-          nationality
-            ? String(
-                nationality
-              ).trim()
-            : "Ghanaian",
+      nationality: nationality ? String(nationality).trim() : "Ghanaian",
 
-        identificationType,
+      identificationType,
 
-        identificationNumber:
-          normalizedIdentification,
+      identificationNumber: normalizedIdentification,
 
-        email:
-          normalizedEmail,
+      email: normalizedEmail,
 
-        phone:
-          normalizedPhone,
+      phone: normalizedPhone,
 
-        password:
-          hashedPassword,
+      password: hashedPassword,
 
-        emailVerified:
-          false,
+      emailVerified: false,
 
-        phoneVerified:
-          false,
+      phoneVerified: false,
 
-        twoFactorEnabled:
-          false,
+      twoFactorEnabled: false,
 
-        twoFactorMethod:
-          null,
+      twoFactorMethod: null,
 
-        passcodeEnabled:
-          false,
+      passcodeEnabled: false,
 
-        biometricEnabled:
-          false,
+      biometricEnabled: false,
 
-        accountStatus:
-          "pending",
+      accountStatus: "pending",
 
-        approvedAt:
-          null,
+      approvedAt: null,
 
-        approvedBy:
-          null,
+      approvedBy: null,
 
-        suspendedAt:
-          null,
+      suspendedAt: null,
 
-        suspensionReason:
-          null,
+      suspensionReason: null,
 
-        verification: {
-          isVerified:
-            false,
+      verification: {
+        isVerified: false,
 
-          status:
-            "not_requested",
+        status: "not_requested",
 
-          verificationType:
-            "individual",
+        verificationType: "individual",
 
-          requestedAt:
-            null,
+        requestedAt: null,
 
-          requestReason:
-            null,
+        requestReason: null,
 
-          reviewedAt:
-            null,
+        reviewedAt: null,
 
-          reviewedBy:
-            null,
+        reviewedBy: null,
 
-          rejectionReason:
-            null,
+        rejectionReason: null,
 
-          revocationReason:
-            null,
+        revocationReason: null,
 
-          badgeAsset:
-            "/verified-badge.png",
-        },
-      });
+        badgeAsset: "/verified-badge.png",
+      },
+    });
 
     // ========================================================
     // EMAIL VERIFICATION
     // ========================================================
 
-    const emailVerification =
-      await createVerificationToken(
-        {
-          userId:
-            user._id,
+    const emailVerification = await createVerificationToken({
+      userId: user._id,
 
-          purpose:
-            "email_verification",
+      purpose: "email_verification",
 
-          channel:
-            "email",
+      channel: "email",
 
-          requestedIp:
-            req.ip,
+      requestedIp: req.ip,
 
-          userAgent:
-            req.get(
-              "user-agent"
-            ),
+      userAgent: req.get("user-agent"),
 
-          expiryMinutes:
-            VERIFICATION_CODE_EXPIRY_MINUTES,
-        }
-      );
+      expiryMinutes: VERIFICATION_CODE_EXPIRY_MINUTES,
+    });
 
     // ========================================================
     // SEND EMAIL VERIFICATION
     // ========================================================
 
-    let emailNotification =
-      null;
+    let emailNotification = null;
 
     try {
-      emailNotification =
-        await sendEmailVerification({
-          user,
+      emailNotification = await sendEmailVerification({
+        user,
 
-          code:
-            emailVerification.code,
-        });
-    } catch (
-      notificationError
-    ) {
+        code: emailVerification.code,
+      });
+    } catch (notificationError) {
       console.error(
         "Registration email notification failed:",
         notificationError
@@ -849,37 +644,28 @@ exports.register = async (
     //
     // The SMS service receives:
     //
-    //     phone
-    //     firstName
+    // phone
+    // firstName
     //
     // Therefore the SMS can be personalized:
     //
-    //     Hello Daniel, ...
+    // Hello Daniel, ...
     //
     // Only FIRST NAME is used.
     //
     // SMS failure does NOT cancel registration.
     // ========================================================
 
-    let phoneNotification =
-      null;
+    let phoneNotification = null;
 
     try {
-      phoneNotification =
-        await sendPhoneVerificationOTP({
-          phone:
-            user.phone,
+      phoneNotification = await sendPhoneVerificationOTP({
+        phone: user.phone,
 
-          firstName:
-            user.firstName,
-        });
-    } catch (
-      notificationError
-    ) {
-      console.error(
-        "Registration SMS notification failed:",
-        notificationError
-      );
+        firstName: user.firstName,
+      });
+    } catch (notificationError) {
+      console.error("Registration SMS notification failed:", notificationError);
     }
 
     // --------------------------------------------------------
@@ -893,67 +679,44 @@ exports.register = async (
         "Account created successfully. Verification codes have been sent to your email and phone. Your account is pending approval.",
 
       user: {
-        id:
-          user._id,
+        id: user._id,
 
-        username:
-          user.username,
+        username: user.username,
 
-        firstName:
-          user.firstName,
+        firstName: user.firstName,
 
-        middleName:
-          user.middleName,
+        middleName: user.middleName,
 
-        lastName:
-          user.lastName,
+        lastName: user.lastName,
 
-        email:
-          user.email,
+        email: user.email,
 
-        phone:
-          user.phone,
+        phone: user.phone,
 
-        platformRole:
-          user.platformRole,
+        platformRole: user.platformRole,
 
-        accountStatus:
-          user.accountStatus,
+        accountStatus: user.accountStatus,
 
-        emailVerified:
-          user.emailVerified,
+        emailVerified: user.emailVerified,
 
-        phoneVerified:
-          user.phoneVerified,
+        phoneVerified: user.phoneVerified,
 
-        verification:
-          user.getPublicVerification(),
+        verification: user.getPublicVerification(),
       },
 
       notifications: {
-        email:
-          Boolean(
-            emailNotification?.success
-          ),
+        email: Boolean(emailNotification?.success),
 
-        sms:
-          Boolean(
-            phoneNotification?.success
-          ),
+        sms: Boolean(phoneNotification?.success),
       },
     });
   } catch (error) {
-    console.error(
-      "Registration error:",
-      error
-    );
+    console.error("Registration error:", error);
 
     return res.status(500).json({
       success: false,
 
-      message:
-        error.message ||
-        "Registration failed.",
+      message: error.message || "Registration failed.",
     });
   }
 };
@@ -962,126 +725,91 @@ exports.register = async (
 // VERIFY EMAIL
 // ============================================================
 
-exports.verifyEmail = async (
-  req,
-  res
-) => {
+exports.verifyEmail = async (req, res) => {
   try {
-    const {
-      email,
-      code,
-    } = req.body;
+    const { email, code } = req.body;
 
     if (!email || !code) {
       return res.status(400).json({
         success: false,
 
-        message:
-          "Email and verification code are required.",
+        message: "Email and verification code are required.",
       });
     }
 
-    const normalizedEmail =
-      String(email)
-        .trim()
-        .toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
 
-    const user =
-      await User.findOne({
-        email:
-          normalizedEmail,
-      });
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
 
     if (!user) {
       return res.status(404).json({
         success: false,
 
-        message:
-          "Account not found.",
+        message: "Account not found.",
       });
     }
 
-    if (
-      user.emailVerified
-    ) {
+    if (user.emailVerified) {
       return res.status(200).json({
         success: true,
 
-        message:
-          "Email address is already verified.",
+        message: "Email address is already verified.",
       });
     }
 
-    const result =
-      await verifyCode({
-        userId:
-          user._id,
+    const result = await verifyCode({
+      userId: user._id,
 
-        purpose:
-          "email_verification",
+      purpose: "email_verification",
 
-        channel:
-          "email",
+      channel: "email",
 
-        code:
-          String(code).trim(),
-      });
+      code: String(code).trim(),
+    });
 
     if (!result.success) {
       return res.status(400).json({
         success: false,
 
         message:
-          result.reason ===
-          "too_many_attempts"
+          result.reason === "too_many_attempts"
             ? "Too many incorrect attempts. Please request a new verification code."
-            : result.reason ===
-              "expired_or_missing"
+            : result.reason === "expired_or_missing"
             ? "Verification code has expired or is no longer available."
             : "Invalid verification code.",
       });
     }
 
-    user.emailVerified =
-      true;
+    user.emailVerified = true;
 
     await user.save();
 
     return res.status(200).json({
       success: true,
 
-      message:
-        "Email address verified successfully.",
+      message: "Email address verified successfully.",
 
       user: {
-        id:
-          user._id,
+        id: user._id,
 
-        email:
-          user.email,
+        email: user.email,
 
-        emailVerified:
-          user.emailVerified,
+        emailVerified: user.emailVerified,
 
-        phoneVerified:
-          user.phoneVerified,
+        phoneVerified: user.phoneVerified,
 
-        accountStatus:
-          user.accountStatus,
+        accountStatus: user.accountStatus,
       },
     });
   } catch (error) {
-    console.error(
-      "Email verification error:",
-      error
-    );
+    console.error("Email verification error:", error);
 
     return res.status(500).json({
       success: false,
 
-      message:
-        error.message ||
-        "Email verification failed.",
+      message: error.message || "Email verification failed.",
     });
   }
 };
@@ -1096,36 +824,24 @@ exports.verifyEmail = async (
 //
 // Successful Arkesel verification:
 //
-//     user.phoneVerified = true
+// user.phoneVerified = true
 // ============================================================
 
-exports.verifyPhone = async (
-  req,
-  res
-) => {
+exports.verifyPhone = async (req, res) => {
   try {
-    const {
-      phone,
-      code,
-    } = req.body;
+    const { phone, code } = req.body;
 
     if (!phone || !code) {
       return res.status(400).json({
         success: false,
 
-        message:
-          "Phone number and verification code are required.",
+        message: "Phone number and verification code are required.",
       });
     }
 
-    const normalizedPhone =
-      String(phone).trim();
+    const normalizedPhone = String(phone).trim();
 
-    if (
-      !/^\+233\d{9}$/.test(
-        normalizedPhone
-      )
-    ) {
+    if (!/^\+233\d{9}$/.test(normalizedPhone)) {
       return res.status(400).json({
         success: false,
 
@@ -1134,47 +850,35 @@ exports.verifyPhone = async (
       });
     }
 
-    const user =
-      await User.findOne({
-        phone:
-          normalizedPhone,
-      });
+    const user = await User.findOne({
+      phone: normalizedPhone,
+    });
 
     if (!user) {
       return res.status(404).json({
         success: false,
 
-        message:
-          "Account not found.",
+        message: "Account not found.",
       });
     }
 
-    if (
-      user.phoneVerified
-    ) {
+    if (user.phoneVerified) {
       return res.status(200).json({
         success: true,
 
         verified: true,
 
-        message:
-          "Phone number is already verified.",
+        message: "Phone number is already verified.",
       });
     }
 
-    const normalizedCode =
-      String(code).trim();
+    const normalizedCode = String(code).trim();
 
-    if (
-      !/^\d{4,15}$/.test(
-        normalizedCode
-      )
-    ) {
+    if (!/^\d{4,15}$/.test(normalizedCode)) {
       return res.status(400).json({
         success: false,
 
-        message:
-          "Invalid OTP format.",
+        message: "Invalid OTP format.",
       });
     }
 
@@ -1185,21 +889,13 @@ exports.verifyPhone = async (
     let arkeselResult;
 
     try {
-      arkeselResult =
-        await verifyOTP({
-          phone:
-            normalizedPhone,
+      arkeselResult = await verifyOTP({
+        phone: normalizedPhone,
 
-          code:
-            normalizedCode,
-        });
-    } catch (
-      arkeselError
-    ) {
-      console.error(
-        "Arkesel phone OTP verification error:",
-        arkeselError
-      );
+        code: normalizedCode,
+      });
+    } catch (arkeselError) {
+      console.error("Arkesel phone OTP verification error:", arkeselError);
 
       return res.status(502).json({
         success: false,
@@ -1209,25 +905,18 @@ exports.verifyPhone = async (
       });
     }
 
-    if (
-      !arkeselResult?.success ||
-      !arkeselResult?.verified
-    ) {
+    if (!arkeselResult?.success || !arkeselResult?.verified) {
       return res.status(400).json({
         success: false,
 
         verified: false,
 
         message:
-          arkeselResult?.message ||
-          "Invalid or expired verification code.",
+          arkeselResult?.message || "Invalid or expired verification code.",
 
-        provider:
-          "arkesel",
+        provider: "arkesel",
 
-        providerCode:
-          arkeselResult?.providerCode ||
-          null,
+        providerCode: arkeselResult?.providerCode || null,
       });
     }
 
@@ -1235,8 +924,7 @@ exports.verifyPhone = async (
     // ARKESEL CONFIRMED OTP
     // --------------------------------------------------------
 
-    user.phoneVerified =
-      true;
+    user.phoneVerified = true;
 
     await user.save();
 
@@ -1245,35 +933,25 @@ exports.verifyPhone = async (
 
       verified: true,
 
-      message:
-        "Phone number verified successfully.",
+      message: "Phone number verified successfully.",
 
       user: {
-        id:
-          user._id,
+        id: user._id,
 
-        emailVerified:
-          user.emailVerified,
+        emailVerified: user.emailVerified,
 
-        phoneVerified:
-          user.phoneVerified,
+        phoneVerified: user.phoneVerified,
 
-        accountStatus:
-          user.accountStatus,
+        accountStatus: user.accountStatus,
       },
     });
   } catch (error) {
-    console.error(
-      "Phone verification error:",
-      error
-    );
+    console.error("Phone verification error:", error);
 
     return res.status(500).json({
       success: false,
 
-      message:
-        error.message ||
-        "Phone verification failed.",
+      message: error.message || "Phone verification failed.",
     });
   }
 };
@@ -1282,251 +960,180 @@ exports.verifyPhone = async (
 // RESEND EMAIL VERIFICATION
 // ============================================================
 
-exports.resendEmailVerification =
-  async (
-    req,
-    res
-  ) => {
-    try {
-      const {
-        email,
-      } = req.body;
+exports.resendEmailVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
 
-      if (!email) {
-        return res.status(400).json({
-          success: false,
+    if (!email) {
+      return res.status(400).json({
+        success: false,
 
-          message:
-            "Email is required.",
-        });
-      }
-
-      const normalizedEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
-
-      const user =
-        await User.findOne({
-          email:
-            normalizedEmail,
-        });
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-
-          message:
-            "Account not found.",
-        });
-      }
-
-      if (
-        user.emailVerified
-      ) {
-        return res.status(200).json({
-          success: true,
-
-          message:
-            "Email is already verified.",
-        });
-      }
-
-      const {
-        code,
-      } =
-        await createVerificationToken(
-          {
-            userId:
-              user._id,
-
-            purpose:
-              "email_verification",
-
-            channel:
-              "email",
-
-            requestedIp:
-              req.ip,
-
-            userAgent:
-              req.get(
-                "user-agent"
-              ),
-
-            expiryMinutes:
-              VERIFICATION_CODE_EXPIRY_MINUTES,
-          }
-        );
-
-      await sendEmailVerification({
-        user,
-
-        code,
+        message: "Email is required.",
       });
+    }
 
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+
+        message: "Account not found.",
+      });
+    }
+
+    if (user.emailVerified) {
       return res.status(200).json({
         success: true,
 
-        message:
-          "A new email verification code has been sent.",
-      });
-    } catch (error) {
-      console.error(
-        "Resend email verification error:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-
-        message:
-          error.message ||
-          "Unable to resend email verification code.",
+        message: "Email is already verified.",
       });
     }
-  };
+
+    const { code } = await createVerificationToken({
+      userId: user._id,
+
+      purpose: "email_verification",
+
+      channel: "email",
+
+      requestedIp: req.ip,
+
+      userAgent: req.get("user-agent"),
+
+      expiryMinutes: VERIFICATION_CODE_EXPIRY_MINUTES,
+    });
+
+    await sendEmailVerification({
+      user,
+
+      code,
+    });
+
+    return res.status(200).json({
+      success: true,
+
+      message: "A new email verification code has been sent.",
+    });
+  } catch (error) {
+    console.error("Resend email verification error:", error);
+
+    return res.status(500).json({
+      success: false,
+
+      message: error.message || "Unable to resend email verification code.",
+    });
+  }
+};
 
 // ============================================================
 // RESEND PHONE VERIFICATION THROUGH ARKESEL
 // ============================================================
 
-exports.resendPhoneVerification =
-  async (
-    req,
-    res
-  ) => {
-    try {
-      const {
-        phone,
-      } = req.body;
+exports.resendPhoneVerification = async (req, res) => {
+  try {
+    const { phone } = req.body;
 
-      if (!phone) {
-        return res.status(400).json({
-          success: false,
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
 
-          message:
-            "Phone number is required.",
-        });
-      }
-
-      const normalizedPhone =
-        String(phone).trim();
-
-      if (
-        !/^\+233\d{9}$/.test(
-          normalizedPhone
-        )
-      ) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "Phone number must be in Ghana format, for example +233XXXXXXXXX.",
-        });
-      }
-
-      const user =
-        await User.findOne({
-          phone:
-            normalizedPhone,
-        });
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-
-          message:
-            "Account not found.",
-        });
-      }
-
-      if (
-        user.phoneVerified
-      ) {
-        return res.status(200).json({
-          success: true,
-
-          message:
-            "Phone number is already verified.",
-        });
-      }
-
-      // --------------------------------------------------------
-      // ARKESEL GENERATES AND SENDS NEW OTP
-      // --------------------------------------------------------
-
-      let notification;
-
-      try {
-        notification =
-          await sendPhoneVerificationOTP({
-            phone:
-              user.phone,
-
-            firstName:
-              user.firstName,
-          });
-      } catch (
-        notificationError
-      ) {
-        console.error(
-          "Resend SMS notification failed:",
-          notificationError
-        );
-
-        return res.status(502).json({
-          success: false,
-
-          message:
-            "Unable to send a new phone verification code. Please try again.",
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-
-        message:
-          "A new phone verification code has been sent.",
-
-        notification:
-          Boolean(
-            notification?.success
-          ),
+        message: "Phone number is required.",
       });
-    } catch (error) {
-      console.error(
-        "Resend phone verification error:",
-        error
-      );
+    }
 
-      return res.status(500).json({
+    const normalizedPhone = String(phone).trim();
+
+    if (!/^\+233\d{9}$/.test(normalizedPhone)) {
+      return res.status(400).json({
         success: false,
 
         message:
-          error.message ||
-          "Unable to resend phone verification code.",
+          "Phone number must be in Ghana format, for example +233XXXXXXXXX.",
       });
     }
-  };
 
+    const user = await User.findOne({
+      phone: normalizedPhone,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+
+        message: "Account not found.",
+      });
+    }
+
+    if (user.phoneVerified) {
+      return res.status(200).json({
+        success: true,
+
+        message: "Phone number is already verified.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // ARKESEL GENERATES AND SENDS NEW OTP
+    // --------------------------------------------------------
+
+    let notification;
+
+    try {
+      notification = await sendPhoneVerificationOTP({
+        phone: user.phone,
+
+        firstName: user.firstName,
+      });
+    } catch (notificationError) {
+      console.error("Resend SMS notification failed:", notificationError);
+
+      return res.status(502).json({
+        success: false,
+
+        message:
+          "Unable to send a new phone verification code. Please try again.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+
+      message: "A new phone verification code has been sent.",
+
+      notification: Boolean(notification?.success),
+    });
+  } catch (error) {
+    console.error("Resend phone verification error:", error);
+
+    return res.status(500).json({
+      success: false,
+
+      message: error.message || "Unable to resend phone verification code.",
+    });
+  }
+};
 
 // ============================================================
 // LOGIN
 // ============================================================
 // Authentication:
-//   1. Email
-//   2. Password
+// 1. Email
+// 2. Password
 //
 // Platform roles:
-//   - super_admin
-//   - user
+// - super_admin
+// - user
 //
 // Organization roles:
-//   - national_party_admin
-//   - regional_admin
-//   - constituency_admin
-//   - polling_station_agent
+// - national_party_admin
+// - regional_admin
+// - constituency_admin
+// - polling_station_agent
 //
 // NO Country Admin.
 // ============================================================
@@ -1550,9 +1157,7 @@ exports.login = async (req, res) => {
     // NORMALIZE EMAIL
     // ----------------------------------------------------------
 
-    const normalizedEmail = String(email)
-      .trim()
-      .toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
 
     if (!normalizedEmail) {
       return res.status(400).json({
@@ -1573,14 +1178,11 @@ exports.login = async (req, res) => {
     // ----------------------------------------------------------
 
     if (!process.env.JWT_SECRET) {
-      console.error(
-        "POLISYNC AUTH ERROR: JWT_SECRET is not configured."
-      );
+      console.error("POLISYNC AUTH ERROR: JWT_SECRET is not configured.");
 
       return res.status(500).json({
         success: false,
-        message:
-          "Authentication service is not properly configured.",
+        message: "Authentication service is not properly configured.",
       });
     }
 
@@ -1648,8 +1250,7 @@ exports.login = async (req, res) => {
       if (user.accountStatus !== "approved") {
         return res.status(403).json({
           success: false,
-          message:
-            "The Super Admin account is not approved.",
+          message: "The Super Admin account is not approved.",
         });
       }
 
@@ -1658,8 +1259,7 @@ exports.login = async (req, res) => {
         return res.status(403).json({
           success: false,
           code: "EMAIL_NOT_VERIFIED",
-          message:
-            "Please verify your email before accessing PoliSync Africa.",
+          message: "Please verify your email before accessing PoliSync Africa.",
         });
       }
 
@@ -1723,8 +1323,7 @@ exports.login = async (req, res) => {
     if (user.platformRole !== "user") {
       return res.status(403).json({
         success: false,
-        message:
-          "This account has an invalid platform role.",
+        message: "This account has an invalid platform role.",
       });
     }
 
@@ -1735,8 +1334,7 @@ exports.login = async (req, res) => {
     if (user.accountStatus !== "approved") {
       return res.status(403).json({
         success: false,
-        message:
-          "Your account has not yet been approved.",
+        message: "Your account has not yet been approved.",
       });
     }
 
@@ -1748,8 +1346,55 @@ exports.login = async (req, res) => {
       return res.status(403).json({
         success: false,
         code: "EMAIL_NOT_VERIFIED",
-        message:
-          "Please verify your email before logging in.",
+        message: "Please verify your email before logging in.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // PHONE OTP SECURITY CHALLENGE
+    // ----------------------------------------------------------
+    //
+    // If the registered phone has not been re-verified within
+    // the last 24 hours, PoliSync requires a fresh SMS OTP
+    // before issuing the final JWT.
+    // ----------------------------------------------------------
+
+    let phoneOtpCheck;
+
+    try {
+      phoneOtpCheck = await requirePhoneOtpIfExpired(user);
+    } catch (otpError) {
+      console.error("PoliSync login OTP challenge error:", otpError);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to start phone verification at this time.",
+      });
+    }
+
+    if (phoneOtpCheck.required) {
+      if (phoneOtpCheck.success !== true) {
+        return res.status(403).json({
+          success: false,
+          code: phoneOtpCheck.code || "PHONE_OTP_REQUIRED",
+          message:
+            phoneOtpCheck.message ||
+            "Phone verification is required before logging in.",
+        });
+      }
+
+      const otpExpiresAt = new Date(
+        Date.now() + phoneOtpCheck.expiresIn * 1000
+      );
+
+      return res.status(202).json({
+        success: true,
+        code: "PHONE_OTP_REQUIRED",
+        message: phoneOtpCheck.message,
+        challengeToken: phoneOtpCheck.challengeId,
+        phone: user.phone,
+        expiresAt: otpExpiresAt.toISOString(),
+        expiresInMinutes: Math.round(phoneOtpCheck.expiresIn / 60),
       });
     }
 
@@ -1802,8 +1447,7 @@ exports.login = async (req, res) => {
         id: user._id,
 
         displayName:
-          user.displayName ||
-          `${user.firstName} ${user.lastName}`.trim(),
+          user.displayName || `${user.firstName} ${user.lastName}`.trim(),
 
         username: user.username,
 
@@ -1818,8 +1462,7 @@ exports.login = async (req, res) => {
         ),
 
         verificationBadge:
-          user.verification &&
-          user.verification.isVerified
+          user.verification && user.verification.isVerified
             ? "/verified-badge.png"
             : null,
 
@@ -1832,63 +1475,283 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(
-      "PoliSync login error:",
-      error
-    );
+    console.error("PoliSync login error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to complete login at this time.",
+      message: "Unable to complete login at this time.",
     });
   }
 };
+
+// ============================================================
+// VERIFY LOGIN PHONE OTP
+// ============================================================
+//
+// This completes the login phone-security challenge started
+// by login() and issues the final JWT.
+//
+// Body:
+// {
+// email,
+// code,
+// challengeToken
+// }
+// ============================================================
+
+exports.verifyLoginOTP = async (req, res) => {
+  try {
+    const { email, code, challengeToken } = req.body || {};
+
+    const normalizedEmail = String(email || "")
+      .trim()
+      .toLowerCase();
+
+    if (!normalizedEmail || !code || !challengeToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Email, verification code, and challenge token are required.",
+      });
+    }
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or verification challenge.",
+      });
+    }
+
+    if (!process.env.JWT_SECRET) {
+      console.error("POLISYNC AUTH ERROR: JWT_SECRET is not configured.");
+
+      return res.status(500).json({
+        success: false,
+        message: "Authentication service is not properly configured.",
+      });
+    }
+
+    const result = await verifyLoginOtp({
+      userId: user._id,
+      challengeId: challengeToken,
+      code,
+    });
+
+    if (!result.success) {
+      const statusByCode = {
+        INVALID_REQUEST: 400,
+        USER_NOT_FOUND: 401,
+        ACCOUNT_SUSPENDED: 403,
+        ACCOUNT_DEACTIVATED: 403,
+        ACCOUNT_REJECTED: 403,
+        INVALID_CHALLENGE: 401,
+        PHONE_OTP_EXPIRED: 401,
+        TOO_MANY_ATTEMPTS: 429,
+        OTP_SERVICE_ERROR: 502,
+        INVALID_PHONE_OTP: 401,
+      };
+
+      return res.status(statusByCode[result.code] || 400).json({
+        success: false,
+        code: result.code,
+        message: result.message,
+        remainingAttempts: result.remainingAttempts,
+      });
+    }
+
+    // --------------------------------------------------------
+    // UPDATE LOGIN INFORMATION
+    // --------------------------------------------------------
+
+    user.lastLoginAt = new Date();
+    user.isOnline = true;
+
+    await user.save();
+
+    // --------------------------------------------------------
+    // CREATE FINAL TOKEN
+    // --------------------------------------------------------
+
+    const isSuperAdmin = user.platformRole === "super_admin";
+
+    const token = jwt.sign(
+      {
+        userId: user._id.toString(),
+        platformRole: user.platformRole,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+
+      message: "Login successful.",
+
+      token,
+
+      user: {
+        id: user._id,
+
+        displayName: isSuperAdmin
+          ? "POLISYNC AFRICA"
+          : user.displayName || `${user.firstName} ${user.lastName}`.trim(),
+
+        username: isSuperAdmin ? "polisync.africa" : user.username,
+
+        platformRole: user.platformRole,
+
+        isPlatformAccount: isSuperAdmin,
+
+        verified: isSuperAdmin
+          ? true
+          : Boolean(
+              user.verification &&
+                user.verification.isVerified &&
+                user.verification.status === "approved"
+            ),
+
+        verificationBadge:
+          isSuperAdmin || (user.verification && user.verification.isVerified)
+            ? "/verified-badge.png"
+            : null,
+
+        accountStatus: user.accountStatus,
+      },
+
+      workspace: isSuperAdmin
+        ? {
+            type: "super_admin",
+            name: "PoliSync Africa Super Admin",
+          }
+        : {
+            type: "organization",
+            requiresMembership: true,
+          },
+    });
+  } catch (error) {
+    console.error("PoliSync login OTP verification error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to complete phone verification at this time.",
+    });
+  }
+};
+
+// ============================================================
+// RESEND LOGIN PHONE OTP
+// ============================================================
+//
+// Body:
+// {
+// email,
+// challengeToken
+// }
+// ============================================================
+
+exports.resendLoginOTP = async (req, res) => {
+  try {
+    const { email, challengeToken } = req.body || {};
+
+    const normalizedEmail = String(email || "")
+      .trim()
+      .toLowerCase();
+
+    if (!normalizedEmail || !challengeToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and challenge token are required.",
+      });
+    }
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or verification challenge.",
+      });
+    }
+
+    const result = await resendLoginOtp({
+      userId: user._id,
+      challengeId: challengeToken,
+    });
+
+    if (!result.success) {
+      const statusByCode = {
+        INVALID_REQUEST: 400,
+        USER_NOT_FOUND: 401,
+        INVALID_CHALLENGE: 401,
+        TOO_MANY_ATTEMPTS: 429,
+      };
+
+      return res.status(statusByCode[result.code] || 400).json({
+        success: false,
+        code: result.code,
+        message: result.message,
+      });
+    }
+
+    const otpExpiresAt = new Date(Date.now() + result.expiresIn * 1000);
+
+    return res.status(200).json({
+      success: true,
+      code: result.code,
+      message: result.message,
+      challengeToken: result.challengeId,
+      phone: user.phone,
+      expiresAt: otpExpiresAt.toISOString(),
+      expiresInMinutes: Math.round(result.expiresIn / 60),
+    });
+  } catch (error) {
+    console.error("PoliSync resend login OTP error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to resend the verification code at this time.",
+    });
+  }
+};
+
 // ============================================================
 // LOGOUT / PRESENCE
 // ============================================================
 
-exports.logout = async (
-  req,
-  res
-) => {
+exports.logout = async (req, res) => {
   try {
-    const userId =
-      req.user?.id;
+    const userId = req.user?.id;
 
     if (userId) {
-      await User.findByIdAndUpdate(
-        userId,
-        {
-          $set: {
-            isOnline:
-              false,
+      await User.findByIdAndUpdate(userId, {
+        $set: {
+          isOnline: false,
 
-            lastSeenAt:
-              new Date(),
-          },
-        }
-      );
+          lastSeenAt: new Date(),
+        },
+      });
     }
 
     return res.status(200).json({
       success: true,
 
-      message:
-        "Logout successful.",
+      message: "Logout successful.",
     });
   } catch (error) {
-    console.error(
-      "Logout error:",
-      error
-    );
+    console.error("Logout error:", error);
 
     return res.status(500).json({
       success: false,
 
-      message:
-        error.message ||
-        "Logout failed.",
+      message: error.message || "Logout failed.",
     });
   }
 };
@@ -1897,593 +1760,406 @@ exports.logout = async (
 // FORGOT PASSWORD
 // ============================================================
 
-exports.forgotPassword =
-  async (
-    req,
-    res
-  ) => {
-    try {
-      const {
-        email,
-      } = req.body;
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
 
-      if (!email) {
-        return res.status(400).json({
-          success: false,
+    if (!email) {
+      return res.status(400).json({
+        success: false,
 
-          message:
-            "Email is required.",
-        });
-      }
+        message: "Email is required.",
+      });
+    }
 
-      const normalizedEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
 
-      const user =
-        await User.findOne({
-          email:
-            normalizedEmail,
-        });
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
 
-      // ------------------------------------------------------
-      // SECURITY
-      // ------------------------------------------------------
+    // ------------------------------------------------------
+    // SECURITY
+    // ------------------------------------------------------
 
-      if (!user) {
-        return res.status(200).json({
-          success: true,
-
-          message:
-            "If an account exists for this email, a password reset code has been sent.",
-        });
-      }
-
-      // ------------------------------------------------------
-      // CREATE RESET TOKEN
-      // ------------------------------------------------------
-
-      const {
-        code,
-      } =
-        await createVerificationToken(
-          {
-            userId:
-              user._id,
-
-            purpose:
-              "password_reset",
-
-            channel:
-              "email",
-
-            requestedIp:
-              req.ip,
-
-            userAgent:
-              req.get(
-                "user-agent"
-              ),
-
-            expiryMinutes:
-              PASSWORD_RESET_EXPIRY_MINUTES,
-          }
-        );
-
-      // ------------------------------------------------------
-      // SEND RESET NOTIFICATION
-      // ------------------------------------------------------
-
-      try {
-        await sendPasswordReset({
-          user,
-
-          code,
-        });
-      } catch (
-        notificationError
-      ) {
-        console.error(
-          "Password reset notification failed:",
-          notificationError
-        );
-      }
-
+    if (!user) {
       return res.status(200).json({
         success: true,
 
         message:
           "If an account exists for this email, a password reset code has been sent.",
       });
-    } catch (error) {
-      console.error(
-        "Forgot password error:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-
-        message:
-          error.message ||
-          "Password reset request failed.",
-      });
     }
-  };
+
+    // ------------------------------------------------------
+    // CREATE RESET TOKEN
+    // ------------------------------------------------------
+
+    const { code } = await createVerificationToken({
+      userId: user._id,
+
+      purpose: "password_reset",
+
+      channel: "email",
+
+      requestedIp: req.ip,
+
+      userAgent: req.get("user-agent"),
+
+      expiryMinutes: PASSWORD_RESET_EXPIRY_MINUTES,
+    });
+
+    // ------------------------------------------------------
+    // SEND RESET NOTIFICATION
+    // ------------------------------------------------------
+
+    try {
+      await sendPasswordReset({
+        user,
+
+        code,
+      });
+    } catch (notificationError) {
+      console.error("Password reset notification failed:", notificationError);
+    }
+
+    return res.status(200).json({
+      success: true,
+
+      message:
+        "If an account exists for this email, a password reset code has been sent.",
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+
+    return res.status(500).json({
+      success: false,
+
+      message: error.message || "Password reset request failed.",
+    });
+  }
+};
 
 // ============================================================
 // VERIFY PASSWORD RESET CODE
 // ============================================================
 
-exports.verifyPasswordReset =
-  async (
-    req,
-    res
-  ) => {
-    try {
-      const {
-        email,
-        code,
-      } = req.body;
+exports.verifyPasswordReset = async (req, res) => {
+  try {
+    const { email, code } = req.body;
 
-      if (!email || !code) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "Email and password reset code are required.",
-        });
-      }
-
-      const normalizedEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
-
-      const user =
-        await User.findOne({
-          email:
-            normalizedEmail,
-        });
-
-      if (!user) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "Invalid or expired password reset code.",
-        });
-      }
-
-      const result =
-        await verifyCode({
-          userId:
-            user._id,
-
-          purpose:
-            "password_reset",
-
-          channel:
-            "email",
-
-          code:
-            String(code).trim(),
-        });
-
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "Invalid or expired password reset code.",
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-
-        message:
-          "Password reset code verified. You may now create a new password.",
-
-        resetToken:
-          result.token._id,
-      });
-    } catch (error) {
-      console.error(
-        "Verify password reset error:",
-        error
-      );
-
-      return res.status(500).json({
+    if (!email || !code) {
+      return res.status(400).json({
         success: false,
 
-        message:
-          error.message ||
-          "Password reset verification failed.",
+        message: "Email and password reset code are required.",
       });
     }
-  };
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+
+        message: "Invalid or expired password reset code.",
+      });
+    }
+
+    const result = await verifyCode({
+      userId: user._id,
+
+      purpose: "password_reset",
+
+      channel: "email",
+
+      code: String(code).trim(),
+    });
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+
+        message: "Invalid or expired password reset code.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+
+      message:
+        "Password reset code verified. You may now create a new password.",
+
+      resetToken: result.token._id,
+    });
+  } catch (error) {
+    console.error("Verify password reset error:", error);
+
+    return res.status(500).json({
+      success: false,
+
+      message: error.message || "Password reset verification failed.",
+    });
+  }
+};
 
 // ============================================================
 // RESET PASSWORD
 // ============================================================
 
-exports.resetPassword =
-  async (
-    req,
-    res
-  ) => {
-    try {
-      const {
-        email,
-        code,
-        newPassword,
-      } = req.body;
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
 
-      if (
-        !email ||
-        !code ||
-        !newPassword
-      ) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "Email, reset code and new password are required.",
-        });
-      }
-
-      if (
-        String(newPassword).length <
-        PASSWORD_MIN_LENGTH
-      ) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "New password must contain at least 8 characters.",
-        });
-      }
-
-      const normalizedEmail =
-        String(email)
-          .trim()
-          .toLowerCase();
-
-      const user =
-        await User.findOne({
-          email:
-            normalizedEmail,
-        }).select(
-          "+password"
-        );
-
-      if (!user) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "Invalid or expired password reset code.",
-        });
-      }
-
-      const result =
-        await verifyCode({
-          userId:
-            user._id,
-
-          purpose:
-            "password_reset",
-
-          channel:
-            "email",
-
-          code:
-            String(code).trim(),
-        });
-
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "Invalid or expired password reset code.",
-        });
-      }
-
-      user.password =
-        await bcrypt.hash(
-          newPassword,
-          12
-        );
-
-      user.lastSeenAt =
-        new Date();
-
-      await user.save();
-
-      try {
-        await sendPasswordChanged({
-          user,
-        });
-      } catch (
-        notificationError
-      ) {
-        console.error(
-          "Password changed notification failed:",
-          notificationError
-        );
-      }
-
-      return res.status(200).json({
-        success: true,
-
-        message:
-          "Password reset successfully. You can now log in with your new password.",
-      });
-    } catch (error) {
-      console.error(
-        "Reset password error:",
-        error
-      );
-
-      return res.status(500).json({
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({
         success: false,
 
-        message:
-          error.message ||
-          "Password reset failed.",
+        message: "Email, reset code and new password are required.",
       });
     }
-  };
+
+    if (String(newPassword).length < PASSWORD_MIN_LENGTH) {
+      return res.status(400).json({
+        success: false,
+
+        message: "New password must contain at least 8 characters.",
+      });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    }).select("+password");
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+
+        message: "Invalid or expired password reset code.",
+      });
+    }
+
+    const result = await verifyCode({
+      userId: user._id,
+
+      purpose: "password_reset",
+
+      channel: "email",
+
+      code: String(code).trim(),
+    });
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+
+        message: "Invalid or expired password reset code.",
+      });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 12);
+
+    user.lastSeenAt = new Date();
+
+    await user.save();
+
+    try {
+      await sendPasswordChanged({
+        user,
+      });
+    } catch (notificationError) {
+      console.error("Password changed notification failed:", notificationError);
+    }
+
+    return res.status(200).json({
+      success: true,
+
+      message:
+        "Password reset successfully. You can now log in with your new password.",
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+
+    return res.status(500).json({
+      success: false,
+
+      message: error.message || "Password reset failed.",
+    });
+  }
+};
 
 // ============================================================
 // CHANGE PASSWORD
 // ============================================================
 
-exports.changePassword =
-  async (
-    req,
-    res
-  ) => {
-    try {
-      const {
-        currentPassword,
-        newPassword,
-      } = req.body;
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
 
-      if (
-        !currentPassword ||
-        !newPassword
-      ) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "Current password and new password are required.",
-        });
-      }
-
-      if (
-        String(newPassword).length <
-        PASSWORD_MIN_LENGTH
-      ) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "New password must contain at least 8 characters.",
-        });
-      }
-
-      const userId =
-        req.user?.id;
-
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-
-          message:
-            "Authentication is required.",
-        });
-      }
-
-      const user =
-        await User.findById(
-          userId
-        ).select(
-          "+password"
-        );
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-
-          message:
-            "Account not found.",
-        });
-      }
-
-      const validPassword =
-        await bcrypt.compare(
-          currentPassword,
-          user.password
-        );
-
-      if (!validPassword) {
-        return res.status(401).json({
-          success: false,
-
-          message:
-            "Current password is incorrect.",
-        });
-      }
-
-      if (
-        currentPassword ===
-        newPassword
-      ) {
-        return res.status(400).json({
-          success: false,
-
-          message:
-            "New password must be different from your current password.",
-        });
-      }
-
-      user.password =
-        await bcrypt.hash(
-          newPassword,
-          12
-        );
-
-      await user.save();
-
-      try {
-        await sendPasswordChanged({
-          user,
-        });
-      } catch (
-        notificationError
-      ) {
-        console.error(
-          "Password changed notification failed:",
-          notificationError
-        );
-      }
-
-      return res.status(200).json({
-        success: true,
-
-        message:
-          "Password changed successfully.",
-      });
-    } catch (error) {
-      console.error(
-        "Change password error:",
-        error
-      );
-
-      return res.status(500).json({
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
         success: false,
 
-        message:
-          error.message ||
-          "Password change failed.",
+        message: "Current password and new password are required.",
       });
     }
-  };
 
-// ============================================================
-// GET AUTHENTICATED USER
-// ============================================================
+    if (String(newPassword).length < PASSWORD_MIN_LENGTH) {
+      return res.status(400).json({
+        success: false,
 
-exports.me = async (
-  req,
-  res
-) => {
-  try {
-    const userId =
-      req.user?.id;
+        message: "New password must contain at least 8 characters.",
+      });
+    }
+
+    const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
 
-        message:
-          "Authentication is required.",
+        message: "Authentication is required.",
       });
     }
 
-    const user =
-      await User.findById(
-        userId
-      );
+    const user = await User.findById(userId).select("+password");
 
     if (!user) {
       return res.status(404).json({
         success: false,
 
-        message:
-          "Account not found.",
+        message: "Account not found.",
       });
     }
 
-    const identity =
-      user.getPublicIdentity();
+    const validPassword = await bcrypt.compare(currentPassword, user.password);
+
+    if (!validPassword) {
+      return res.status(401).json({
+        success: false,
+
+        message: "Current password is incorrect.",
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+
+        message: "New password must be different from your current password.",
+      });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 12);
+
+    await user.save();
+
+    try {
+      await sendPasswordChanged({
+        user,
+      });
+    } catch (notificationError) {
+      console.error("Password changed notification failed:", notificationError);
+    }
+
+    return res.status(200).json({
+      success: true,
+
+      message: "Password changed successfully.",
+    });
+  } catch (error) {
+    console.error("Change password error:", error);
+
+    return res.status(500).json({
+      success: false,
+
+      message: error.message || "Password change failed.",
+    });
+  }
+};
+
+// ============================================================
+// GET AUTHENTICATED USER
+// ============================================================
+
+exports.me = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+
+        message: "Authentication is required.",
+      });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+
+        message: "Account not found.",
+      });
+    }
+
+    const identity = user.getPublicIdentity();
 
     return res.status(200).json({
       success: true,
 
       user: {
-        id:
-          user._id,
+        id: user._id,
 
-        displayName:
-          identity.displayName,
+        displayName: identity.displayName,
 
-        username:
-          identity.username,
+        username: identity.username,
 
-        firstName:
-          user.firstName,
+        firstName: user.firstName,
 
-        middleName:
-          user.middleName,
+        middleName: user.middleName,
 
-        lastName:
-          user.lastName,
+        lastName: user.lastName,
 
-        email:
-          user.email,
+        email: user.email,
 
-        phone:
-          user.phone,
+        phone: user.phone,
 
-        profilePhoto:
-          user.profilePhoto,
+        profilePhoto: user.profilePhoto,
 
-        platformRole:
-          user.platformRole,
+        platformRole: user.platformRole,
 
-        accountStatus:
-          user.accountStatus,
+        accountStatus: user.accountStatus,
 
-        emailVerified:
-          user.emailVerified,
+        emailVerified: user.emailVerified,
 
-        phoneVerified:
-          user.phoneVerified,
+        phoneVerified: user.phoneVerified,
 
-        twoFactorEnabled:
-          user.twoFactorEnabled,
+        twoFactorEnabled: user.twoFactorEnabled,
 
-        verification:
-          user.getPublicVerification(),
+        verification: user.getPublicVerification(),
 
-        presence:
-          user.getPublicPresence(),
+        presence: user.getPublicPresence(),
 
-        privacy:
-          user.privacy,
+        privacy: user.privacy,
 
-        displaySettings:
-          user.displaySettings,
+        displaySettings: user.displaySettings,
       },
     });
   } catch (error) {
-    console.error(
-      "Get authenticated user error:",
-      error
-    );
+    console.error("Get authenticated user error:", error);
 
     return res.status(500).json({
       success: false,
 
-      message:
-        error.message ||
-        "Unable to retrieve account.",
+      message: error.message || "Unable to retrieve account.",
     });
   }
 };
