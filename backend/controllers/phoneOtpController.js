@@ -1,119 +1,529 @@
+const jwt = require("jsonwebtoken");
+
+const User = require("../models/User");
+
 const {
-  verifyLoginOtp,
-  resendLoginOtp,
-} = require("../middleware/phoneOtpSecurity");
+  verifyOTP,
+  sendPhoneVerificationOTP,
+} = require("../services/arkeselOtpService");
 
 // ============================================================
-// POLISYNC AFRICA — PHONE OTP CONTROLLER
+// POLISYNC AFRICA — LOGIN PHONE OTP CONTROLLER
 // ============================================================
 //
-// Handles the HTTP layer for login phone OTP security.
+// This controller handles the mandatory phone OTP security
+// required during login.
 //
-// The actual OTP security logic lives in:
-// middleware/phoneOtpSecurity.js
+// SECURITY RULE:
 //
-// This controller:
-// - receives the user's OTP
-// - verifies the login challenge
-// - handles OTP resend
+// 1. User logs in with email + password.
+// 2. If phone OTP security is required, login does NOT issue
+//    the final JWT.
+// 3. An OTP is sent to the user's registered phone number.
+// 4. User submits the OTP.
+// 5. Arkesel verifies the OTP.
+// 6. Only after successful verification is the JWT issued.
+// 7. Successful login-phone verification remains valid for
+//    24 hours.
+// 8. After 24 hours, another login requires another OTP.
 //
-// It does NOT create JWTs itself.
-// The authentication flow remains responsible for issuing the
-// final authentication token after successful verification.
+// IMPORTANT:
+//
+// Arkesel remains authoritative for the SMS OTP.
+// PoliSync does not store the SMS OTP itself.
+//
 // ============================================================
+
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+
+const LOGIN_OTP_VALIDITY_HOURS = 24;
+
+
+// ============================================================
+// NORMALIZE GHANA PHONE
+// ============================================================
+
+const normalizeGhanaPhone = (phone) => {
+  let normalized = String(phone || "").trim();
+
+  if (/^0\d{9}$/.test(normalized)) {
+    normalized = "233" + normalized.slice(1);
+  }
+
+  if (/^\+233\d{9}$/.test(normalized)) {
+    normalized = normalized.slice(1);
+  }
+
+  if (!/^233\d{9}$/.test(normalized)) {
+    return null;
+  }
+
+  return "+" + normalized;
+};
+
+
+// ============================================================
+// CHECK WHETHER LOGIN OTP IS STILL VALID
+// ============================================================
+//
+// The 24-hour period is calculated from the user's
+// last successful login-phone OTP verification.
+//
+// ============================================================
+
+const isLoginOtpStillValid = (user) => {
+  if (!user.loginOtpVerifiedAt) {
+    return false;
+  }
+
+  const verifiedAt =
+    new Date(user.loginOtpVerifiedAt).getTime();
+
+  if (Number.isNaN(verifiedAt)) {
+    return false;
+  }
+
+  const validityMilliseconds =
+    LOGIN_OTP_VALIDITY_HOURS *
+    60 *
+    60 *
+    1000;
+
+  return (
+    Date.now() - verifiedAt <
+    validityMilliseconds
+  );
+};
+
+
+// ============================================================
+// CREATE LOGIN JWT
+// ============================================================
+
+const createLoginToken = (user) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error(
+      "JWT_SECRET is not configured."
+    );
+  }
+
+  return jwt.sign(
+    {
+      userId: user._id.toString(),
+      platformRole:
+        user.platformRole,
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "7d",
+    }
+  );
+};
+
+
+// ============================================================
+// BUILD LOGIN RESPONSE
+// ============================================================
+
+const buildLoginResponse = (
+  user,
+  token
+) => {
+  // ----------------------------------------------------------
+  // SUPER ADMIN
+  // ----------------------------------------------------------
+
+  if (
+    user.platformRole ===
+    "super_admin"
+  ) {
+    return {
+      success: true,
+
+      message:
+        "Welcome to PoliSync Africa.",
+
+      token,
+
+      user: {
+        id: user._id,
+
+        displayName:
+          "POLISYNC AFRICA",
+
+        username:
+          "polisync.africa",
+
+        platformRole:
+          "super_admin",
+
+        isPlatformAccount:
+          true,
+
+        verified: true,
+
+        verificationBadge:
+          "/verified-badge.png",
+
+        accountStatus:
+          "approved",
+      },
+
+      workspace: {
+        type: "super_admin",
+
+        name:
+          "PoliSync Africa Super Admin",
+      },
+    };
+  }
+
+
+  // ----------------------------------------------------------
+  // ORDINARY USER
+  // ----------------------------------------------------------
+
+  return {
+    success: true,
+
+    message:
+      "Login successful.",
+
+    token,
+
+    user: {
+      id: user._id,
+
+      displayName:
+        user.displayName ||
+        `${user.firstName} ${user.lastName}`.trim(),
+
+      username:
+        user.username,
+
+      platformRole:
+        "user",
+
+      isPlatformAccount:
+        false,
+
+      verified: Boolean(
+        user.verification &&
+        user.verification.isVerified &&
+        user.verification.status ===
+          "approved"
+      ),
+
+      verificationBadge:
+        user.verification &&
+        user.verification.isVerified
+          ? "/verified-badge.png"
+          : null,
+
+      accountStatus:
+        user.accountStatus,
+    },
+
+    workspace: {
+      type: "organization",
+
+      requiresMembership:
+        true,
+    },
+  };
+};
 
 
 // ============================================================
 // VERIFY LOGIN PHONE OTP
 // ============================================================
+//
+// POST
+// /api/phone-otp/verify-login-otp
+//
+// Body:
+//
+// {
+//   "phone": "+233XXXXXXXXX",
+//   "code": "123456"
+// }
+//
+// ============================================================
 
-const verifyLoginPhoneOTP =
+exports.verifyLoginPhoneOTP =
   async (req, res) => {
     try {
       const {
-        userId,
-        challengeId,
+        phone,
         code,
       } = req.body || {};
 
+
       // --------------------------------------------------------
-      // BASIC VALIDATION
+      // REQUIRED FIELDS
       // --------------------------------------------------------
 
+      if (!phone || !code) {
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "Phone number and OTP code are required.",
+        });
+      }
+
+
+      // --------------------------------------------------------
+      // NORMALIZE PHONE
+      // --------------------------------------------------------
+
+      const normalizedPhone =
+        normalizeGhanaPhone(
+          phone
+        );
+
+      if (!normalizedPhone) {
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "Phone number must be a valid Ghana phone number.",
+        });
+      }
+
+
+      // --------------------------------------------------------
+      // NORMALIZE OTP
+      // --------------------------------------------------------
+
+      const normalizedCode =
+        String(code).trim();
+
       if (
-        !userId ||
-        !challengeId ||
-        !code
+        !/^\d{4,15}$/.test(
+          normalizedCode
+        )
       ) {
         return res.status(400).json({
           success: false,
 
-          code:
-            "INVALID_REQUEST",
+          message:
+            "Invalid OTP format.",
+        });
+      }
+
+
+      // --------------------------------------------------------
+      // FIND USER
+      // --------------------------------------------------------
+
+      const user =
+        await User.findOne({
+          phone:
+            normalizedPhone,
+        });
+
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
 
           message:
-            "User ID, verification challenge and OTP are required.",
+            "Account not found.",
         });
       }
 
+
       // --------------------------------------------------------
-      // VERIFY OTP
+      // ACCOUNT SECURITY CHECKS
       // --------------------------------------------------------
 
-      const result =
-        await verifyLoginOtp({
-          userId,
+      if (
+        user.accountStatus ===
+        "suspended"
+      ) {
+        return res.status(403).json({
+          success: false,
 
-          challengeId,
-
-          code,
+          message:
+            "This account has been suspended.",
         });
-
-      // --------------------------------------------------------
-      // FAILED VERIFICATION
-      // --------------------------------------------------------
-
-      if (!result.success) {
-        const statusCode =
-          result.code ===
-          "USER_NOT_FOUND"
-            ? 404
-            : result.code ===
-                "TOO_MANY_ATTEMPTS"
-              ? 429
-              : result.code ===
-                  "OTP_SERVICE_ERROR"
-                ? 503
-                : 400;
-
-        return res.status(
-          statusCode
-        ).json(result);
       }
 
+
+      if (
+        user.accountStatus ===
+        "deactivated"
+      ) {
+        return res.status(403).json({
+          success: false,
+
+          message:
+            "This account has been deactivated.",
+        });
+      }
+
+
+      if (
+        user.accountStatus ===
+        "rejected"
+      ) {
+        return res.status(403).json({
+          success: false,
+
+          message:
+            "This account has been rejected.",
+        });
+      }
+
+
+      if (
+        user.accountStatus !==
+        "approved"
+      ) {
+        return res.status(403).json({
+          success: false,
+
+          message:
+            "Your account has not yet been approved.",
+        });
+      }
+
+
       // --------------------------------------------------------
-      // SUCCESS
+      // EMAIL MUST ALREADY BE VERIFIED
       // --------------------------------------------------------
 
-      return res.status(200).json({
-        success: true,
+      if (!user.emailVerified) {
+        return res.status(403).json({
+          success: false,
 
-        code:
-          "PHONE_OTP_VERIFIED",
+          code:
+            "EMAIL_NOT_VERIFIED",
 
-        message:
-          "Phone verification successful.",
+          message:
+            "Please verify your email before logging in.",
+        });
+      }
 
-        userId:
-          result.userId,
 
-        lastPhoneVerificationAt:
-          result.lastPhoneVerificationAt,
-      });
+      // --------------------------------------------------------
+      // VERIFY OTP THROUGH ARKESEL
+      // --------------------------------------------------------
+
+      let arkeselResult;
+
+      try {
+        arkeselResult =
+          await verifyOTP({
+            phone:
+              normalizedPhone,
+
+            code:
+              normalizedCode,
+          });
+      } catch (
+        arkeselError
+      ) {
+        console.error(
+          "Login OTP Arkesel verification error:",
+          arkeselError
+        );
+
+        return res.status(502).json({
+          success: false,
+
+          message:
+            "Unable to verify the OTP right now. Please try again.",
+        });
+      }
+
+
+      // --------------------------------------------------------
+      // INVALID OTP
+      // --------------------------------------------------------
+
+      if (
+        !arkeselResult?.success ||
+        !arkeselResult?.verified
+      ) {
+        return res.status(400).json({
+          success: false,
+
+          verified: false,
+
+          message:
+            arkeselResult?.message ||
+            "Invalid or expired OTP.",
+
+          provider:
+            "arkesel",
+
+          providerCode:
+            arkeselResult?.providerCode ||
+            null,
+        });
+      }
+
+
+      // --------------------------------------------------------
+      // OTP SUCCESSFUL
+      // --------------------------------------------------------
+      //
+      // Store ONLY the time of successful verification.
+      //
+      // We do NOT store the OTP.
+      //
+      // The OTP itself remains under Arkesel's control.
+      // --------------------------------------------------------
+
+      user.phoneVerified =
+        true;
+
+      user.loginOtpVerifiedAt =
+        new Date();
+
+      user.lastLoginAt =
+        new Date();
+
+      user.lastSeenAt =
+        new Date();
+
+      user.isOnline =
+        true;
+
+
+      await user.save();
+
+
+      // --------------------------------------------------------
+      // CREATE FINAL LOGIN TOKEN
+      // --------------------------------------------------------
+
+      const token =
+        createLoginToken(
+          user
+        );
+
+
+      // --------------------------------------------------------
+      // FINAL LOGIN RESPONSE
+      // --------------------------------------------------------
+
+      return res.status(200).json(
+        buildLoginResponse(
+          user,
+          token
+        )
+      );
+
 
     } catch (error) {
       console.error(
-        "PoliSync verify login phone OTP error:",
+        "Verify login phone OTP error:",
         error
       );
 
@@ -121,7 +531,7 @@ const verifyLoginPhoneOTP =
         success: false,
 
         message:
-          "Unable to complete phone verification at this time.",
+          "Unable to complete phone OTP verification.",
       });
     }
   };
@@ -130,87 +540,173 @@ const verifyLoginPhoneOTP =
 // ============================================================
 // RESEND LOGIN PHONE OTP
 // ============================================================
+//
+// POST
+// /api/phone-otp/resend-login-otp
+//
+// Body:
+//
+// {
+//   "phone": "+233XXXXXXXXX"
+// }
+//
+// ============================================================
 
-const resendLoginPhoneOTP =
+exports.resendLoginPhoneOTP =
   async (req, res) => {
     try {
       const {
-        userId,
-        challengeId,
+        phone,
       } = req.body || {};
 
+
       // --------------------------------------------------------
-      // BASIC VALIDATION
+      // REQUIRED PHONE
       // --------------------------------------------------------
 
-      if (
-        !userId ||
-        !challengeId
-      ) {
+      if (!phone) {
         return res.status(400).json({
           success: false,
 
-          code:
-            "INVALID_REQUEST",
+          message:
+            "Phone number is required.",
+        });
+      }
+
+
+      // --------------------------------------------------------
+      // NORMALIZE PHONE
+      // --------------------------------------------------------
+
+      const normalizedPhone =
+        normalizeGhanaPhone(
+          phone
+        );
+
+      if (!normalizedPhone) {
+        return res.status(400).json({
+          success: false,
 
           message:
-            "User ID and verification challenge are required.",
+            "Phone number must be a valid Ghana phone number.",
         });
       }
 
+
       // --------------------------------------------------------
-      // RESEND OTP
+      // FIND USER
       // --------------------------------------------------------
 
-      const result =
-        await resendLoginOtp({
-          userId,
-
-          challengeId,
+      const user =
+        await User.findOne({
+          phone:
+            normalizedPhone,
         });
 
-      // --------------------------------------------------------
-      // FAILED REQUEST
-      // --------------------------------------------------------
 
-      if (!result.success) {
-        const statusCode =
-          result.code ===
-          "USER_NOT_FOUND"
-            ? 404
-            : result.code ===
-                "TOO_MANY_ATTEMPTS"
-              ? 429
-              : 400;
+      if (!user) {
+        return res.status(404).json({
+          success: false,
 
-        return res.status(
-          statusCode
-        ).json(result);
+          message:
+            "Account not found.",
+        });
       }
 
+
       // --------------------------------------------------------
-      // SUCCESS
+      // CHECK ACCOUNT
+      // --------------------------------------------------------
+
+      if (
+        user.accountStatus !==
+        "approved"
+      ) {
+        return res.status(403).json({
+          success: false,
+
+          message:
+            "Your account is not approved for login.",
+        });
+      }
+
+
+      // --------------------------------------------------------
+      // IF 24-HOUR VERIFICATION IS STILL ACTIVE
+      // --------------------------------------------------------
+
+      if (
+        isLoginOtpStillValid(
+          user
+        )
+      ) {
+        return res.status(200).json({
+          success: true,
+
+          otpRequired:
+            false,
+
+          message:
+            "Phone verification is still valid for this account.",
+        });
+      }
+
+
+      // --------------------------------------------------------
+      // SEND NEW ARKESEL OTP
+      // --------------------------------------------------------
+
+      let notification;
+
+      try {
+        notification =
+          await sendPhoneVerificationOTP({
+            phone:
+              user.phone,
+
+            firstName:
+              user.firstName,
+          });
+      } catch (
+        notificationError
+      ) {
+        console.error(
+          "Login OTP resend failed:",
+          notificationError
+        );
+
+        return res.status(502).json({
+          success: false,
+
+          message:
+            "Unable to send a new OTP right now. Please try again.",
+        });
+      }
+
+
+      // --------------------------------------------------------
+      // RESPONSE
       // --------------------------------------------------------
 
       return res.status(200).json({
         success: true,
 
-        code:
-          "PHONE_OTP_RESENT",
+        otpRequired:
+          true,
 
         message:
-          "A new verification code has been sent to your registered phone number.",
+          "A new login verification OTP has been sent to your registered phone number.",
 
-        challengeId:
-          result.challengeId,
-
-        expiresIn:
-          result.expiresIn,
+        notification:
+          Boolean(
+            notification?.success
+          ),
       });
+
 
     } catch (error) {
       console.error(
-        "PoliSync resend login phone OTP error:",
+        "Resend login phone OTP error:",
         error
       );
 
@@ -218,18 +714,21 @@ const resendLoginPhoneOTP =
         success: false,
 
         message:
-          "Unable to resend the verification code at this time.",
+          "Unable to resend login OTP.",
       });
     }
   };
 
 
 // ============================================================
-// EXPORT
+// EXPORT HELPERS
 // ============================================================
 
-module.exports = {
-  verifyLoginPhoneOTP,
+exports.isLoginOtpStillValid =
+  isLoginOtpStillValid;
 
-  resendLoginPhoneOTP,
-};
+exports.createLoginToken =
+  createLoginToken;
+
+exports.buildLoginResponse =
+  buildLoginResponse;
