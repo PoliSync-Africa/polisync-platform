@@ -199,7 +199,10 @@ export default function LoginPage() {
             data.expiresAt || ""
           )
         );
+window.location.href =
+  "/login/verify-phone";
 
+return;
         sessionStorage.setItem(
           "polisync_login_otp_minutes",
           String(
