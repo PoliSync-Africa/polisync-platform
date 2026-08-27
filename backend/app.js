@@ -79,7 +79,8 @@ app.use(
 
 const authRoutes =
   require("./routes/auth");
-
+const phoneOtpRoutes =
+  require("./routes/phoneOtp");
 let organizationRoutes;
 
 try {
@@ -205,7 +206,14 @@ app.use(
   "/api/auth",
   authRoutes
 );
+// ============================================================
+// PHONE OTP SECURITY
+// ============================================================
 
+app.use(
+  "/api/phone-otp",
+  phoneOtpRoutes
+);
 if (organizationRoutes) {
   app.use(
     "/api/organizations",
