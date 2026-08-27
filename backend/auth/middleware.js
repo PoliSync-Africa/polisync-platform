@@ -6,17 +6,17 @@ const User = require("../models/User");
 // ============================================================
 //
 // Platform role:
-//   - super_admin
-//   - user
+// - super_admin
+// - user
 //
 // Organization roles are handled separately through
 // OrganizationMembership.
 //
 // Organization hierarchy:
-//   - national_party_admin
-//   - regional_admin
-//   - constituency_admin
-//   - polling_station_agent
+// - national_party_admin
+// - regional_admin
+// - constituency_admin
+// - polling_station_agent
 //
 // NO COUNTRY ADMIN.
 // ============================================================
@@ -27,35 +27,30 @@ const User = require("../models/User");
 
 const authenticate = async (req, res, next) => {
   try {
-    const authorization =
-      req.headers.authorization || "";
+    const authorization = req.headers.authorization || "";
 
     if (!authorization.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required."
+        message: "Authentication required.",
       });
     }
 
-    const token =
-      authorization.substring(7).trim();
+    const token = authorization.substring(7).trim();
 
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: "Authentication token is missing."
+        message: "Authentication token is missing.",
       });
     }
 
     if (!process.env.JWT_SECRET) {
-      console.error(
-        "POLISYNC AUTH ERROR: JWT_SECRET is not configured."
-      );
+      console.error("POLISYNC AUTH ERROR: JWT_SECRET is not configured.");
 
       return res.status(500).json({
         success: false,
-        message:
-          "Authentication service is not properly configured."
+        message: "Authentication service is not properly configured.",
       });
     }
 
@@ -66,22 +61,18 @@ const authenticate = async (req, res, next) => {
     let decoded;
 
     try {
-      decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET
-      );
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (error) {
       return res.status(401).json({
         success: false,
-        message:
-          "Your authentication session is invalid or expired."
+        message: "Your authentication session is invalid or expired.",
       });
     }
 
     if (!decoded.userId) {
       return res.status(401).json({
         success: false,
-        message: "Invalid authentication token."
+        message: "Invalid authentication token.",
       });
     }
 
@@ -92,14 +83,12 @@ const authenticate = async (req, res, next) => {
     // The database remains the source of truth.
     // ----------------------------------------------------------
 
-    const user = await User.findById(
-      decoded.userId
-    );
+    const user = await User.findById(decoded.userId);
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User account no longer exists."
+        message: "User account no longer exists.",
       });
     }
 
@@ -110,29 +99,28 @@ const authenticate = async (req, res, next) => {
     if (user.accountStatus === "suspended") {
       return res.status(403).json({
         success: false,
-        message: "This account has been suspended."
+        message: "This account has been suspended.",
       });
     }
 
     if (user.accountStatus === "deactivated") {
       return res.status(403).json({
         success: false,
-        message: "This account has been deactivated."
+        message: "This account has been deactivated.",
       });
     }
 
     if (user.accountStatus === "rejected") {
       return res.status(403).json({
         success: false,
-        message: "This account has been rejected."
+        message: "This account has been rejected.",
       });
     }
 
     if (user.accountStatus !== "approved") {
       return res.status(403).json({
         success: false,
-        message:
-          "This account is not approved for platform access."
+        message: "This account is not approved for platform access.",
       });
     }
 
@@ -144,8 +132,7 @@ const authenticate = async (req, res, next) => {
       return res.status(403).json({
         success: false,
         code: "EMAIL_NOT_VERIFIED",
-        message:
-          "Please verify your email before accessing PoliSync Africa."
+        message: "Please verify your email before accessing PoliSync Africa.",
       });
     }
 
@@ -162,11 +149,9 @@ const authenticate = async (req, res, next) => {
       req.auth = {
         userId: user._id.toString(),
 
-        platformRole:
-          "super_admin",
+        platformRole: "super_admin",
 
-        isSuperAdmin:
-          true
+        isSuperAdmin: true,
       };
 
       return next();
@@ -179,36 +164,27 @@ const authenticate = async (req, res, next) => {
     if (user.platformRole !== "user") {
       return res.status(403).json({
         success: false,
-        message:
-          "This account has an invalid platform role."
+        message: "This account has an invalid platform role.",
       });
     }
 
     req.user = user;
 
     req.auth = {
-      userId:
-        user._id.toString(),
+      userId: user._id.toString(),
 
-      platformRole:
-        "user",
+      platformRole: "user",
 
-      isSuperAdmin:
-        false
+      isSuperAdmin: false,
     };
 
     return next();
-
   } catch (error) {
-    console.error(
-      "PoliSync authentication middleware error:",
-      error
-    );
+    console.error("PoliSync authentication middleware error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Authentication service error."
+      message: "Authentication service error.",
     });
   }
 };
@@ -217,19 +193,11 @@ const authenticate = async (req, res, next) => {
 // REQUIRE SUPER ADMIN
 // ============================================================
 
-const requireSuperAdmin = (
-  req,
-  res,
-  next
-) => {
-  if (
-    !req.auth ||
-    req.auth.platformRole !== "super_admin"
-  ) {
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.auth || req.auth.platformRole !== "super_admin") {
     return res.status(403).json({
       success: false,
-      message:
-        "Super Admin authorization is required."
+      message: "Super Admin authorization is required.",
     });
   }
 
@@ -240,16 +208,11 @@ const requireSuperAdmin = (
 // REQUIRE PLATFORM USER
 // ============================================================
 
-const requirePlatformUser = (
-  req,
-  res,
-  next
-) => {
+const requirePlatformUser = (req, res, next) => {
   if (!req.auth) {
     return res.status(401).json({
       success: false,
-      message:
-        "Authentication required."
+      message: "Authentication required.",
     });
   }
 
@@ -263,5 +226,5 @@ const requirePlatformUser = (
 module.exports = {
   authenticate,
   requireSuperAdmin,
-  requirePlatformUser
+  requirePlatformUser,
 };
