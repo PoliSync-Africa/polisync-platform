@@ -6,27 +6,27 @@ const User = require("../models/User");
 // POLISYNC AFRICA — LOGIN CONTROLLER
 // ============================================================
 // Login:
-//   1. Email
-//   2. Password
+// 1. Email
+// 2. Password
 //
 // Platform roles:
-//   - super_admin
-//   - user
+// - super_admin
+// - user
 //
 // Organization roles are handled separately through
 // OrganizationMembership.
 //
 // Organization roles:
-//   - national_party_admin
-//   - regional_admin
-//   - constituency_admin
-//   - polling_station_agent
+// - national_party_admin
+// - regional_admin
+// - constituency_admin
+// - polling_station_agent
 //
 // NO:
-//   - Google login
-//   - Apple ID login
-//   - Facebook login
-//   - Country Admin
+// - Google login
+// - Apple ID login
+// - Facebook login
+// - Country Admin
 // ============================================================
 
 const login = async (req, res) => {
@@ -40,7 +40,7 @@ const login = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required."
+        message: "Email and password are required.",
       });
     }
 
@@ -48,21 +48,19 @@ const login = async (req, res) => {
     // 2. NORMALIZE EMAIL
     // ----------------------------------------------------------
 
-    const normalizedEmail = String(email)
-      .trim()
-      .toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
 
     if (!normalizedEmail) {
       return res.status(400).json({
         success: false,
-        message: "Email address is required."
+        message: "Email address is required.",
       });
     }
 
     if (!String(password).trim()) {
       return res.status(400).json({
         success: false,
-        message: "Password is required."
+        message: "Password is required.",
       });
     }
 
@@ -71,14 +69,11 @@ const login = async (req, res) => {
     // ----------------------------------------------------------
 
     if (!process.env.JWT_SECRET) {
-      console.error(
-        "POLISYNC AUTH ERROR: JWT_SECRET is not configured."
-      );
+      console.error("POLISYNC AUTH ERROR: JWT_SECRET is not configured.");
 
       return res.status(500).json({
         success: false,
-        message:
-          "Authentication service is not properly configured."
+        message: "Authentication service is not properly configured.",
       });
     }
 
@@ -89,13 +84,13 @@ const login = async (req, res) => {
     // ----------------------------------------------------------
 
     const user = await User.findOne({
-      email: normalizedEmail
+      email: normalizedEmail,
     }).select("+password");
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password."
+        message: "Invalid email or password.",
       });
     }
 
@@ -111,7 +106,7 @@ const login = async (req, res) => {
     if (!passwordMatches) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password."
+        message: "Invalid email or password.",
       });
     }
 
@@ -122,21 +117,21 @@ const login = async (req, res) => {
     if (user.accountStatus === "suspended") {
       return res.status(403).json({
         success: false,
-        message: "This account has been suspended."
+        message: "This account has been suspended.",
       });
     }
 
     if (user.accountStatus === "deactivated") {
       return res.status(403).json({
         success: false,
-        message: "This account has been deactivated."
+        message: "This account has been deactivated.",
       });
     }
 
     if (user.accountStatus === "rejected") {
       return res.status(403).json({
         success: false,
-        message: "This account has been rejected."
+        message: "This account has been rejected.",
       });
     }
 
@@ -154,8 +149,7 @@ const login = async (req, res) => {
       if (user.accountStatus !== "approved") {
         return res.status(403).json({
           success: false,
-          message:
-            "The Super Admin account is not approved."
+          message: "The Super Admin account is not approved.",
         });
       }
 
@@ -170,8 +164,7 @@ const login = async (req, res) => {
         return res.status(403).json({
           success: false,
           code: "EMAIL_NOT_VERIFIED",
-          message:
-            "Please verify your email before accessing PoliSync Africa."
+          message: "Please verify your email before accessing PoliSync Africa.",
         });
       }
 
@@ -191,11 +184,11 @@ const login = async (req, res) => {
       const token = jwt.sign(
         {
           userId: user._id.toString(),
-          platformRole: "super_admin"
+          platformRole: "super_admin",
         },
         process.env.JWT_SECRET,
         {
-          expiresIn: "7d"
+          expiresIn: "7d",
         }
       );
 
@@ -206,43 +199,33 @@ const login = async (req, res) => {
       return res.status(200).json({
         success: true,
 
-        message:
-          "Welcome to PoliSync Africa.",
+        message: "Welcome to PoliSync Africa.",
 
         token,
 
         user: {
           id: user._id,
 
-          displayName:
-            "POLISYNC AFRICA",
+          displayName: "POLISYNC AFRICA",
 
-          username:
-            "polisync.africa",
+          username: "polisync.africa",
 
-          platformRole:
-            "super_admin",
+          platformRole: "super_admin",
 
-          isPlatformAccount:
-            true,
+          isPlatformAccount: true,
 
-          verified:
-            true,
+          verified: true,
 
-          verificationBadge:
-            "/verified-badge.png",
+          verificationBadge: "/verified-badge.png",
 
-          accountStatus:
-            "approved"
+          accountStatus: "approved",
         },
 
         workspace: {
-          type:
-            "super_admin",
+          type: "super_admin",
 
-          name:
-            "PoliSync Africa Super Admin"
-        }
+          name: "PoliSync Africa Super Admin",
+        },
       });
     }
 
@@ -253,8 +236,7 @@ const login = async (req, res) => {
     if (user.platformRole !== "user") {
       return res.status(403).json({
         success: false,
-        message:
-          "This account has an invalid platform role."
+        message: "This account has an invalid platform role.",
       });
     }
 
@@ -265,8 +247,7 @@ const login = async (req, res) => {
     if (user.accountStatus !== "approved") {
       return res.status(403).json({
         success: false,
-        message:
-          "Your account has not yet been approved."
+        message: "Your account has not yet been approved.",
       });
     }
 
@@ -278,8 +259,7 @@ const login = async (req, res) => {
       return res.status(403).json({
         success: false,
         code: "EMAIL_NOT_VERIFIED",
-        message:
-          "Please verify your email before logging in."
+        message: "Please verify your email before logging in.",
       });
     }
 
@@ -299,11 +279,11 @@ const login = async (req, res) => {
     const token = jwt.sign(
       {
         userId: user._id.toString(),
-        platformRole: "user"
+        platformRole: "user",
       },
       process.env.JWT_SECRET,
       {
-        expiresIn: "7d"
+        expiresIn: "7d",
       }
     );
 
@@ -324,64 +304,48 @@ const login = async (req, res) => {
     return res.status(200).json({
       success: true,
 
-      message:
-        "Login successful.",
+      message: "Login successful.",
 
       token,
 
       user: {
-        id:
-          user._id,
+        id: user._id,
 
         displayName:
-          user.displayName ||
-          `${user.firstName} ${user.lastName}`.trim(),
+          user.displayName || `${user.firstName} ${user.lastName}`.trim(),
 
-        username:
-          user.username,
+        username: user.username,
 
-        platformRole:
-          "user",
+        platformRole: "user",
 
-        isPlatformAccount:
-          false,
+        isPlatformAccount: false,
 
-        verified:
-          Boolean(
-            user.verification &&
+        verified: Boolean(
+          user.verification &&
             user.verification.isVerified &&
             user.verification.status === "approved"
-          ),
+        ),
 
         verificationBadge:
-          user.verification &&
-          user.verification.isVerified
+          user.verification && user.verification.isVerified
             ? "/verified-badge.png"
             : null,
 
-        accountStatus:
-          user.accountStatus
+        accountStatus: user.accountStatus,
       },
 
       workspace: {
-        type:
-          "organization",
+        type: "organization",
 
-        requiresMembership:
-          true
-      }
+        requiresMembership: true,
+      },
     });
-
   } catch (error) {
-    console.error(
-      "PoliSync login error:",
-      error
-    );
+    console.error("PoliSync login error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to complete login at this time."
+      message: "Unable to complete login at this time.",
     });
   }
 };
