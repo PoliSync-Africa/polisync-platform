@@ -3,25 +3,17 @@ const express = require("express");
 const {
   register,
   login,
-
   forgotPassword,
-
   verifyEmail,
   verifyPhone,
-
   resendEmailVerification,
   resendPhoneVerification,
-
   verifyPasswordReset,
   resetPassword,
-
   changePassword,
-
   me,
   logout,
-
-  verifyLoginPhoneOTP,
-  resendLoginPhoneOTP,
+  verifyLoginOTP,
 } = require("../controllers/authController");
 
 const router = express.Router();
@@ -29,49 +21,14 @@ const router = express.Router();
 // ============================================================
 // POLISYNC AFRICA — AUTHENTICATION ROUTES
 // ============================================================
-//
-// Mounted in app.js as:
-//
-//     /api/auth
-//
-// Therefore the complete endpoints are:
-//
-//     GET  /api/auth/
-//
-//     POST /api/auth/register
-//     POST /api/auth/login
-//
-//     POST /api/auth/verify-email
-//     POST /api/auth/verify-phone
-//
-//     POST /api/auth/resend-email-verification
-//     POST /api/auth/resend-phone-verification
-//
-//     POST /api/auth/verify-login-otp
-//     POST /api/auth/resend-login-otp
-//
-//     POST /api/auth/forgot-password
-//     POST /api/auth/verify-password-reset
-//     POST /api/auth/reset-password
-//
-//     POST /api/auth/change-password
-//     POST /api/auth/logout
-//
-//     GET  /api/auth/me
-//
-// ============================================================
 
-
-// ============================================================
 // FORM DATA SUPPORT
-// ============================================================
 
 router.use(
   express.urlencoded({
     extended: false,
   })
 );
-
 
 // ============================================================
 // AUTH STATUS
@@ -88,16 +45,14 @@ router.get(
   }
 );
 
-
 // ============================================================
-// ACCOUNT REGISTRATION
+// REGISTRATION
 // ============================================================
 
 router.post(
   "/register",
   register
 );
-
 
 // ============================================================
 // LOGIN
@@ -108,7 +63,6 @@ router.post(
   login
 );
 
-
 // ============================================================
 // EMAIL VERIFICATION
 // ============================================================
@@ -117,7 +71,6 @@ router.post(
   "/verify-email",
   verifyEmail
 );
-
 
 // ============================================================
 // PHONE VERIFICATION
@@ -128,7 +81,6 @@ router.post(
   verifyPhone
 );
 
-
 // ============================================================
 // RESEND EMAIL VERIFICATION
 // ============================================================
@@ -137,7 +89,6 @@ router.post(
   "/resend-email-verification",
   resendEmailVerification
 );
-
 
 // ============================================================
 // RESEND PHONE VERIFICATION
@@ -148,45 +99,27 @@ router.post(
   resendPhoneVerification
 );
 
-
 // ============================================================
-// LOGIN PHONE OTP VERIFICATION
+// LOGIN PHONE OTP
 // ============================================================
 //
-// This is the mandatory security OTP used after
-// email + password authentication when the user's
-// 24-hour login security period has expired.
+// This is the OTP issued after successful
+// email + password authentication.
 //
-// Frontend endpoint:
+// Body:
 //
-//     /api/auth/verify-login-otp
+// {
+//   email,
+//   code,
+//   challengeToken
+// }
 //
 // ============================================================
 
 router.post(
   "/verify-login-otp",
-  verifyLoginPhoneOTP
+  verifyLoginOTP
 );
-
-
-// ============================================================
-// RESEND LOGIN PHONE OTP
-// ============================================================
-//
-// Sends a new login security OTP to the user's
-// registered phone number.
-//
-// Frontend endpoint:
-//
-//     /api/auth/resend-login-otp
-//
-// ============================================================
-
-router.post(
-  "/resend-login-otp",
-  resendLoginPhoneOTP
-);
-
 
 // ============================================================
 // FORGOT PASSWORD
@@ -197,16 +130,14 @@ router.post(
   forgotPassword
 );
 
-
 // ============================================================
-// VERIFY PASSWORD RESET CODE
+// VERIFY PASSWORD RESET
 // ============================================================
 
 router.post(
   "/verify-password-reset",
   verifyPasswordReset
 );
-
 
 // ============================================================
 // RESET PASSWORD
@@ -217,7 +148,6 @@ router.post(
   resetPassword
 );
 
-
 // ============================================================
 // CHANGE PASSWORD
 // ============================================================
@@ -227,16 +157,14 @@ router.post(
   changePassword
 );
 
-
 // ============================================================
-// GET AUTHENTICATED USER
+// AUTHENTICATED USER
 // ============================================================
 
 router.get(
   "/me",
   me
 );
-
 
 // ============================================================
 // LOGOUT
@@ -247,9 +175,8 @@ router.post(
   logout
 );
 
-
 // ============================================================
-// EXPORT ROUTER
+// EXPORT
 // ============================================================
 
 module.exports = router;
