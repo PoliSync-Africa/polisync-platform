@@ -9,12 +9,12 @@ exports.createCountry = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      country
+      country,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -26,12 +26,12 @@ exports.getCountries = async (req, res) => {
 
     res.json({
       success: true,
-      countries
+      countries,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -43,12 +43,12 @@ exports.createArea = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      area
+      area,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -60,12 +60,12 @@ exports.createPollingStation = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      station
+      station,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
