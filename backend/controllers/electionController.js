@@ -7,12 +7,12 @@ exports.createElection = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      election
+      election,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -24,12 +24,12 @@ exports.getElections = async (req, res) => {
 
     res.json({
       success: true,
-      elections
+      elections,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
