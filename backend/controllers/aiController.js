@@ -10,10 +10,9 @@ exports.askAssistant = async (req, res) => {
 };
 
 exports.generateBriefing = async (req, res) => {
-  const briefing =
-    await ai.briefingGenerator.generateRegionalBriefing(
-      req.body.region
-    );
+  const briefing = await ai.briefingGenerator.generateRegionalBriefing(
+    req.body.region
+  );
 
   res.json({
     success: true,
