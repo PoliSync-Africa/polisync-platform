@@ -17,7 +17,7 @@ const User = require("../models/User");
 //
 // IMPORTANT:
 // Login remains:
-//     EMAIL + PASSWORD
+// EMAIL + PASSWORD
 //
 // Username is generated/stored for the user's PoliSync identity
 // but is NOT required for sign in.
@@ -32,29 +32,20 @@ const User = require("../models/User");
 
 const PASSWORD_MIN_LENGTH = 8;
 
-const ALLOWED_IDENTIFICATION_TYPES = [
-  "passport",
-  "ghana_card",
-  "voter_id",
-];
+const ALLOWED_IDENTIFICATION_TYPES = ["passport", "ghana_card", "voter_id"];
 
 // ============================================================
 // CREATE UNIQUE USERNAME
 // ============================================================
 
-const createUsername = async (
-  firstName,
-  lastName
-) => {
-  const safeFirstName =
-    String(firstName || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
+const createUsername = async (firstName, lastName) => {
+  const safeFirstName = String(firstName || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 
-  const safeLastName =
-    String(lastName || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
+  const safeLastName = String(lastName || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 
   const base =
     `${safeFirstName}.${safeLastName}`
@@ -70,9 +61,7 @@ const createUsername = async (
       username,
     })
   ) {
-    username =
-      `${base}${counter}`
-        .slice(0, 30);
+    username = `${base}${counter}`.slice(0, 30);
 
     counter++;
   }
@@ -85,40 +74,28 @@ const createUsername = async (
 // ============================================================
 //
 // Accepted:
-//     0241234567
-//     233241234567
-//     +233241234567
+// 0241234567
+// 233241234567
+// +233241234567
 //
 // Stored:
-//     +233241234567
+// +233241234567
 // ============================================================
 
-const normalizeGhanaPhone = (
-  phone
-) => {
-  let value =
-    String(phone || "")
-      .trim()
-      .replace(/\s+/g, "");
+const normalizeGhanaPhone = (phone) => {
+  let value = String(phone || "")
+    .trim()
+    .replace(/\s+/g, "");
 
-  if (
-    /^0\d{9}$/.test(value)
-  ) {
-    value =
-      "+233" +
-      value.slice(1);
+  if (/^0\d{9}$/.test(value)) {
+    value = "+233" + value.slice(1);
   }
 
-  if (
-    /^233\d{9}$/.test(value)
-  ) {
-    value =
-      "+" + value;
+  if (/^233\d{9}$/.test(value)) {
+    value = "+" + value;
   }
 
-  if (
-    !/^\+233\d{9}$/.test(value)
-  ) {
+  if (!/^\+233\d{9}$/.test(value)) {
     return null;
   }
 
@@ -129,9 +106,7 @@ const normalizeGhanaPhone = (
 // NORMALIZE EMAIL
 // ============================================================
 
-const normalizeEmail = (
-  email
-) => {
+const normalizeEmail = (email) => {
   return String(email || "")
     .trim()
     .toLowerCase();
@@ -141,20 +116,15 @@ const normalizeEmail = (
 // NORMALIZE TEXT
 // ============================================================
 
-const normalizeText = (
-  value
-) => {
-  return String(value || "")
-    .trim();
+const normalizeText = (value) => {
+  return String(value || "").trim();
 };
 
 // ============================================================
 // REGISTER USER
 // ============================================================
 
-const register = async (
-  userData
-) => {
+const register = async (userData) => {
   try {
     const {
       username,
@@ -174,40 +144,19 @@ const register = async (
     // NORMALIZE BASIC INFORMATION
     // ==========================================================
 
-    const normalizedFirstName =
-      normalizeText(
-        firstName
-      );
+    const normalizedFirstName = normalizeText(firstName);
 
-    const normalizedMiddleName =
-      normalizeText(
-        middleName
-      );
+    const normalizedMiddleName = normalizeText(middleName);
 
-    const normalizedLastName =
-      normalizeText(
-        lastName
-      );
+    const normalizedLastName = normalizeText(lastName);
 
-    const normalizedDateOfBirth =
-      normalizeText(
-        dateOfBirth
-      );
+    const normalizedDateOfBirth = normalizeText(dateOfBirth);
 
-    const normalizedEmail =
-      normalizeEmail(
-        email
-      );
+    const normalizedEmail = normalizeEmail(email);
 
-    const normalizedPhone =
-      normalizeGhanaPhone(
-        phone
-      );
+    const normalizedPhone = normalizeGhanaPhone(phone);
 
-    const normalizedIdentification =
-      normalizeText(
-        identificationNumber
-      );
+    const normalizedIdentification = normalizeText(identificationNumber);
 
     // ==========================================================
     // REQUIRED FIELDS
@@ -235,39 +184,27 @@ const register = async (
     // NAME VALIDATION
     // ==========================================================
 
-    if (
-      normalizedFirstName.length >
-      80
-    ) {
+    if (normalizedFirstName.length > 80) {
       return {
         success: false,
 
-        message:
-          "First name is too long.",
+        message: "First name is too long.",
       };
     }
 
-    if (
-      normalizedLastName.length >
-      80
-    ) {
+    if (normalizedLastName.length > 80) {
       return {
         success: false,
 
-        message:
-          "Last name is too long.",
+        message: "Last name is too long.",
       };
     }
 
-    if (
-      normalizedMiddleName.length >
-      80
-    ) {
+    if (normalizedMiddleName.length > 80) {
       return {
         success: false,
 
-        message:
-          "Middle name is too long.",
+        message: "Middle name is too long.",
       };
     }
 
@@ -275,16 +212,11 @@ const register = async (
     // EMAIL VALIDATION
     // ==========================================================
 
-    if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        normalizedEmail
-      )
-    ) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return {
         success: false,
 
-        message:
-          "Please provide a valid email address.",
+        message: "Please provide a valid email address.",
       };
     }
 
@@ -292,16 +224,11 @@ const register = async (
     // IDENTIFICATION TYPE
     // ==========================================================
 
-    if (
-      !ALLOWED_IDENTIFICATION_TYPES.includes(
-        identificationType
-      )
-    ) {
+    if (!ALLOWED_IDENTIFICATION_TYPES.includes(identificationType)) {
       return {
         success: false,
 
-        message:
-          "Invalid identification type.",
+        message: "Invalid identification type.",
       };
     }
 
@@ -313,8 +240,7 @@ const register = async (
       return {
         success: false,
 
-        message:
-          "Phone number must be a valid Ghana number.",
+        message: "Phone number must be a valid Ghana number.",
       };
     }
 
@@ -322,15 +248,11 @@ const register = async (
     // PASSWORD VALIDATION
     // ==========================================================
 
-    if (
-      String(password).length <
-      PASSWORD_MIN_LENGTH
-    ) {
+    if (String(password).length < PASSWORD_MIN_LENGTH) {
       return {
         success: false,
 
-        message:
-          "Password must contain at least 8 characters.",
+        message: "Password must contain at least 8 characters.",
       };
     }
 
@@ -338,18 +260,15 @@ const register = async (
     // EMAIL DUPLICATE CHECK
     // ==========================================================
 
-    const existingEmail =
-      await User.findOne({
-        email:
-          normalizedEmail,
-      });
+    const existingEmail = await User.findOne({
+      email: normalizedEmail,
+    });
 
     if (existingEmail) {
       return {
         success: false,
 
-        message:
-          "An account with this email already exists.",
+        message: "An account with this email already exists.",
       };
     }
 
@@ -357,18 +276,15 @@ const register = async (
     // PHONE DUPLICATE CHECK
     // ==========================================================
 
-    const existingPhone =
-      await User.findOne({
-        phone:
-          normalizedPhone,
-      });
+    const existingPhone = await User.findOne({
+      phone: normalizedPhone,
+    });
 
     if (existingPhone) {
       return {
         success: false,
 
-        message:
-          "An account with this phone number already exists.",
+        message: "An account with this phone number already exists.",
       };
     }
 
@@ -376,20 +292,15 @@ const register = async (
     // IDENTIFICATION DUPLICATE CHECK
     // ==========================================================
 
-    const existingIdentification =
-      await User.findOne({
-        identificationNumber:
-          normalizedIdentification,
-      });
+    const existingIdentification = await User.findOne({
+      identificationNumber: normalizedIdentification,
+    });
 
-    if (
-      existingIdentification
-    ) {
+    if (existingIdentification) {
       return {
         success: false,
 
-        message:
-          "An account with this identification number already exists.",
+        message: "An account with this identification number already exists.",
       };
     }
 
@@ -401,23 +312,16 @@ const register = async (
     //
     // Sign in remains:
     //
-    //     Email + Password
+    // Email + Password
     //
     // ==========================================================
 
     let finalUsername;
 
     if (username) {
-      finalUsername =
-        String(username)
-          .trim()
-          .toLowerCase();
+      finalUsername = String(username).trim().toLowerCase();
 
-      if (
-        !/^[a-z0-9._-]+$/.test(
-          finalUsername
-        )
-      ) {
+      if (!/^[a-z0-9._-]+$/.test(finalUsername)) {
         return {
           success: false,
 
@@ -426,129 +330,89 @@ const register = async (
         };
       }
 
-      if (
-        finalUsername.length <
-          3 ||
-        finalUsername.length >
-          30
-      ) {
+      if (finalUsername.length < 3 || finalUsername.length > 30) {
         return {
           success: false,
 
-          message:
-            "Username must contain between 3 and 30 characters.",
+          message: "Username must contain between 3 and 30 characters.",
         };
       }
 
-      const existingUsername =
-        await User.findOne({
-          username:
-            finalUsername,
-        });
+      const existingUsername = await User.findOne({
+        username: finalUsername,
+      });
 
       if (existingUsername) {
         return {
           success: false,
 
-          message:
-            "Username is already taken.",
+          message: "Username is already taken.",
         };
       }
     } else {
-      finalUsername =
-        await createUsername(
-          normalizedFirstName,
-          normalizedLastName
-        );
+      finalUsername = await createUsername(
+        normalizedFirstName,
+        normalizedLastName
+      );
     }
 
     // ==========================================================
     // HASH PASSWORD
     // ==========================================================
 
-    const hashedPassword =
-      await bcrypt.hash(
-        String(password),
-        12
-      );
+    const hashedPassword = await bcrypt.hash(String(password), 12);
 
     // ==========================================================
     // CREATE USER
     // ==========================================================
 
-    const user =
-      await User.create({
-        platformRole:
-          "user",
+    const user = await User.create({
+      platformRole: "user",
 
-        username:
-          finalUsername,
+      username: finalUsername,
 
-        firstName:
-          normalizedFirstName,
+      firstName: normalizedFirstName,
 
-        middleName:
-          normalizedMiddleName,
+      middleName: normalizedMiddleName,
 
-        lastName:
-          normalizedLastName,
+      lastName: normalizedLastName,
 
-        dateOfBirth:
-          normalizedDateOfBirth,
+      dateOfBirth: normalizedDateOfBirth,
 
-        nationality:
-          normalizeText(
-            userData.nationality
-          ) ||
-          "Ghanaian",
+      nationality: normalizeText(userData.nationality) || "Ghanaian",
 
-        identificationType,
+      identificationType,
 
-        identificationNumber:
-          normalizedIdentification,
+      identificationNumber: normalizedIdentification,
 
-        email:
-          normalizedEmail,
+      email: normalizedEmail,
 
-        phone:
-          normalizedPhone,
+      phone: normalizedPhone,
 
-        password:
-          hashedPassword,
+      password: hashedPassword,
 
-        emailVerified:
-          false,
+      emailVerified: false,
 
-        phoneVerified:
-          false,
+      phoneVerified: false,
 
-        twoFactorEnabled:
-          false,
+      twoFactorEnabled: false,
 
-        twoFactorMethod:
-          null,
+      twoFactorMethod: null,
 
-        passcodeEnabled:
-          false,
+      passcodeEnabled: false,
 
-        biometricEnabled:
-          false,
+      biometricEnabled: false,
 
-        accountStatus:
-          "pending",
+      accountStatus: "pending",
 
-        approvedAt:
-          null,
+      approvedAt: null,
 
-        approvedBy:
-          null,
+      approvedBy: null,
 
-        suspendedAt:
-          null,
+      suspendedAt: null,
 
-        suspensionReason:
-          null,
-      });
+      suspensionReason: null,
+    });
 
     // ==========================================================
     // RETURN SAFE USER DATA
@@ -560,72 +424,48 @@ const register = async (
     return {
       success: true,
 
-      message:
-        "Registration successful. Your account is pending approval.",
+      message: "Registration successful. Your account is pending approval.",
 
       user: {
-        id:
-          user._id,
+        id: user._id,
 
-        username:
-          user.username,
+        username: user.username,
 
-        firstName:
-          user.firstName,
+        firstName: user.firstName,
 
-        middleName:
-          user.middleName,
+        middleName: user.middleName,
 
-        lastName:
-          user.lastName,
+        lastName: user.lastName,
 
-        email:
-          user.email,
+        email: user.email,
 
-        phone:
-          user.phone,
+        phone: user.phone,
 
-        platformRole:
-          user.platformRole,
+        platformRole: user.platformRole,
 
-        accountStatus:
-          user.accountStatus,
+        accountStatus: user.accountStatus,
 
-        emailVerified:
-          user.emailVerified,
+        emailVerified: user.emailVerified,
 
-        phoneVerified:
-          user.phoneVerified,
+        phoneVerified: user.phoneVerified,
       },
     };
   } catch (error) {
-    console.error(
-      "Registration service error:",
-      error
-    );
+    console.error("Registration service error:", error);
 
     // ==========================================================
     // MONGOOSE DUPLICATE KEY PROTECTION
     // ==========================================================
 
-    if (
-      error?.code === 11000
-    ) {
-      const duplicateField =
-        Object.keys(
-          error.keyPattern ||
-            {}
-        )[0];
+    if (error?.code === 11000) {
+      const duplicateField = Object.keys(error.keyPattern || {})[0];
 
       const messages = {
-        email:
-          "An account with this email already exists.",
+        email: "An account with this email already exists.",
 
-        phone:
-          "An account with this phone number already exists.",
+        phone: "An account with this phone number already exists.",
 
-        username:
-          "Username is already taken.",
+        username: "Username is already taken.",
 
         identificationNumber:
           "An account with this identification number already exists.",
@@ -635,9 +475,7 @@ const register = async (
         success: false,
 
         message:
-          messages[
-            duplicateField
-          ] ||
+          messages[duplicateField] ||
           "An account with these details already exists.",
       };
     }
@@ -645,9 +483,7 @@ const register = async (
     return {
       success: false,
 
-      message:
-        error.message ||
-        "Registration failed.",
+      message: error.message || "Registration failed.",
     };
   }
 };
