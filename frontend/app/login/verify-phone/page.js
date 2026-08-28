@@ -16,20 +16,12 @@ export default function VerifyPhoneLoginPage() {
   const [resending, setResending] = useState(false);
 
   useEffect(() => {
-    const storedEmail =
-      sessionStorage.getItem(
-        "polisync_login_email"
-      ) || "";
+    const storedEmail = sessionStorage.getItem("polisync_login_email") || "";
 
     const storedChallenge =
-      sessionStorage.getItem(
-        "polisync_login_challenge"
-      ) || "";
+      sessionStorage.getItem("polisync_login_challenge") || "";
 
-    const storedPhone =
-      sessionStorage.getItem(
-        "polisync_login_phone"
-      ) || "";
+    const storedPhone = sessionStorage.getItem("polisync_login_phone") || "";
 
     if (!storedEmail || !storedChallenge) {
       window.location.href = "/login";
@@ -50,102 +42,69 @@ export default function VerifyPhoneLoginPage() {
     const cleanOtp = otp.trim();
 
     if (!cleanOtp) {
-      setError(
-        "Please enter the verification code."
-      );
+      setError("Please enter the verification code.");
       return;
     }
 
     if (!/^\d{4,15}$/.test(cleanOtp)) {
-      setError(
-        "Please enter a valid verification code."
-      );
+      setError("Please enter a valid verification code.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const API_URL = (
-        process.env.NEXT_PUBLIC_API_URL || ""
-      ).replace(/\/+$/, "");
+      const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(
+        /\/+$/,
+        ""
+      );
 
       if (!API_URL) {
-        throw new Error(
-          "Production API URL is not configured."
-        );
+        throw new Error("Production API URL is not configured.");
       }
 
-      const response = await fetch(
-        `${API_URL}/api/auth/verify-login-otp`,
-        {
-          method: "POST",
+      const response = await fetch(`${API_URL}/api/auth/verify-login-otp`, {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
+        headers: {
+          "Content-Type": "application/json",
 
-            Accept:
-              "application/json",
-          },
+          Accept: "application/json",
+        },
 
-          credentials: "include",
-
-          body: JSON.stringify({
-            email,
-            code: cleanOtp,
-            challengeToken,
-          }),
-        }
-      );
+        body: JSON.stringify({
+          email,
+          code: cleanOtp,
+          challengeToken,
+        }),
+      });
 
       let data = {};
 
-      const contentType =
-        response.headers.get(
-          "content-type"
-        ) || "";
+      const contentType = response.headers.get("content-type") || "";
 
-      if (
-        contentType.includes(
-          "application/json"
-        )
-      ) {
-        data =
-          await response.json();
+      if (contentType.includes("application/json")) {
+        data = await response.json();
       } else {
-        const text =
-          await response.text();
+        const text = await response.text();
 
         try {
-          data =
-            text
-              ? JSON.parse(text)
-              : {};
+          data = text ? JSON.parse(text) : {};
         } catch {
           data = {
-            message:
-              text ||
-              "Verification failed.",
+            message: text || "Verification failed.",
           };
         }
       }
 
-      if (
-        !response.ok ||
-        !data?.success
-      ) {
+      if (!response.ok || !data?.success) {
         throw new Error(
-          data?.message ||
-            "Invalid or expired verification code."
+          data?.message || "Invalid or expired verification code."
         );
       }
 
       const token =
-        data?.token ||
-        data?.accessToken ||
-        data?.access_token ||
-        null;
+        data?.token || data?.accessToken || data?.access_token || null;
 
       if (!token) {
         throw new Error(
@@ -153,68 +112,38 @@ export default function VerifyPhoneLoginPage() {
         );
       }
 
-      const user =
-        data?.user || null;
+      const user = data?.user || null;
 
-      localStorage.removeItem(
-        "polisync_token"
-      );
+      localStorage.removeItem("polisync_token");
 
-      localStorage.removeItem(
-        "polisync_user"
-      );
+      localStorage.removeItem("polisync_user");
 
-      sessionStorage.removeItem(
-        "polisync_token"
-      );
+      sessionStorage.removeItem("polisync_token");
 
-      sessionStorage.removeItem(
-        "polisync_user"
-      );
+      sessionStorage.removeItem("polisync_user");
 
-      sessionStorage.setItem(
-        "polisync_token",
-        token
-      );
+      sessionStorage.setItem("polisync_token", token);
 
       if (user) {
-        sessionStorage.setItem(
-          "polisync_user",
-          JSON.stringify(user)
-        );
+        sessionStorage.setItem("polisync_user", JSON.stringify(user));
       }
 
-      sessionStorage.removeItem(
-        "polisync_login_email"
-      );
+      sessionStorage.removeItem("polisync_login_email");
 
-      sessionStorage.removeItem(
-        "polisync_login_challenge"
-      );
+      sessionStorage.removeItem("polisync_login_challenge");
 
-      sessionStorage.removeItem(
-        "polisync_login_phone"
-      );
+      sessionStorage.removeItem("polisync_login_phone");
 
-      sessionStorage.removeItem(
-        "polisync_login_otp_expires"
-      );
+      sessionStorage.removeItem("polisync_login_otp_expires");
 
-      setSuccess(
-        "Phone verification successful. Signing you in..."
-      );
+      setSuccess("Phone verification successful. Signing you in...");
 
-      if (
-        user?.platformRole ===
-        "super_admin"
-      ) {
-        window.location.href =
-          "/super-admin";
+      if (user?.platformRole === "super_admin") {
+        window.location.href = "/super-admin";
         return;
       }
 
-      window.location.href =
-        "/dashboard";
+      window.location.href = "/dashboard";
     } catch (verificationError) {
       console.error(
         "PoliSync login OTP verification error:",
@@ -222,8 +151,7 @@ export default function VerifyPhoneLoginPage() {
       );
 
       setError(
-        verificationError?.message ||
-          "Unable to verify the security code."
+        verificationError?.message || "Unable to verify the security code."
       );
     } finally {
       setLoading(false);
@@ -236,121 +164,75 @@ export default function VerifyPhoneLoginPage() {
     setResending(true);
 
     try {
-      const API_URL = (
-        process.env.NEXT_PUBLIC_API_URL || ""
-      ).replace(/\/+$/, "");
+      const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(
+        /\/+$/,
+        ""
+      );
 
       if (!API_URL) {
-        throw new Error(
-          "Production API URL is not configured."
-        );
+        throw new Error("Production API URL is not configured.");
       }
 
-      const response = await fetch(
-        `${API_URL}/api/auth/resend-login-otp`,
-        {
-          method: "POST",
+      const response = await fetch(`${API_URL}/api/auth/resend-login-otp`, {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
+        headers: {
+          "Content-Type": "application/json",
 
-            Accept:
-              "application/json",
-          },
+          Accept: "application/json",
+        },
 
-          credentials: "include",
-
-          body: JSON.stringify({
-            email,
-          }),
-        }
-      );
+        body: JSON.stringify({
+          email,
+        }),
+      });
 
       let data = {};
 
-      const contentType =
-        response.headers.get(
-          "content-type"
-        ) || "";
+      const contentType = response.headers.get("content-type") || "";
 
-      if (
-        contentType.includes(
-          "application/json"
-        )
-      ) {
-        data =
-          await response.json();
+      if (contentType.includes("application/json")) {
+        data = await response.json();
       } else {
-        const text =
-          await response.text();
+        const text = await response.text();
 
         try {
-          data =
-            text
-              ? JSON.parse(text)
-              : {};
+          data = text ? JSON.parse(text) : {};
         } catch {
           data = {
-            message:
-              text ||
-              "Unable to resend code.",
+            message: text || "Unable to resend code.",
           };
         }
       }
 
-      if (
-        !response.ok ||
-        !data?.success
-      ) {
+      if (!response.ok || !data?.success) {
         throw new Error(
-          data?.message ||
-            "Unable to resend the verification code."
+          data?.message || "Unable to resend the verification code."
         );
       }
 
-      if (
-        data?.challengeToken
-      ) {
-        sessionStorage.setItem(
-          "polisync_login_challenge",
-          data.challengeToken
-        );
+      if (data?.challengeToken) {
+        sessionStorage.setItem("polisync_login_challenge", data.challengeToken);
 
-        setChallengeToken(
-          data.challengeToken
-        );
+        setChallengeToken(data.challengeToken);
       }
 
       if (data?.phone) {
-        sessionStorage.setItem(
-          "polisync_login_phone",
-          data.phone
-        );
+        sessionStorage.setItem("polisync_login_phone", data.phone);
 
         setPhone(data.phone);
       }
 
       if (data?.expiresAt) {
-        sessionStorage.setItem(
-          "polisync_login_otp_expires",
-          data.expiresAt
-        );
+        sessionStorage.setItem("polisync_login_otp_expires", data.expiresAt);
       }
 
-      setSuccess(
-        data?.message ||
-          "A new verification code has been sent."
-      );
+      setSuccess(data?.message || "A new verification code has been sent.");
     } catch (resendError) {
-      console.error(
-        "PoliSync resend login OTP error:",
-        resendError
-      );
+      console.error("PoliSync resend login OTP error:", resendError);
 
       setError(
-        resendError?.message ||
-          "Unable to resend the verification code."
+        resendError?.message || "Unable to resend the verification code."
       );
     } finally {
       setResending(false);
@@ -361,14 +243,12 @@ export default function VerifyPhoneLoginPage() {
     <main
       style={{
         minHeight: "100vh",
-        background:
-          "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)",
+        background: "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         padding: "24px",
-        fontFamily:
-          "Arial, Helvetica, sans-serif",
+        fontFamily: "Arial, Helvetica, sans-serif",
       }}
     >
       <div
@@ -378,8 +258,7 @@ export default function VerifyPhoneLoginPage() {
           background: "#FFFFFF",
           borderRadius: "20px",
           padding: "32px 24px",
-          boxShadow:
-            "0 12px 40px rgba(0,0,0,0.10)",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.10)",
         }}
       >
         <div
@@ -419,8 +298,7 @@ export default function VerifyPhoneLoginPage() {
               lineHeight: 1.5,
             }}
           >
-            Enter the security code sent
-            to your registered phone.
+            Enter the security code sent to your registered phone.
           </p>
 
           {phone && (
@@ -455,11 +333,7 @@ export default function VerifyPhoneLoginPage() {
             autoComplete="one-time-code"
             value={otp}
             onChange={(event) =>
-              setOtp(
-                event.target.value
-                  .replace(/\D/g, "")
-                  .slice(0, 15)
-              )
+              setOtp(event.target.value.replace(/\D/g, "").slice(0, 15))
             }
             placeholder="Enter verification code"
             disabled={loading}
@@ -467,8 +341,7 @@ export default function VerifyPhoneLoginPage() {
               width: "100%",
               boxSizing: "border-box",
               padding: "15px",
-              border:
-                "1px solid #C9D4CC",
+              border: "1px solid #C9D4CC",
               borderRadius: "10px",
               fontSize: "18px",
               letterSpacing: "3px",
@@ -516,22 +389,14 @@ export default function VerifyPhoneLoginPage() {
               padding: "15px",
               border: "none",
               borderRadius: "10px",
-              background:
-                loading
-                  ? "#91A895"
-                  : "#176B2C",
+              background: loading ? "#91A895" : "#176B2C",
               color: "#FFFFFF",
               fontSize: "16px",
               fontWeight: 700,
-              cursor:
-                loading
-                  ? "not-allowed"
-                  : "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
             }}
           >
-            {loading
-              ? "Verifying..."
-              : "Verify & Continue"}
+            {loading ? "Verifying..." : "Verify & Continue"}
           </button>
         </form>
 
@@ -543,22 +408,16 @@ export default function VerifyPhoneLoginPage() {
             width: "100%",
             marginTop: "12px",
             padding: "14px",
-            border:
-              "1px solid #176B2C",
+            border: "1px solid #176B2C",
             borderRadius: "10px",
             background: "#FFFFFF",
             color: "#176B2C",
             fontSize: "15px",
             fontWeight: 700,
-            cursor:
-              resending || loading
-                ? "not-allowed"
-                : "pointer",
+            cursor: resending || loading ? "not-allowed" : "pointer",
           }}
         >
-          {resending
-            ? "Sending..."
-            : "Resend security code"}
+          {resending ? "Sending..." : "Resend security code"}
         </button>
 
         <div
