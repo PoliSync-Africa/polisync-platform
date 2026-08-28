@@ -1,7 +1,10 @@
-const verificationTokenSchema =
+=
   new mongoose.Schema(
-
+    {
       //========================================
+      // USER
+      //========================================
+
       userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -111,85 +114,4 @@ const verificationTokenSchema =
     {
       timestamps: true,
     }
-  );
-
-// ============================================================
-// AUTOMATIC EXPIRATION — TTL INDEX
-// ============================================================
-//
-// MongoDB automatically removes expired token documents.
-//
-// This is the ONLY index on expiresAt.
-// ============================================================
-
-verificationTokenSchema.index(
-  {
-    expiresAt: 1,
-  },
-  {
-    expireAfterSeconds: 0,
-  }
-);
-
-// ============================================================
-// PREVENT UNLIMITED ATTEMPTS
-// ============================================================
-
-verificationTokenSchema.pre(
-  "validate",
-  function (next) {
-    if (
-      this.attempts >
-      this.maxAttempts
-    ) {
-      this.attempts =
-        this.maxAttempts;
-    }
-
-    next();
-  }
-);
-
-// ============================================================
-// HELPER: TOKEN ACTIVE
-// ============================================================
-
-verificationTokenSchema.methods.isActive =
-  function () {
-    // Token has already been used
-    if (this.usedAt) {
-      return false;
-    }
-
-    // Token has expired
-    if (
-      this.expiresAt <=
-      new Date()
-    ) {
-      return false;
-    }
-
-    // Maximum attempts reached
-    if (
-      this.attempts >=
-      this.maxAttempts
-    ) {
-      return false;
-    }
-
-    return true;
-  };
-
-// ============================================================
-// MODEL
-// ============================================================
-//
-// Prevent Mongoose from recompiling the model during reloads.
-// ============================================================
-
-module.exports =
-  mongoose.models.VerificationToken ||
-  mongoose.model(
-    "VerificationToken",
-    verificationTokenSchema
   );
