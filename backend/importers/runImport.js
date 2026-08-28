@@ -5,7 +5,6 @@ const mongoose = require("mongoose");
 const { runECImport } = require("./ghana/ecImporter");
 
 async function start() {
-
   await mongoose.connect(process.env.MONGO_URI);
 
   const result = await runECImport();
@@ -13,7 +12,6 @@ async function start() {
   console.log(result);
 
   process.exit();
-
 }
 
 start();
