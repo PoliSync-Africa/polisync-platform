@@ -4,12 +4,16 @@ const StationTimelineSchema = new mongoose.Schema(
   {
     pollingStation: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "GeoUnit"
+      ref: "GeoUnit",
+      required: true,
+      index: true,
     },
 
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
+      ref: "User",
+      required: false,
+      index: true,
     },
 
     eventType: {
@@ -20,20 +24,30 @@ const StationTimelineSchema = new mongoose.Schema(
         "IncidentReported",
         "EC8Uploaded",
         "Verified",
-        "Alert"
-      ]
+        "Alert",
+      ],
+      required: true,
+      index: true,
     },
 
-    message: String,
+    message: {
+      type: String,
+      trim: true,
+    },
 
-    metadata: Object
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   {
-    timestamps: true
+    timestamps: true,
   }
 );
 
-module.exports = mongoose.model(
-  "StationTimeline",
-  StationTimelineSchema
-);
+StationTimelineSchema.index({
+  pollingStation: 1,
+  createdAt: -1,
+});
+
+module.exports = mongoose.model("StationTimeline", StationTimelineSchema);
