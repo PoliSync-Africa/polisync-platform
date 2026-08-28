@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from "next/image";
@@ -76,8 +75,6 @@ export default function LoginPage() {
 
             Accept: "application/json",
           },
-
-          credentials: "include",
 
           body: JSON.stringify({
             email: normalizedEmail,
@@ -306,7 +303,6 @@ export default function LoginPage() {
         }}
       >
         {/* ================================================== POLISYNC LOGO ================================================== */}
-
         <div
           style={{
             display: "flex",
@@ -335,9 +331,7 @@ export default function LoginPage() {
             }}
           />
         </div>
-
         {/* ================================================== WELCOME ================================================== */}
-
         <h1
           style={{
             textAlign: "center",
@@ -355,7 +349,6 @@ export default function LoginPage() {
         >
           Welcome Back
         </h1>
-
         <p
           style={{
             textAlign: "center",
@@ -371,9 +364,7 @@ export default function LoginPage() {
         >
           Sign in to your PoliSync Africa account
         </p>
-
         {/* ================================================== LOGIN FORM ================================================== */}
-
         <form onSubmit={handleLogin}>
           {/* EMAIL */}
 
@@ -645,9 +636,7 @@ export default function LoginPage() {
             {loading ? "Signing In..." : "Login"}
           </button>
         </form>
-
         {/* ================================================== CREATE ACCOUNT ================================================== */}
-
         <div
           style={{
             textAlign: "center",
@@ -661,4 +650,48 @@ export default function LoginPage() {
             lineHeight: "1.6",
           }}
         >
-          <div>Don't have an account?</div> <Link href="/register" style={{ display: "inline-block", marginTop: "3px", color: "#C9A227", textDecoration: "none", fontWeight: "800", fontSize: "16px", }} > Create Account </Link> </div> {/* ================================================== BRAND FOOTER ================================================== */} <footer style={{ textAlign: "center", marginTop: "30px", paddingTop: "18px", borderTop: "1px solid #E8E8E8", color: "#777", fontSize: "12px", lineHeight: "1.7", }} > <div style={{ fontWeight: "700", color: "#065F2B", fontSize: "12px", }} > PoliSync Africa- Africa Best Political Intelligence Platform </div> <div> Powered by <strong>SyncTech Technologies</strong> </div> <div>All rights reserved</div> </footer> </div> </main> ); }
+          <div>Don't have an account?</div>{" "}
+          <Link
+            href="/register"
+            style={{
+              display: "inline-block",
+              marginTop: "3px",
+              color: "#C9A227",
+              textDecoration: "none",
+              fontWeight: "800",
+              fontSize: "16px",
+            }}
+          >
+            {" "}
+            Create Account{" "}
+          </Link>{" "}
+        </div>{" "}
+        {/* ================================================== BRAND FOOTER ================================================== */}{" "}
+        <footer
+          style={{
+            textAlign: "center",
+            marginTop: "30px",
+            paddingTop: "18px",
+            borderTop: "1px solid #E8E8E8",
+            color: "#777",
+            fontSize: "12px",
+            lineHeight: "1.7",
+          }}
+        >
+          {" "}
+          <div
+            style={{ fontWeight: "700", color: "#065F2B", fontSize: "12px" }}
+          >
+            {" "}
+            PoliSync Africa- Africa Best Political Intelligence Platform{" "}
+          </div>{" "}
+          <div>
+            {" "}
+            Powered by <strong>SyncTech Technologies</strong>{" "}
+          </div>{" "}
+          <div>All rights reserved</div>{" "}
+        </footer>{" "}
+      </div>{" "}
+    </main>
+  );
+}
