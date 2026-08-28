@@ -14,6 +14,7 @@ const {
   me,
   logout,
   verifyLoginOTP,
+  resendLoginOTP,
 } = require("../controllers/authController");
 
 const router = express.Router();
@@ -34,70 +35,48 @@ router.use(
 // AUTH STATUS
 // ============================================================
 
-router.get(
-  "/",
-  (req, res) => {
-    res.json({
-      success: true,
-      message:
-        "PoliSync Africa Authentication API is running.",
-    });
-  }
-);
+router.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "PoliSync Africa Authentication API is running.",
+  });
+});
 
 // ============================================================
 // REGISTRATION
 // ============================================================
 
-router.post(
-  "/register",
-  register
-);
+router.post("/register", register);
 
 // ============================================================
 // LOGIN
 // ============================================================
 
-router.post(
-  "/login",
-  login
-);
+router.post("/login", login);
 
 // ============================================================
 // EMAIL VERIFICATION
 // ============================================================
 
-router.post(
-  "/verify-email",
-  verifyEmail
-);
+router.post("/verify-email", verifyEmail);
 
 // ============================================================
 // PHONE VERIFICATION
 // ============================================================
 
-router.post(
-  "/verify-phone",
-  verifyPhone
-);
+router.post("/verify-phone", verifyPhone);
 
 // ============================================================
 // RESEND EMAIL VERIFICATION
 // ============================================================
 
-router.post(
-  "/resend-email-verification",
-  resendEmailVerification
-);
+router.post("/resend-email-verification", resendEmailVerification);
 
 // ============================================================
 // RESEND PHONE VERIFICATION
 // ============================================================
 
-router.post(
-  "/resend-phone-verification",
-  resendPhoneVerification
-);
+router.post("/resend-phone-verification", resendPhoneVerification);
 
 // ============================================================
 // LOGIN PHONE OTP
@@ -109,71 +88,65 @@ router.post(
 // Body:
 //
 // {
-//   email,
-//   code,
-//   challengeToken
+// email,
+// code,
+// challengeToken
 // }
 //
 // ============================================================
 
-router.post(
-  "/verify-login-otp",
-  verifyLoginOTP
-);
+router.post("/verify-login-otp", verifyLoginOTP);
+
+// ============================================================
+// RESEND LOGIN PHONE OTP
+// ============================================================
+//
+// Body:
+//
+// {
+// email,
+// challengeToken
+// }
+//
+// ============================================================
+
+router.post("/resend-login-otp", resendLoginOTP);
 
 // ============================================================
 // FORGOT PASSWORD
 // ============================================================
 
-router.post(
-  "/forgot-password",
-  forgotPassword
-);
+router.post("/forgot-password", forgotPassword);
 
 // ============================================================
 // VERIFY PASSWORD RESET
 // ============================================================
 
-router.post(
-  "/verify-password-reset",
-  verifyPasswordReset
-);
+router.post("/verify-password-reset", verifyPasswordReset);
 
 // ============================================================
 // RESET PASSWORD
 // ============================================================
 
-router.post(
-  "/reset-password",
-  resetPassword
-);
+router.post("/reset-password", resetPassword);
 
 // ============================================================
 // CHANGE PASSWORD
 // ============================================================
 
-router.post(
-  "/change-password",
-  changePassword
-);
+router.post("/change-password", changePassword);
 
 // ============================================================
 // AUTHENTICATED USER
 // ============================================================
 
-router.get(
-  "/me",
-  me
-);
+router.get("/me", me);
 
 // ============================================================
 // LOGOUT
 // ============================================================
 
-router.post(
-  "/logout",
-  logout
-);
+router.post("/logout", logout);
 
 // ============================================================
 // EXPORT
