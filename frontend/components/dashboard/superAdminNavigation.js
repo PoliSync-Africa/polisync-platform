@@ -149,4 +149,4 @@ const superAdminNavigation = [
   },
 ];
 
-module.exports = superAdminNavigation;
+export default superAdminNavigation;
