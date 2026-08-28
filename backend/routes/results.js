@@ -1,18 +1,18 @@
 const express = require("express");
 const {
   submitResult,
-  getElectionResults,
-  verifyResult
-} = require("../controllers/resultController");
+  getResults,
+  dashboard,
+} = require("../controllers/resultsController");
 
-const { protect, authorize } = require("../middleware/authMiddleware");
+const { protect, authorize } = require("../middleware/auth");
 
 const router = express.Router();
 
 router.get("/", (req, res) => {
   res.json({
     status: "success",
-    message: "Results routes ready"
+    message: "Results routes ready",
   });
 });
 
@@ -23,21 +23,14 @@ router.post(
   submitResult
 );
 
-router.get(
-  "/election/:electionId",
-  protect,
-  getElectionResults
-);
+// NOTE: the original route filtered results by :electionId, but the
+// Result model only stores electionYear/electionType (no electionId),
+// and there is no verifyResult handler yet. Wired to the closest
+// existing controller functions so this router loads without
+// crashing; a real per-election filter and a verify/approve workflow
+// still need to be implemented against the Result model.
+router.get("/election/:electionId", protect, getResults);
 
-router.patch(
-  "/verify/:id",
-  protect,
-  authorize(
-    "regional_admin",
-    "country_admin",
-    "super_admin"
-  ),
-  verifyResult
-);
+router.get("/dashboard", protect, dashboard);
 
 module.exports = router;
