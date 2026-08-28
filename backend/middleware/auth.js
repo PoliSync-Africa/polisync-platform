@@ -15,7 +15,7 @@ const protect = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: "Access denied. No token provided."
+        message: "Access denied. No token provided.",
       });
     }
 
@@ -24,12 +24,17 @@ const protect = async (req, res, next) => {
       process.env.JWT_SECRET || "polisync-secret"
     );
 
-    req.user = await User.findById(decoded.id).select("-password");
+    // NOTE: login()/verifyLoginOTP() in authController.js sign the JWT
+    // payload with a "userId" field (not "id"). Reading "id" here always
+    // resolved to undefined, so every authenticated request after a
+    // successful login failed with 401. Read "userId" to match the
+    // tokens actually issued by the platform.
+    req.user = await User.findById(decoded.userId).select("-password");
 
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: "User not found."
+        message: "User not found.",
       });
     }
 
@@ -37,17 +42,24 @@ const protect = async (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired token."
+      message: "Invalid or expired token.",
     });
   }
 };
 
 const authorize = (...roles) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    // NOTE: the User model has no "role" field — platform-level access is
+    // "platformRole" ("user" | "super_admin"); organization-level roles
+    // (national_admin, regional_admin, constituency_admin,
+    // polling_station_agent, presidential_candidate,
+    // parliamentary_candidate) live on OrganizationMembership, not on the
+    // user/JWT. Checking req.user.role always evaluated to undefined and
+    // every authorize()-gated route always returned 403.
+    if (!req.user || !roles.includes(req.user.platformRole)) {
       return res.status(403).json({
         success: false,
-        message: "You do not have permission to perform this action."
+        message: "You do not have permission to perform this action.",
       });
     }
 
@@ -57,5 +69,5 @@ const authorize = (...roles) => {
 
 module.exports = {
   protect,
-  authorize
+  authorize,
 };
