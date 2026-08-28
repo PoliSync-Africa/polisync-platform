@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema(
     // ============================================================
     // PLATFORM ROLE
     // ============================================================
-    // "user"        = ordinary PoliSync Africa account
+    // "user" = ordinary PoliSync Africa account
     // "super_admin" = PoliSync Africa platform authority
     //
     // Organization roles belong to OrganizationMembership.js.
@@ -89,12 +89,7 @@ const userSchema = new mongoose.Schema(
 
     identificationType: {
       type: String,
-      enum: [
-        "passport",
-        "ghana_card",
-        "voter_id",
-        null,
-      ],
+      enum: ["passport", "ghana_card", "voter_id", null],
       default: null,
     },
 
@@ -151,12 +146,12 @@ const userSchema = new mongoose.Schema(
     // ============================================================
     //
     // phoneVerified:
-    //   Confirms that the registered phone number has been
-    //   successfully verified.
+    // Confirms that the registered phone number has been
+    // successfully verified.
     //
     // lastPhoneVerificationAt:
-    //   Records the most recent successful SMS OTP verification
-    //   used for authentication security.
+    // Records the most recent successful SMS OTP verification
+    // used for authentication security.
     //
     // PoliSync requires a new phone OTP when more than 24 hours
     // have passed since the last successful phone verification.
@@ -211,12 +206,7 @@ const userSchema = new mongoose.Schema(
 
     twoFactorMethod: {
       type: String,
-      enum: [
-        "authenticator",
-        "sms",
-        "email",
-        null,
-      ],
+      enum: ["authenticator", "sms", "email", null],
       default: null,
     },
 
@@ -270,13 +260,7 @@ const userSchema = new mongoose.Schema(
 
       status: {
         type: String,
-        enum: [
-          "not_requested",
-          "pending",
-          "approved",
-          "rejected",
-          "revoked",
-        ],
+        enum: ["not_requested", "pending", "approved", "rejected", "revoked"],
         default: "not_requested",
         index: true,
       },
@@ -369,13 +353,7 @@ const userSchema = new mongoose.Schema(
 
     accountStatus: {
       type: String,
-      enum: [
-        "pending",
-        "approved",
-        "rejected",
-        "suspended",
-        "deactivated",
-      ],
+      enum: ["pending", "approved", "rejected", "suspended", "deactivated"],
       required: true,
       default: "pending",
       index: true,
@@ -414,11 +392,7 @@ const userSchema = new mongoose.Schema(
 
       messagePrivacy: {
         type: String,
-        enum: [
-          "everyone",
-          "organizations_only",
-          "nobody",
-        ],
+        enum: ["everyone", "organizations_only", "nobody"],
         default: "nobody",
       },
 
@@ -428,11 +402,7 @@ const userSchema = new mongoose.Schema(
 
       profileVisibility: {
         type: String,
-        enum: [
-          "everyone",
-          "organizations_only",
-          "nobody",
-        ],
+        enum: ["everyone", "organizations_only", "nobody"],
         default: "nobody",
       },
 
@@ -469,11 +439,7 @@ const userSchema = new mongoose.Schema(
 
       profileViewPrivacy: {
         type: String,
-        enum: [
-          "everyone",
-          "organizations_only",
-          "nobody",
-        ],
+        enum: ["everyone", "organizations_only", "nobody"],
         default: "everyone",
       },
 
@@ -492,12 +458,7 @@ const userSchema = new mongoose.Schema(
 
       locationVisibility: {
         type: String,
-        enum: [
-          "everyone",
-          "organizations_only",
-          "selected_people",
-          "nobody",
-        ],
+        enum: ["everyone", "organizations_only", "selected_people", "nobody"],
         default: "nobody",
       },
 
@@ -507,10 +468,7 @@ const userSchema = new mongoose.Schema(
 
       locationPrecision: {
         type: String,
-        enum: [
-          "exact",
-          "approximate",
-        ],
+        enum: ["exact", "approximate"],
         default: "approximate",
       },
 
@@ -617,11 +575,7 @@ const userSchema = new mongoose.Schema(
 
       theme: {
         type: String,
-        enum: [
-          "system",
-          "light",
-          "dark",
-        ],
+        enum: ["system", "light", "dark"],
         default: "system",
       },
 
@@ -632,12 +586,7 @@ const userSchema = new mongoose.Schema(
 
       fontSize: {
         type: String,
-        enum: [
-          "small",
-          "medium",
-          "large",
-          "extra_large",
-        ],
+        enum: ["small", "medium", "large", "extra_large"],
         default: "medium",
       },
     },
@@ -651,707 +600,483 @@ const userSchema = new mongoose.Schema(
 // ORDINARY USER VALIDATION
 // ============================================================
 
-userSchema.pre(
-  "validate",
-  function (next) {
-    if (this.platformRole === "user") {
-      if (!this.firstName) {
-        this.invalidate(
-          "firstName",
-          "First name is required."
-        );
-      }
-
-      if (!this.lastName) {
-        this.invalidate(
-          "lastName",
-          "Last name is required."
-        );
-      }
-
-      if (!this.dateOfBirth) {
-        this.invalidate(
-          "dateOfBirth",
-          "Date of birth is required."
-        );
-      }
-
-      if (!this.identificationType) {
-        this.invalidate(
-          "identificationType",
-          "Identification type is required."
-        );
-      }
-
-      if (!this.identificationNumber) {
-        this.invalidate(
-          "identificationNumber",
-          "Identification number is required."
-        );
-      }
+userSchema.pre("validate", function (next) {
+  if (this.platformRole === "user") {
+    if (!this.firstName) {
+      this.invalidate("firstName", "First name is required.");
     }
 
-    next();
+    if (!this.lastName) {
+      this.invalidate("lastName", "Last name is required.");
+    }
+
+    if (!this.dateOfBirth) {
+      this.invalidate("dateOfBirth", "Date of birth is required.");
+    }
+
+    if (!this.identificationType) {
+      this.invalidate("identificationType", "Identification type is required.");
+    }
+
+    if (!this.identificationNumber) {
+      this.invalidate(
+        "identificationNumber",
+        "Identification number is required."
+      );
+    }
   }
-);
+
+  next();
+});
 
 // ============================================================
 // SUPER ADMIN PLATFORM IDENTITY
 // ============================================================
 
-userSchema.pre(
-  "validate",
-  function (next) {
-    if (
-      this.platformRole ===
-      "super_admin"
-    ) {
-      // --------------------------------------------------------
-      // PLATFORM PUBLIC IDENTITY
-      // --------------------------------------------------------
+userSchema.pre("validate", function (next) {
+  if (this.platformRole === "super_admin") {
+    // --------------------------------------------------------
+    // PLATFORM PUBLIC IDENTITY
+    // --------------------------------------------------------
 
-      this.displayName =
-        "POLISYNC AFRICA";
+    this.displayName = "POLISYNC AFRICA";
 
-      this.username =
-        "polisync.africa";
+    this.username = "polisync.africa";
 
-      this.firstName =
-        "POLISYNC";
+    this.firstName = "POLISYNC";
 
-      this.middleName =
-        "";
+    this.middleName = "";
 
-      this.lastName =
-        "AFRICA";
+    this.lastName = "AFRICA";
 
-      // --------------------------------------------------------
-      // NO ORDINARY IDENTIFICATION
-      // --------------------------------------------------------
+    // --------------------------------------------------------
+    // NO ORDINARY IDENTIFICATION
+    // --------------------------------------------------------
 
-      this.identificationType =
-        null;
+    this.identificationType = null;
 
-      this.identificationNumber =
-        null;
+    this.identificationNumber = null;
 
-      this.dateOfBirth =
-        null;
+    this.dateOfBirth = null;
 
-      // --------------------------------------------------------
-      // PLATFORM IS PERMANENTLY VERIFIED
-      // --------------------------------------------------------
+    // --------------------------------------------------------
+    // PLATFORM IS PERMANENTLY VERIFIED
+    // --------------------------------------------------------
 
-      if (!this.verification) {
-        this.verification = {};
-      }
-
-      this.verification.isVerified =
-        true;
-
-      this.verification.status =
-        "approved";
-
-      this.verification.verificationType =
-        "platform";
-
-      this.verification.badgeAsset =
-        "/verified-badge.png";
-
-      // --------------------------------------------------------
-      // PLATFORM HAS NO PERSONAL LOCATION
-      // --------------------------------------------------------
-
-      this.locationPermissionGranted =
-        false;
-
-      this.privacy.shareLocation =
-        false;
-
-      this.privacy.locationVisibility =
-        "nobody";
-
-      this.currentLocation = {
-        latitude: null,
-        longitude: null,
-        accuracy: null,
-        updatedAt: null,
-      };
-
-      this.locationExpiresAt =
-        null;
+    if (!this.verification) {
+      this.verification = {};
     }
 
-    next();
+    this.verification.isVerified = true;
+
+    this.verification.status = "approved";
+
+    this.verification.verificationType = "platform";
+
+    this.verification.badgeAsset = "/verified-badge.png";
+
+    // --------------------------------------------------------
+    // PLATFORM HAS NO PERSONAL LOCATION
+    // --------------------------------------------------------
+
+    this.locationPermissionGranted = false;
+
+    this.privacy.shareLocation = false;
+
+    this.privacy.locationVisibility = "nobody";
+
+    this.currentLocation = {
+      latitude: null,
+      longitude: null,
+      accuracy: null,
+      updatedAt: null,
+    };
+
+    this.locationExpiresAt = null;
   }
-);
+
+  next();
+});
 
 // ============================================================
 // VERIFICATION SAFETY VALIDATION
 // ============================================================
 
-userSchema.pre(
-  "validate",
-  function (next) {
-    // ----------------------------------------------------------
-    // SUPER ADMIN
-    // ----------------------------------------------------------
+userSchema.pre("validate", function (next) {
+  // ----------------------------------------------------------
+  // SUPER ADMIN
+  // ----------------------------------------------------------
 
-    if (
-      this.platformRole ===
-      "super_admin"
-    ) {
-      this.verification.isVerified =
-        true;
+  if (this.platformRole === "super_admin") {
+    this.verification.isVerified = true;
 
-      this.verification.status =
-        "approved";
+    this.verification.status = "approved";
 
-      this.verification.verificationType =
-        "platform";
+    this.verification.verificationType = "platform";
 
-      this.verification.badgeAsset =
-        "/verified-badge.png";
+    this.verification.badgeAsset = "/verified-badge.png";
 
-      return next();
-    }
-
-    // ----------------------------------------------------------
-    // ORDINARY USERS
-    // ----------------------------------------------------------
-
-    if (
-      this.verification.isVerified &&
-      this.verification.status !==
-        "approved"
-    ) {
-      this.invalidate(
-        "verification.isVerified",
-        "An account cannot be verified unless its verification status is approved."
-      );
-    }
-
-    if (
-      this.verification.status ===
-      "approved"
-    ) {
-      this.verification.isVerified =
-        true;
-    }
-
-    if (
-      this.verification.status ===
-        "rejected" ||
-      this.verification.status ===
-        "revoked"
-    ) {
-      this.verification.isVerified =
-        false;
-    }
-
-    if (
-      this.verification.isVerified
-    ) {
-      this.verification.badgeAsset =
-        "/verified-badge.png";
-    }
-
-    next();
+    return next();
   }
-);
+
+  // ----------------------------------------------------------
+  // ORDINARY USERS
+  // ----------------------------------------------------------
+
+  if (this.verification.isVerified && this.verification.status !== "approved") {
+    this.invalidate(
+      "verification.isVerified",
+      "An account cannot be verified unless its verification status is approved."
+    );
+  }
+
+  if (this.verification.status === "approved") {
+    this.verification.isVerified = true;
+  }
+
+  if (
+    this.verification.status === "rejected" ||
+    this.verification.status === "revoked"
+  ) {
+    this.verification.isVerified = false;
+  }
+
+  if (this.verification.isVerified) {
+    this.verification.badgeAsset = "/verified-badge.png";
+  }
+
+  next();
+});
 
 // ============================================================
 // LOCATION SAFETY VALIDATION
 // ============================================================
 
-userSchema.pre(
-  "validate",
-  function (next) {
-    if (
-      !this.privacy.shareLocation
-    ) {
-      this.privacy.locationVisibility =
-        "nobody";
+userSchema.pre("validate", function (next) {
+  if (!this.privacy.shareLocation) {
+    this.privacy.locationVisibility = "nobody";
 
-      this.locationExpiresAt =
-        null;
-    }
-
-    if (
-      this.privacy.shareLocation &&
-      !this.locationPermissionGranted
-    ) {
-      this.privacy.shareLocation =
-        false;
-
-      this.privacy.locationVisibility =
-        "nobody";
-
-      this.locationExpiresAt =
-        null;
-    }
-
-    next();
+    this.locationExpiresAt = null;
   }
-);
+
+  if (this.privacy.shareLocation && !this.locationPermissionGranted) {
+    this.privacy.shareLocation = false;
+
+    this.privacy.locationVisibility = "nobody";
+
+    this.locationExpiresAt = null;
+  }
+
+  next();
+});
 
 // ============================================================
 // PROFILE VIEW PRIVACY VALIDATION
 // ============================================================
 
-userSchema.pre(
-  "validate",
-  function (next) {
-    const allowedValues = [
-      "everyone",
-      "organizations_only",
-      "nobody",
-    ];
+userSchema.pre("validate", function (next) {
+  const allowedValues = ["everyone", "organizations_only", "nobody"];
 
-    if (
-      !allowedValues.includes(
-        this.privacy.profileViewPrivacy
-      )
-    ) {
-      this.privacy.profileViewPrivacy =
-        "everyone";
-    }
-
-    next();
+  if (!allowedValues.includes(this.privacy.profileViewPrivacy)) {
+    this.privacy.profileViewPrivacy = "everyone";
   }
-);
+
+  next();
+});
 
 // ============================================================
 // LOCATION EXPIRATION VALIDATION
 // ============================================================
 
-userSchema.pre(
-  "save",
-  function (next) {
-    if (
-      this.privacy &&
-      this.privacy.shareLocation &&
-      this.locationExpiresAt &&
-      this.locationExpiresAt <=
-        new Date()
-    ) {
-      this.privacy.shareLocation =
-        false;
+userSchema.pre("save", function (next) {
+  if (
+    this.privacy &&
+    this.privacy.shareLocation &&
+    this.locationExpiresAt &&
+    this.locationExpiresAt <= new Date()
+  ) {
+    this.privacy.shareLocation = false;
 
-      this.privacy.locationVisibility =
-        "nobody";
+    this.privacy.locationVisibility = "nobody";
 
-      this.locationExpiresAt =
-        null;
-    }
-
-    next();
+    this.locationExpiresAt = null;
   }
-);
+
+  next();
+});
 
 // ============================================================
 // NORMALIZATION
 // ============================================================
 
-userSchema.pre(
-  "save",
-  function (next) {
-    if (this.username) {
-      this.username =
-        this.username
-          .toLowerCase()
-          .trim();
-    }
-
-    if (this.email) {
-      this.email =
-        this.email
-          .toLowerCase()
-          .trim();
-    }
-
-    if (this.phone) {
-      this.phone =
-        this.phone.trim();
-    }
-
-    if (this.identificationNumber) {
-      this.identificationNumber =
-        this.identificationNumber.trim();
-    }
-
-    if (this.firstName) {
-      this.firstName =
-        this.firstName.trim();
-    }
-
-    if (this.middleName) {
-      this.middleName =
-        this.middleName.trim();
-    }
-
-    if (this.lastName) {
-      this.lastName =
-        this.lastName.trim();
-    }
-
-    if (this.displayName) {
-      this.displayName =
-        this.displayName.trim();
-    }
-
-    next();
+userSchema.pre("save", function (next) {
+  if (this.username) {
+    this.username = this.username.toLowerCase().trim();
   }
-);
+
+  if (this.email) {
+    this.email = this.email.toLowerCase().trim();
+  }
+
+  if (this.phone) {
+    this.phone = this.phone.trim();
+  }
+
+  if (this.identificationNumber) {
+    this.identificationNumber = this.identificationNumber.trim();
+  }
+
+  if (this.firstName) {
+    this.firstName = this.firstName.trim();
+  }
+
+  if (this.middleName) {
+    this.middleName = this.middleName.trim();
+  }
+
+  if (this.lastName) {
+    this.lastName = this.lastName.trim();
+  }
+
+  if (this.displayName) {
+    this.displayName = this.displayName.trim();
+  }
+
+  next();
+});
 
 // ============================================================
 // PUBLIC IDENTITY
 // ============================================================
 
-userSchema.methods.getPublicIdentity =
-  function () {
-    if (
-      this.platformRole ===
-      "super_admin"
-    ) {
-      return {
-        displayName:
-          "POLISYNC AFRICA",
-
-        username:
-          "polisync.africa",
-
-        platformRole:
-          "super_admin",
-
-        isPlatformAccount:
-          true,
-
-        verified: true,
-
-        verificationBadge:
-          "/verified-badge.png",
-      };
-    }
-
-    const isVerified =
-      Boolean(
-        this.verification &&
-          this.verification
-            .isVerified &&
-          this.verification.status ===
-            "approved"
-      );
-
+userSchema.methods.getPublicIdentity = function () {
+  if (this.platformRole === "super_admin") {
     return {
-      displayName:
-        this.displayName ||
-        `${this.firstName} ${this.lastName}`.trim(),
+      displayName: "POLISYNC AFRICA",
 
-      username:
-        this.username,
+      username: "polisync.africa",
 
-      platformRole:
-        this.platformRole,
+      platformRole: "super_admin",
 
-      isPlatformAccount:
-        false,
+      isPlatformAccount: true,
 
-      verified:
-        isVerified,
+      verified: true,
 
-      verificationBadge:
-        isVerified
-          ? "/verified-badge.png"
-          : null,
+      verificationBadge: "/verified-badge.png",
     };
+  }
+
+  const isVerified = Boolean(
+    this.verification &&
+      this.verification.isVerified &&
+      this.verification.status === "approved"
+  );
+
+  return {
+    displayName:
+      this.displayName || `${this.firstName} ${this.lastName}`.trim(),
+
+    username: this.username,
+
+    platformRole: this.platformRole,
+
+    isPlatformAccount: false,
+
+    verified: isVerified,
+
+    verificationBadge: isVerified ? "/verified-badge.png" : null,
   };
+};
 
 // ============================================================
 // VERIFICATION PUBLIC IDENTITY
 // ============================================================
 
-userSchema.methods.getPublicVerification =
-  function () {
-    if (
-      this.platformRole ===
-      "super_admin"
-    ) {
-      return {
-        isVerified: true,
-
-        status:
-          "approved",
-
-        verificationType:
-          "platform",
-
-        badgeAsset:
-          "/verified-badge.png",
-      };
-    }
-
-    if (
-      !this.verification
-    ) {
-      return {
-        isVerified: false,
-
-        status:
-          "not_requested",
-
-        verificationType:
-          null,
-
-        badgeAsset:
-          null,
-      };
-    }
-
+userSchema.methods.getPublicVerification = function () {
+  if (this.platformRole === "super_admin") {
     return {
-      isVerified:
-        Boolean(
-          this.verification
-            .isVerified
-        ),
+      isVerified: true,
 
-      status:
-        this.verification
-          .status,
+      status: "approved",
 
-      verificationType:
-        this.verification
-          .verificationType,
+      verificationType: "platform",
 
-      badgeAsset:
-        this.verification
-          .isVerified
-          ? "/verified-badge.png"
-          : null,
+      badgeAsset: "/verified-badge.png",
     };
+  }
+
+  if (!this.verification) {
+    return {
+      isVerified: false,
+
+      status: "not_requested",
+
+      verificationType: null,
+
+      badgeAsset: null,
+    };
+  }
+
+  return {
+    isVerified: Boolean(this.verification.isVerified),
+
+    status: this.verification.status,
+
+    verificationType: this.verification.verificationType,
+
+    badgeAsset: this.verification.isVerified ? "/verified-badge.png" : null,
   };
+};
 
 // ============================================================
 // CAN APPEAR IN PROFILE VIEW HISTORY
 // ============================================================
 
-userSchema.methods.canAppearInProfileViews =
-  function ({
-    viewerIsOrganizationMember = false,
-  } = {}) {
-    const privacy =
-      this.privacy
-        ?.profileViewPrivacy;
+userSchema.methods.canAppearInProfileViews = function ({
+  viewerIsOrganizationMember = false,
+} = {}) {
+  const privacy = this.privacy?.profileViewPrivacy;
 
-    if (
-      privacy === "nobody"
-    ) {
-      return false;
-    }
+  if (privacy === "nobody") {
+    return false;
+  }
 
-    if (
-      privacy ===
-        "organizations_only" &&
-      !viewerIsOrganizationMember
-    ) {
-      return false;
-    }
+  if (privacy === "organizations_only" && !viewerIsOrganizationMember) {
+    return false;
+  }
 
-    return true;
-  };
+  return true;
+};
 
 // ============================================================
 // LOCATION VISIBILITY CHECK
 // ============================================================
 
-userSchema.methods.canShareLocationWith =
-  function ({
-    viewerId = null,
-    viewerIsOrganizationMember = false,
-  } = {}) {
-    // Platform Super Admin has no personal location.
+userSchema.methods.canShareLocationWith = function ({
+  viewerId = null,
+  viewerIsOrganizationMember = false,
+} = {}) {
+  // Platform Super Admin has no personal location.
 
-    if (
-      this.platformRole ===
-      "super_admin"
-    ) {
-      return false;
-    }
-
-    if (
-      !this.privacy.shareLocation
-    ) {
-      return false;
-    }
-
-    if (
-      !this.locationPermissionGranted
-    ) {
-      return false;
-    }
-
-    if (
-      this.locationExpiresAt &&
-      this.locationExpiresAt <=
-        new Date()
-    ) {
-      return false;
-    }
-
-    const visibility =
-      this.privacy
-        .locationVisibility;
-
-    if (
-      visibility === "nobody"
-    ) {
-      return false;
-    }
-
-    if (
-      visibility === "everyone"
-    ) {
-      return true;
-    }
-
-    if (
-      visibility ===
-        "organizations_only" &&
-      viewerIsOrganizationMember
-    ) {
-      return true;
-    }
-
-    if (
-      visibility ===
-        "selected_people" &&
-      viewerId
-    ) {
-      // Selected-person authorization must be implemented in
-      // the service/controller against an access list.
-      return false;
-    }
-
+  if (this.platformRole === "super_admin") {
     return false;
-  };
+  }
+
+  if (!this.privacy.shareLocation) {
+    return false;
+  }
+
+  if (!this.locationPermissionGranted) {
+    return false;
+  }
+
+  if (this.locationExpiresAt && this.locationExpiresAt <= new Date()) {
+    return false;
+  }
+
+  const visibility = this.privacy.locationVisibility;
+
+  if (visibility === "nobody") {
+    return false;
+  }
+
+  if (visibility === "everyone") {
+    return true;
+  }
+
+  if (visibility === "organizations_only" && viewerIsOrganizationMember) {
+    return true;
+  }
+
+  if (visibility === "selected_people" && viewerId) {
+    // Selected-person authorization must be implemented in
+    // the service/controller against an access list.
+    return false;
+  }
+
+  return false;
+};
 
 // ============================================================
 // PUBLIC LOCATION
 // ============================================================
 
-userSchema.methods.getPublicLocation =
-  function ({
-    viewerId = null,
-    viewerIsOrganizationMember = false,
-  } = {}) {
-    const allowed =
-      this.canShareLocationWith({
-        viewerId,
-        viewerIsOrganizationMember,
-      });
+userSchema.methods.getPublicLocation = function ({
+  viewerId = null,
+  viewerIsOrganizationMember = false,
+} = {}) {
+  const allowed = this.canShareLocationWith({
+    viewerId,
+    viewerIsOrganizationMember,
+  });
 
-    if (!allowed) {
-      return null;
-    }
+  if (!allowed) {
+    return null;
+  }
 
-    if (
-      !this.currentLocation ||
-      this.currentLocation
-        .latitude === null ||
-      this.currentLocation
-        .longitude === null
-    ) {
-      return null;
-    }
+  if (
+    !this.currentLocation ||
+    this.currentLocation.latitude === null ||
+    this.currentLocation.longitude === null
+  ) {
+    return null;
+  }
 
-    const precision =
-      this.privacy
-        .locationPrecision;
+  const precision = this.privacy.locationPrecision;
 
-    // ----------------------------------------------------------
-    // APPROXIMATE LOCATION
-    // ----------------------------------------------------------
+  // ----------------------------------------------------------
+  // APPROXIMATE LOCATION
+  // ----------------------------------------------------------
 
-    if (
-      precision ===
-      "approximate"
-    ) {
-      const latitude =
-        Math.round(
-          this.currentLocation
-            .latitude * 100
-        ) / 100;
+  if (precision === "approximate") {
+    const latitude = Math.round(this.currentLocation.latitude * 100) / 100;
 
-      const longitude =
-        Math.round(
-          this.currentLocation
-            .longitude * 100
-        ) / 100;
-
-      return {
-        latitude,
-        longitude,
-
-        precision:
-          "approximate",
-
-        updatedAt:
-          this.currentLocation
-            .updatedAt,
-      };
-    }
-
-    // ----------------------------------------------------------
-    // EXACT LOCATION
-    // ----------------------------------------------------------
+    const longitude = Math.round(this.currentLocation.longitude * 100) / 100;
 
     return {
-      latitude:
-        this.currentLocation
-          .latitude,
+      latitude,
+      longitude,
 
-      longitude:
-        this.currentLocation
-          .longitude,
+      precision: "approximate",
 
-      accuracy:
-        this.currentLocation
-          .accuracy,
-
-      precision:
-        "exact",
-
-      updatedAt:
-        this.currentLocation
-          .updatedAt,
+      updatedAt: this.currentLocation.updatedAt,
     };
+  }
+
+  // ----------------------------------------------------------
+  // EXACT LOCATION
+  // ----------------------------------------------------------
+
+  return {
+    latitude: this.currentLocation.latitude,
+
+    longitude: this.currentLocation.longitude,
+
+    accuracy: this.currentLocation.accuracy,
+
+    precision: "exact",
+
+    updatedAt: this.currentLocation.updatedAt,
   };
+};
 
 // ============================================================
 // PUBLIC PRESENCE
 // ============================================================
 
-userSchema.methods.getPublicPresence =
-  function () {
-    const presence = {};
+userSchema.methods.getPublicPresence = function () {
+  const presence = {};
 
-    if (
-      this.privacy
-        .showOnlineStatus
-    ) {
-      presence.isOnline =
-        this.isOnline;
-    }
+  if (this.privacy.showOnlineStatus) {
+    presence.isOnline = this.isOnline;
+  }
 
-    if (
-      this.privacy.showLastSeen
-    ) {
-      presence.lastSeenAt =
-        this.lastSeenAt;
-    }
+  if (this.privacy.showLastSeen) {
+    presence.lastSeenAt = this.lastSeenAt;
+  }
 
-    return presence;
-  };
+  return presence;
+};
 
 // ============================================================
 // SAFE PUBLIC USER PROFILE
@@ -1365,58 +1090,45 @@ userSchema.methods.getPublicPresence =
 // - unauthorized location
 // ============================================================
 
-userSchema.methods.toPublicProfile =
-  function ({
-    viewerId = null,
-    viewerIsOrganizationMember = false,
-  } = {}) {
-    const identity =
-      this.getPublicIdentity();
+userSchema.methods.toPublicProfile = function ({
+  viewerId = null,
+  viewerIsOrganizationMember = false,
+} = {}) {
+  const identity = this.getPublicIdentity();
 
-    const presence =
-      this.getPublicPresence();
+  const presence = this.getPublicPresence();
 
-    const location =
-      this.getPublicLocation({
-        viewerId,
-        viewerIsOrganizationMember,
-      });
+  const location = this.getPublicLocation({
+    viewerId,
+    viewerIsOrganizationMember,
+  });
 
-    const verification =
-      this.getPublicVerification();
+  const verification = this.getPublicVerification();
 
-    return {
-      id: this._id,
+  return {
+    id: this._id,
 
-      displayName:
-        identity.displayName,
+    displayName: identity.displayName,
 
-      username:
-        identity.username,
+    username: identity.username,
 
-      platformRole:
-        identity.platformRole,
+    platformRole: identity.platformRole,
 
-      isPlatformAccount:
-        identity.isPlatformAccount,
+    isPlatformAccount: identity.isPlatformAccount,
 
-      profilePhoto:
-        this.profilePhoto,
+    profilePhoto: this.profilePhoto,
 
-      verified:
-        verification.isVerified,
+    verified: verification.isVerified,
 
-      verificationBadge:
-        verification.badgeAsset,
+    verificationBadge: verification.badgeAsset,
 
-      verificationStatus:
-        verification.status,
+    verificationStatus: verification.status,
 
-      ...presence,
+    ...presence,
 
-      location,
-    };
+    location,
   };
+};
 
 // ============================================================
 // SAFE ADMIN PROFILE
@@ -1425,115 +1137,78 @@ userSchema.methods.toPublicProfile =
 // It should NOT be used as a public profile response.
 // ============================================================
 
-userSchema.methods.toAdminProfile =
-  function () {
-    const identity =
-      this.getPublicIdentity();
+userSchema.methods.toAdminProfile = function () {
+  const identity = this.getPublicIdentity();
 
-    const verification =
-      this.getPublicVerification();
+  const verification = this.getPublicVerification();
 
-    return {
-      id: this._id,
+  return {
+    id: this._id,
 
-      displayName:
-        identity.displayName,
+    displayName: identity.displayName,
 
-      username:
-        identity.username,
+    username: identity.username,
 
-      platformRole:
-        identity.platformRole,
+    platformRole: identity.platformRole,
 
-      firstName:
-        this.firstName,
+    firstName: this.firstName,
 
-      middleName:
-        this.middleName,
+    middleName: this.middleName,
 
-      lastName:
-        this.lastName,
+    lastName: this.lastName,
 
-      dateOfBirth:
-        this.dateOfBirth,
+    dateOfBirth: this.dateOfBirth,
 
-      nationality:
-        this.nationality,
+    nationality: this.nationality,
 
-      profilePhoto:
-        this.profilePhoto,
+    profilePhoto: this.profilePhoto,
 
-      email:
-        this.email,
+    email: this.email,
 
-      phone:
-        this.phone,
+    phone: this.phone,
 
-      identificationType:
-        this.identificationType,
+    identificationType: this.identificationType,
 
-      identificationNumber:
-        this.identificationNumber,
+    identificationNumber: this.identificationNumber,
 
-      accountStatus:
-        this.accountStatus,
+    accountStatus: this.accountStatus,
 
-      emailVerified:
-        this.emailVerified,
+    emailVerified: this.emailVerified,
 
-      phoneVerified:
-        this.phoneVerified,
+    phoneVerified: this.phoneVerified,
 
-      lastPhoneVerificationAt:
-        this.lastPhoneVerificationAt,
+    lastPhoneVerificationAt: this.lastPhoneVerificationAt,
 
-      twoFactorEnabled:
-        this.twoFactorEnabled,
+    twoFactorEnabled: this.twoFactorEnabled,
 
-      twoFactorMethod:
-        this.twoFactorMethod,
+    twoFactorMethod: this.twoFactorMethod,
 
-      verification,
+    verification,
 
-      privacy:
-        this.privacy,
+    privacy: this.privacy,
 
-      locationPermissionGranted:
-        this.locationPermissionGranted,
+    locationPermissionGranted: this.locationPermissionGranted,
 
-      currentLocation:
-        this.currentLocation,
+    currentLocation: this.currentLocation,
 
-      locationExpiresAt:
-        this.locationExpiresAt,
+    locationExpiresAt: this.locationExpiresAt,
 
-      isOnline:
-        this.isOnline,
+    isOnline: this.isOnline,
 
-      lastLoginAt:
-        this.lastLoginAt,
+    lastLoginAt: this.lastLoginAt,
 
-      lastSeenAt:
-        this.lastSeenAt,
+    lastSeenAt: this.lastSeenAt,
 
-      joinedAt:
-        this.joinedAt,
+    joinedAt: this.joinedAt,
 
-      createdAt:
-        this.createdAt,
+    createdAt: this.createdAt,
 
-      updatedAt:
-        this.updatedAt,
-    };
+    updatedAt: this.updatedAt,
   };
+};
 
 // ============================================================
 // MODEL
 // ============================================================
 
-module.exports =
-  mongoose.models.User ||
-  mongoose.model(
-    "User",
-    userSchema
-  );
+module.exports = mongoose.models.User || mongoose.model("User", userSchema);
