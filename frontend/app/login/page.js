@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -5,23 +6,17 @@ import Link from "next/link";
 import { useState } from "react";
 
 export default function LoginPage() {
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [remember, setRemember] =
-    useState(false);
+  const [remember, setRemember] = useState(false);
 
-  const [email, setEmail] =
-    useState("");
+  const [email, setEmail] = useState("");
 
-  const [password, setPassword] =
-    useState("");
+  const [password, setPassword] = useState("");
 
-  const [error, setError] =
-    useState("");
+  const [error, setError] = useState("");
 
-  const [loading, setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
 
   // ==========================================================
   // LOGIN
@@ -32,20 +27,15 @@ export default function LoginPage() {
 
     setError("");
 
-    const normalizedEmail =
-      email.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
 
     if (!normalizedEmail) {
-      setError(
-        "Please enter your email address."
-      );
+      setError("Please enter your email address.");
       return;
     }
 
     if (!password) {
-      setError(
-        "Please enter your password."
-      );
+      setError("Please enter your password.");
       return;
     }
 
@@ -56,60 +46,47 @@ export default function LoginPage() {
       // POLISYNC PRODUCTION BACKEND
       // ========================================================
 
-      const API_URL = (
-        process.env.NEXT_PUBLIC_API_URL || ""
-      ).replace(/\/+$/, "");
+      const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(
+        /\/+$/,
+        ""
+      );
 
       if (!API_URL) {
-        throw new Error(
-          "Production API URL is not configured."
-        );
+        throw new Error("Production API URL is not configured.");
       }
 
       // ========================================================
       // LOGIN REQUEST
       // ========================================================
 
-      const controller =
-        new AbortController();
+      const controller = new AbortController();
 
-      const timeout =
-        setTimeout(() => {
-          controller.abort();
-        }, 90000);
+      const timeout = setTimeout(() => {
+        controller.abort();
+      }, 90000);
 
       let response;
 
       try {
-        response = await fetch(
-          `${API_URL}/api/auth/login`,
-          {
-            method: "POST",
+        response = await fetch(`${API_URL}/api/auth/login`, {
+          method: "POST",
 
-            headers: {
-              "Content-Type":
-                "application/json",
+          headers: {
+            "Content-Type": "application/json",
 
-              Accept:
-                "application/json",
-            },
+            Accept: "application/json",
+          },
 
-            credentials:
-              "include",
+          credentials: "include",
 
-            body:
-              JSON.stringify({
-                email:
-                  normalizedEmail,
+          body: JSON.stringify({
+            email: normalizedEmail,
 
-                password:
-                  password,
-              }),
+            password: password,
+          }),
 
-            signal:
-              controller.signal,
-          }
-        );
+          signal: controller.signal,
+        });
       } finally {
         clearTimeout(timeout);
       }
@@ -120,36 +97,22 @@ export default function LoginPage() {
 
       let data = {};
 
-      const contentType =
-        response.headers.get(
-          "content-type"
-        ) || "";
+      const contentType = response.headers.get("content-type") || "";
 
-      if (
-        contentType.includes(
-          "application/json"
-        )
-      ) {
+      if (contentType.includes("application/json")) {
         try {
-          data =
-            await response.json();
+          data = await response.json();
         } catch {
           data = {};
         }
       } else {
-        const text =
-          await response.text();
+        const text = await response.text();
 
         try {
-          data =
-            text
-              ? JSON.parse(text)
-              : {};
+          data = text ? JSON.parse(text) : {};
         } catch {
           data = {
-            message:
-              text ||
-              "Login request failed.",
+            message: text || "Login request failed.",
           };
         }
       }
@@ -171,47 +134,31 @@ export default function LoginPage() {
       if (
         response.status === 202 &&
         data?.success === true &&
-        data?.code ===
-          "PHONE_OTP_REQUIRED"
+        data?.code === "PHONE_OTP_REQUIRED"
       ) {
-        sessionStorage.setItem(
-          "polisync_login_email",
-          normalizedEmail
-        );
+        sessionStorage.setItem("polisync_login_email", normalizedEmail);
 
         sessionStorage.setItem(
           "polisync_login_challenge",
-          String(
-            data.challengeToken || ""
-          )
+          String(data.challengeToken || "")
         );
 
         sessionStorage.setItem(
           "polisync_login_phone",
-          String(
-            data.phone || ""
-          )
+          String(data.phone || "")
         );
 
         sessionStorage.setItem(
           "polisync_login_otp_expires",
-          String(
-            data.expiresAt || ""
-          )
+          String(data.expiresAt || "")
         );
-window.location.href =
-  "/login/verify-phone";
 
-return;
         sessionStorage.setItem(
           "polisync_login_otp_minutes",
-          String(
-            data.expiresInMinutes || 5
-          )
+          String(data.expiresInMinutes || 5)
         );
 
-        window.location.href =
-          "/login/verify-phone";
+        window.location.href = "/login/verify-phone";
 
         return;
       }
@@ -222,24 +169,15 @@ return;
 
       if (!response.ok) {
         throw new Error(
-          data?.message ||
-            data?.error ||
-            "Invalid email or password."
+          data?.message || data?.error || "Invalid email or password."
         );
       }
 
       if (
-        Object.prototype.hasOwnProperty.call(
-          data,
-          "success"
-        ) &&
+        Object.prototype.hasOwnProperty.call(data, "success") &&
         data.success === false
       ) {
-        throw new Error(
-          data?.message ||
-            data?.error ||
-            "Login failed."
-        );
+        throw new Error(data?.message || data?.error || "Login failed.");
       }
 
       // ========================================================
@@ -247,10 +185,7 @@ return;
       // ========================================================
 
       const token =
-        data?.token ||
-        data?.accessToken ||
-        data?.access_token ||
-        null;
+        data?.token || data?.accessToken || data?.access_token || null;
 
       if (!token) {
         throw new Error(
@@ -263,15 +198,9 @@ return;
       // ========================================================
 
       if (remember) {
-        localStorage.setItem(
-          "polisync_token",
-          token
-        );
+        localStorage.setItem("polisync_token", token);
       } else {
-        sessionStorage.setItem(
-          "polisync_token",
-          token
-        );
+        sessionStorage.setItem("polisync_token", token);
       }
 
       // ========================================================
@@ -279,21 +208,12 @@ return;
       // ========================================================
 
       if (data?.user) {
-        const userData =
-          JSON.stringify(
-            data.user
-          );
+        const userData = JSON.stringify(data.user);
 
         if (remember) {
-          localStorage.setItem(
-            "polisync_user",
-            userData
-          );
+          localStorage.setItem("polisync_user", userData);
         } else {
-          sessionStorage.setItem(
-            "polisync_user",
-            userData
-          );
+          sessionStorage.setItem("polisync_user", userData);
         }
       }
 
@@ -302,26 +222,17 @@ return;
       // ========================================================
 
       if (remember) {
-        localStorage.setItem(
-          "polisync_remember",
-          "true"
-        );
+        localStorage.setItem("polisync_remember", "true");
       } else {
-        localStorage.removeItem(
-          "polisync_remember"
-        );
+        localStorage.removeItem("polisync_remember");
       }
 
       // ========================================================
       // SUPER ADMIN WORKSPACE
       // ========================================================
 
-      if (
-        data?.user?.platformRole ===
-        "super_admin"
-      ) {
-        window.location.href =
-          "/super-admin";
+      if (data?.user?.platformRole === "super_admin") {
+        window.location.href = "/super-admin";
 
         return;
       }
@@ -330,29 +241,16 @@ return;
       // ORDINARY USER WORKSPACE
       // ========================================================
 
-      window.location.href =
-        "/dashboard";
-
+      window.location.href = "/dashboard";
     } catch (loginError) {
-      console.error(
-        "PoliSync login error:",
-        loginError
-      );
+      console.error("PoliSync login error:", loginError);
 
-      if (
-        loginError?.name ===
-        "AbortError"
-      ) {
-        setError(
-          "The server is taking too long to respond. Please try again."
-        );
+      if (loginError?.name === "AbortError") {
+        setError("The server is taking too long to respond. Please try again.");
       } else if (
-        loginError?.message ===
-        "Production API URL is not configured."
+        loginError?.message === "Production API URL is not configured."
       ) {
-        setError(
-          "The production server is not configured correctly."
-        );
+        setError("The production server is not configured correctly.");
       } else {
         setError(
           loginError?.message ||
@@ -371,76 +269,53 @@ return;
   return (
     <main
       style={{
-        minHeight:
-          "100vh",
+        minHeight: "100vh",
 
-        background:
-          "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)",
+        background: "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)",
 
-        display:
-          "flex",
+        display: "flex",
 
-        justifyContent:
-          "center",
+        justifyContent: "center",
 
-        alignItems:
-          "center",
+        alignItems: "center",
 
-        padding:
-          "24px 16px",
+        padding: "24px 16px",
 
-        boxSizing:
-          "border-box",
+        boxSizing: "border-box",
       }}
     >
       <div
         style={{
-          width:
-            "100%",
+          width: "100%",
 
-          maxWidth:
-            "680px",
+          maxWidth: "680px",
 
-          margin:
-            "0 auto",
+          margin: "0 auto",
 
-          background:
-            "#FFFFFF",
+          background: "#FFFFFF",
 
-          border:
-            "3px solid #B89A4A",
+          border: "3px solid #B89A4A",
 
-          borderRadius:
-            "42px",
+          borderRadius: "42px",
 
-          padding:
-            "40px 34px",
+          padding: "40px 34px",
 
-          boxSizing:
-            "border-box",
+          boxSizing: "border-box",
 
-          boxShadow:
-            "0 12px 35px rgba(0, 0, 0, 0.08)",
+          boxShadow: "0 12px 35px rgba(0, 0, 0, 0.08)",
         }}
       >
-
-        {/* ==================================================
-            POLISYNC LOGO
-        ================================================== */}
+        {/* ================================================== POLISYNC LOGO ================================================== */}
 
         <div
           style={{
-            display:
-              "flex",
+            display: "flex",
 
-            justifyContent:
-              "center",
+            justifyContent: "center",
 
-            alignItems:
-              "center",
+            alignItems: "center",
 
-            marginBottom:
-              "8px",
+            marginBottom: "8px",
           }}
         >
           <Image
@@ -450,44 +325,32 @@ return;
             height={180}
             priority
             style={{
-              width:
-                "280px",
+              width: "280px",
 
-              height:
-                "auto",
+              height: "auto",
 
-              maxWidth:
-                "100%",
+              maxWidth: "100%",
 
-              objectFit:
-                "contain",
+              objectFit: "contain",
             }}
           />
         </div>
 
-        {/* ==================================================
-            WELCOME
-        ================================================== */}
+        {/* ================================================== WELCOME ================================================== */}
 
         <h1
           style={{
-            textAlign:
-              "center",
+            textAlign: "center",
 
-            fontSize:
-              "27px",
+            fontSize: "27px",
 
-            lineHeight:
-              "1.2",
+            lineHeight: "1.2",
 
-            fontWeight:
-              "750",
+            fontWeight: "750",
 
-            color:
-              "#065F2B",
+            color: "#065F2B",
 
-            margin:
-              "4px 0 6px",
+            margin: "4px 0 6px",
           }}
         >
           Welcome Back
@@ -495,60 +358,42 @@ return;
 
         <p
           style={{
-            textAlign:
-              "center",
+            textAlign: "center",
 
-            color:
-              "#666",
+            color: "#666",
 
-            fontSize:
-              "14px",
+            fontSize: "14px",
 
-            lineHeight:
-              "1.5",
+            lineHeight: "1.5",
 
-            margin:
-              "0 0 26px",
+            margin: "0 0 26px",
           }}
         >
           Sign in to your PoliSync Africa account
         </p>
 
-        {/* ==================================================
-            LOGIN FORM
-        ================================================== */}
+        {/* ================================================== LOGIN FORM ================================================== */}
 
-        <form
-          onSubmit={
-            handleLogin
-          }
-        >
-
+        <form onSubmit={handleLogin}>
           {/* EMAIL */}
 
           <div
             style={{
-              marginBottom:
-                "17px",
+              marginBottom: "17px",
             }}
           >
             <label
               htmlFor="email"
               style={{
-                display:
-                  "block",
+                display: "block",
 
-                fontWeight:
-                  "650",
+                fontWeight: "650",
 
-                color:
-                  "#222",
+                color: "#222",
 
-                marginBottom:
-                  "8px",
+                marginBottom: "8px",
 
-                fontSize:
-                  "15px",
+                fontSize: "15px",
               }}
             >
               Email Address
@@ -560,39 +405,25 @@ return;
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(event) =>
-                setEmail(
-                  event.target.value
-                )
-              }
+              onChange={(event) => setEmail(event.target.value)}
               placeholder="Enter your email"
               disabled={loading}
               style={{
-                width:
-                  "100%",
+                width: "100%",
 
-                boxSizing:
-                  "border-box",
+                boxSizing: "border-box",
 
-                padding:
-                  "15px 18px",
+                padding: "15px 18px",
 
-                borderRadius:
-                  "12px",
+                borderRadius: "12px",
 
-                border:
-                  "3px solid #B89A4A",
+                border: "3px solid #B89A4A",
 
-                background:
-                  loading
-                    ? "#F5F5F5"
-                    : "#FFFFFF",
+                background: loading ? "#F5F5F5" : "#FFFFFF",
 
-                fontSize:
-                  "16px",
+                fontSize: "16px",
 
-                outline:
-                  "none",
+                outline: "none",
               }}
             />
           </div>
@@ -601,27 +432,21 @@ return;
 
           <div
             style={{
-              marginBottom:
-                "12px",
+              marginBottom: "12px",
             }}
           >
             <label
               htmlFor="password"
               style={{
-                display:
-                  "block",
+                display: "block",
 
-                fontWeight:
-                  "650",
+                fontWeight: "650",
 
-                color:
-                  "#222",
+                color: "#222",
 
-                marginBottom:
-                  "8px",
+                marginBottom: "8px",
 
-                fontSize:
-                  "15px",
+                fontSize: "15px",
               }}
             >
               Password
@@ -629,112 +454,69 @@ return;
 
             <div
               style={{
-                position:
-                  "relative",
+                position: "relative",
 
-                width:
-                  "100%",
+                width: "100%",
               }}
             >
               <input
                 id="password"
                 name="password"
-                type={
-                  showPassword
-                    ? "text"
-                    : "password"
-                }
+                type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 value={password}
-                onChange={(event) =>
-                  setPassword(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => setPassword(event.target.value)}
                 placeholder="Enter your password"
                 disabled={loading}
                 style={{
-                  width:
-                    "100%",
+                  width: "100%",
 
-                  boxSizing:
-                    "border-box",
+                  boxSizing: "border-box",
 
-                  padding:
-                    "15px 70px 15px 18px",
+                  padding: "15px 70px 15px 18px",
 
-                  borderRadius:
-                    "999px",
+                  borderRadius: "999px",
 
-                  border:
-                    "3px solid #B89A4A",
+                  border: "3px solid #B89A4A",
 
-                  background:
-                    loading
-                      ? "#F5F5F5"
-                      : "#FFFFFF",
+                  background: loading ? "#F5F5F5" : "#FFFFFF",
 
-                  fontSize:
-                    "16px",
+                  fontSize: "16px",
 
-                  outline:
-                    "none",
+                  outline: "none",
                 }}
               />
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowPassword(
-                    !showPassword
-                  )
-                }
+                onClick={() => setShowPassword(!showPassword)}
                 disabled={loading}
-                aria-label={
-                  showPassword
-                    ? "Hide password"
-                    : "Show password"
-                }
+                aria-label={showPassword ? "Hide password" : "Show password"}
                 style={{
-                  position:
-                    "absolute",
+                  position: "absolute",
 
-                  right:
-                    "16px",
+                  right: "16px",
 
-                  top:
-                    "50%",
+                  top: "50%",
 
-                  transform:
-                    "translateY(-50%)",
+                  transform: "translateY(-50%)",
 
-                  background:
-                    "transparent",
+                  background: "transparent",
 
-                  border:
-                    "none",
+                  border: "none",
 
-                  color:
-                    "#065F2B",
+                  color: "#065F2B",
 
-                  cursor:
-                    loading
-                      ? "not-allowed"
-                      : "pointer",
+                  cursor: loading ? "not-allowed" : "pointer",
 
-                  fontWeight:
-                    "700",
+                  fontWeight: "700",
 
-                  fontSize:
-                    "14px",
+                  fontSize: "14px",
 
-                  padding:
-                    "4px",
+                  padding: "4px",
                 }}
               >
-                {showPassword
-                  ? "Hide"
-                  : "Show"}
+                {showPassword ? "Hide" : "Show"}
               </button>
             </div>
           </div>
@@ -743,85 +525,59 @@ return;
 
           <div
             style={{
-              display:
-                "flex",
+              display: "flex",
 
-              justifyContent:
-                "space-between",
+              justifyContent: "space-between",
 
-              alignItems:
-                "center",
+              alignItems: "center",
 
-              gap:
-                "12px",
+              gap: "12px",
 
-              margin:
-                "14px 0 24px",
+              margin: "14px 0 24px",
 
-              fontSize:
-                "14px",
+              fontSize: "14px",
             }}
           >
             <label
               style={{
-                display:
-                  "flex",
+                display: "flex",
 
-                alignItems:
-                  "center",
+                alignItems: "center",
 
-                gap:
-                  "8px",
+                gap: "8px",
 
-                cursor:
-                  "pointer",
+                cursor: "pointer",
 
-                color:
-                  "#333",
+                color: "#333",
               }}
             >
               <input
                 type="checkbox"
-                checked={
-                  remember
-                }
-                onChange={() =>
-                  setRemember(
-                    !remember
-                  )
-                }
+                checked={remember}
+                onChange={() => setRemember(!remember)}
                 disabled={loading}
                 style={{
-                  width:
-                    "17px",
+                  width: "17px",
 
-                  height:
-                    "17px",
+                  height: "17px",
 
-                  cursor:
-                    "pointer",
+                  cursor: "pointer",
                 }}
               />
 
-              <span>
-                Remember Me
-              </span>
+              <span>Remember Me</span>
             </label>
 
             <Link
               href="/forgot-password"
               style={{
-                color:
-                  "#065F2B",
+                color: "#065F2B",
 
-                textDecoration:
-                  "none",
+                textDecoration: "none",
 
-                fontWeight:
-                  "700",
+                fontWeight: "700",
 
-                whiteSpace:
-                  "nowrap",
+                whiteSpace: "nowrap",
               }}
             >
               Forgot Password?
@@ -834,29 +590,21 @@ return;
             <div
               role="alert"
               style={{
-                marginBottom:
-                  "16px",
+                marginBottom: "16px",
 
-                padding:
-                  "12px 14px",
+                padding: "12px 14px",
 
-                borderRadius:
-                  "12px",
+                borderRadius: "12px",
 
-                background:
-                  "#FFF3F3",
+                background: "#FFF3F3",
 
-                border:
-                  "1px solid #F0CACA",
+                border: "1px solid #F0CACA",
 
-                color:
-                  "#A00000",
+                color: "#A00000",
 
-                fontSize:
-                  "14px",
+                fontSize: "14px",
 
-                lineHeight:
-                  "1.4",
+                lineHeight: "1.4",
               }}
             >
               {error}
@@ -869,161 +617,48 @@ return;
             type="submit"
             disabled={loading}
             style={{
-              width:
-                "100%",
+              width: "100%",
 
-              padding:
-                "16px",
+              padding: "16px",
 
-              borderRadius:
-                "12px",
+              borderRadius: "12px",
 
-              border:
-                "none",
+              border: "none",
 
-              background:
-                loading
-                  ? "#7BAE8D"
-                  : "linear-gradient(90deg,#0A8F3C,#065F2B)",
+              background: loading
+                ? "#7BAE8D"
+                : "linear-gradient(90deg,#0A8F3C,#065F2B)",
 
-              color:
-                "#FFFFFF",
+              color: "#FFFFFF",
 
-              fontSize:
-                "17px",
+              fontSize: "17px",
 
-              fontWeight:
-                "800",
+              fontWeight: "800",
 
-              cursor:
-                loading
-                  ? "not-allowed"
-                  : "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
 
-              boxShadow:
-                "0 12px 30px rgba(6,95,43,.25)",
+              boxShadow: "0 12px 30px rgba(6,95,43,.25)",
 
-              transition:
-                "all .2s ease",
+              transition: "all .2s ease",
             }}
           >
-            {loading
-              ? "Signing In..."
-              : "Login"}
+            {loading ? "Signing In..." : "Login"}
           </button>
-
         </form>
 
-        {/* ==================================================
-            CREATE ACCOUNT
-        ================================================== */}
+        {/* ================================================== CREATE ACCOUNT ================================================== */}
 
         <div
           style={{
-            textAlign:
-              "center",
+            textAlign: "center",
 
-            marginTop:
-              "27px",
+            marginTop: "27px",
 
-            color:
-              "#555",
+            color: "#555",
 
-            fontSize:
-              "15px",
+            fontSize: "15px",
 
-            lineHeight:
-              "1.6",
+            lineHeight: "1.6",
           }}
         >
-          <div>
-            Don't have an account?
-          </div>
-
-          <Link
-            href="/register"
-            style={{
-              display:
-                "inline-block",
-
-              marginTop:
-                "3px",
-
-              color:
-                "#C9A227",
-
-              textDecoration:
-                "none",
-
-              fontWeight:
-                "800",
-
-              fontSize:
-                "16px",
-            }}
-          >
-            Create Account
-          </Link>
-        </div>
-
-        {/* ==================================================
-            BRAND FOOTER
-        ================================================== */}
-
-        <footer
-          style={{
-            textAlign:
-              "center",
-
-            marginTop:
-              "30px",
-
-            paddingTop:
-              "18px",
-
-            borderTop:
-              "1px solid #E8E8E8",
-
-            color:
-              "#777",
-
-            fontSize:
-              "12px",
-
-            lineHeight:
-              "1.7",
-          }}
-        >
-          <div
-            style={{
-              fontWeight:
-                "700",
-
-              color:
-                "#065F2B",
-
-              fontSize:
-                "12px",
-            }}
-          >
-            PoliSync Africa-
-            Africa Best Political
-            Intelligence Platform
-          </div>
-
-          <div>
-            Powered by{" "}
-            <strong>
-              SyncTech Technologies
-            </strong>
-          </div>
-
-          <div>
-            All rights reserved
-          </div>
-        </footer>
-
-      </div>
-    </main>
-  );
-}
+          <div>Don't have an account?</div> <Link href="/register" style={{ display: "inline-block", marginTop: "3px", color: "#C9A227", textDecoration: "none", fontWeight: "800", fontSize: "16px", }} > Create Account </Link> </div> {/* ================================================== BRAND FOOTER ================================================== */} <footer style={{ textAlign: "center", marginTop: "30px", paddingTop: "18px", borderTop: "1px solid #E8E8E8", color: "#777", fontSize: "12px", lineHeight: "1.7", }} > <div style={{ fontWeight: "700", color: "#065F2B", fontSize: "12px", }} > PoliSync Africa- Africa Best Political Intelligence Platform </div> <div> Powered by <strong>SyncTech Technologies</strong> </div> <div>All rights reserved</div> </footer> </div> </main> ); }
