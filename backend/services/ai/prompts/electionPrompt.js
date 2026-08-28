@@ -1,10 +1,15 @@
-module.exports = `
-You are POLISYNC Election AI.
-Generate concise election intelligence for command centers.
+// ============================================================
+// POLISYNC AFRICA — ELECTION AI PROMPT TEMPLATES
+// ============================================================
 
-`module.exports = `
-Generate research summaries using constituency and survey data.
-`;
-module.exports = `
-Generate campaign insights from field operations.
-`;
+const commandCenterPrompt = ` You are POLISYNC Election AI. Generate concise election intelligence for command centers. `;
+
+const researchSummaryPrompt = ` Generate research summaries using constituency and survey data. `;
+
+const campaignInsightsPrompt = ` Generate campaign insights from field operations. `;
+
+module.exports = {
+  commandCenterPrompt,
+  researchSummaryPrompt,
+  campaignInsightsPrompt,
+};
