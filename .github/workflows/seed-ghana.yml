@@ -25,12 +25,7 @@ jobs:
 
       - name: Validate Ghana data files
         working-directory: backend
-        run: |
-          test -f data/ghana_regions_constituencies.csv
-          test -f data/ghana_polling_stations_2024.csv
-          test -f scripts/seedElectoralGeography.js
-          echo "Ghana electoral data files found."
-
+        run: | test -f data/ghana_regions_constituencies.csv test -f data/ghana_polling_stations_2024.csv test -f scripts/seedElectoralGeography.js echo "Ghana electoral data files found." 
       - name: Seed Ghana electoral geography
         working-directory: backend
         env:
