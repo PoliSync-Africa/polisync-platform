@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-
+import superAdminNavigation from "./superAdminNavigation";
 export default function DashboardShell({
+  export default function DashboardShell({
   children,
   title = "Dashboard",
   subtitle = "",
   role = "user",
+  navigation = null,
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -49,36 +51,58 @@ export default function DashboardShell({
         </div>
 
         <nav className="dashboard-navigation">
-          <DashboardNavItem
-            icon="⌂"
-            label="Dashboard"
-            active
-          />
-
-          <DashboardNavItem icon="◉" label="Elections" />
-          <DashboardNavItem icon="▣" label="Results" />
-          <DashboardNavItem icon="◫" label="Analytics" />
-          <DashboardNavItem icon="◌" label="Reports" />
-
+          <nav className="dashboard-navigation">
+  {(navigation || (role === "super_admin" ? superAdminNavigation : [])).map(
+    (section, sectionIndex) => (
+      <div key={section.section || sectionIndex}>
+        {section.section && (
           <div className="dashboard-nav-section">
-            WORKSPACE
+            {section.section}
           </div>
+        )}
 
-          <DashboardNavItem icon="✓" label="Tasks & Reminders" />
-          <DashboardNavItem icon="◉" label="AI Analyzer" />
-          <DashboardNavItem icon="✦" label="AI Personal Assistant" />
-          <DashboardNavItem icon="☷" label="Messages" />
-          <DashboardNavItem icon="🔔" label="Notifications" />
+        {section.items?.map((item) => (
+          <a
+            key={item.key || item.href}
+            href={item.href}
+            className={`dashboard-nav-item ${
+              item.active ? "dashboard-nav-item-active" : ""
+            }`}
+            onClick={() => setSidebarOpen(false)}
+          >
+            <span className="dashboard-nav-icon">
+              {item.icon}
+            </span>
 
-          <div className="dashboard-nav-section">
-            ACCOUNT
-          </div>
+            <span>{item.label}</span>
 
-          <DashboardNavItem icon="♙" label="Profile" />
-          <DashboardNavItem icon="⚙" label="Privacy & Security" />
-          <DashboardNavItem icon="?" label="Help & Support" />
-        </nav>
-
+            {item.badge && (
+              <span
+                style={{
+                  marginLeft: "auto",
+                  minWidth: "20px",
+                  height: "20px",
+                  padding: "0 6px",
+                  borderRadius: "999px",
+                  background: "#C9A227",
+                  color: "#ffffff",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "10px",
+                  fontWeight: "800",
+                }}
+              >
+                !
+              </span>
+            )}
+          </a>
+        ))}
+      </div>
+    )
+  )}
+</nav>
+      
         <div className="dashboard-sidebar-footer">
           <div className="dashboard-role-label">
             CURRENT ROLE
