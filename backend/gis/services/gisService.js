@@ -8,11 +8,11 @@ function getRegionBoundary(regionCode) {
   const data = getGhanaRegions();
 
   return data.features.find(
-    feature => feature.properties.code === regionCode
+    (feature) => feature.properties.code === regionCode
   );
 }
 
 module.exports = {
   getGhanaRegions,
-  getRegionBoundary
+  getRegionBoundary,
 };
