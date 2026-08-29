@@ -402,4 +402,155 @@ export default function ComplaintsReportsPanel({
             }
             onClick={() =>
               setFilter("under_review")
-           
+            }
+          >
+            Under Review
+          </button>
+
+          <button
+            type="button"
+            className={
+              filter === "resolved"
+                ? "filter-active"
+                : ""
+            }
+            onClick={() =>
+              setFilter("resolved")
+            }
+          >
+            Resolved
+          </button>
+        </div>
+      )}
+
+      {/* ====================================================
+          LIST
+      ==================================================== */}
+
+      <div className="complaints-list">
+        {filteredItems.length === 0 && (
+          <div className="complaints-empty">
+            {isSuperAdmin
+              ? "No complaints or reports match this filter."
+              : "You haven't submitted any reports yet."}
+          </div>
+        )}
+
+        {filteredItems.map((item) => (
+          <div
+            key={item.id}
+            className="complaint-item"
+            onClick={() =>
+              setSelectedItem(
+                (current) =>
+                  current && current.id === item.id
+                    ? null
+                    : item
+              )
+            }
+          >
+            <div className="complaint-item-header">
+              <span
+                className={`complaint-type-badge complaint-type-${item.type}`}
+              >
+                {item.type}
+              </span>
+
+              <span
+                className={`complaint-priority-badge complaint-priority-${item.priority}`}
+              >
+                {item.priority}
+              </span>
+
+              <span
+                className={`complaint-status-badge complaint-status-${item.status}`}
+              >
+                {item.status.replace("_", " ")}
+              </span>
+            </div>
+
+            <div className="complaint-item-subject">
+              {item.subject}
+            </div>
+
+            {selectedItem &&
+              selectedItem.id === item.id && (
+                <div className="complaint-item-description">
+                  {item.description}
+                </div>
+              )}
+
+            <div className="complaint-item-meta">
+              <span>
+                {item.submittedBy || "Anonymous"}
+              </span>
+
+              <span>
+                {new Date(
+                  item.createdAt
+                ).toLocaleString()}
+              </span>
+            </div>
+
+            {isSuperAdmin && (
+              <div
+                className="complaint-item-actions"
+                onClick={(event) =>
+                  event.stopPropagation()
+                }
+              >
+                <button
+                  type="button"
+                  disabled={
+                    item.status === "under_review"
+                  }
+                  onClick={() =>
+                    changeStatus(
+                      item.id,
+                      "under_review"
+                    )
+                  }
+                >
+                  Mark Under Review
+                </button>
+
+                <button
+                  type="button"
+                  disabled={
+                    item.status === "resolved"
+                  }
+                  onClick={() =>
+                    changeStatus(
+                      item.id,
+                      "resolved"
+                    )
+                  }
+                >
+                  Mark Resolved
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function StatCard({ label, value, icon }) {
+  return (
+    <div className="stat-card">
+      <div className="stat-card-icon">
+        {icon}
+      </div>
+
+      <div className="stat-card-value">
+        {value}
+      </div>
+
+      <div className="stat-card-label">
+        {label}
+      </div>
+    </div>
+  );
+}
