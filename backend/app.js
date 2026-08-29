@@ -110,7 +110,7 @@ let pollingStationRoutes;
 try {
   pollingStationRoutes =
     require(
-      "./routes/pollingStations"
+      "./routes/pollingStationRoutes"
     );
 } catch {
   pollingStationRoutes =
@@ -174,6 +174,18 @@ try {
     );
 } catch {
   gisRoutes =
+    null;
+}
+
+let setupRoutes;
+
+try {
+  setupRoutes =
+    require(
+      "./routes/setup"
+    );
+} catch {
+  setupRoutes =
     null;
 }
 
@@ -267,6 +279,13 @@ if (gisRoutes) {
   app.use(
     "/api/gis",
     gisRoutes
+  );
+}
+
+if (setupRoutes) {
+  app.use(
+    "/api/setup",
+    setupRoutes
   );
 }
 
