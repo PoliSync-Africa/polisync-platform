@@ -4,13 +4,16 @@ export default function TaskCard({
   title,
   assignedTo,
   status
-}){
-  return(
+}) {
+  const color =
+    status === "Completed" ? "#16A34A" : "#F59E0B";
+
+  return (
     <div
       style={{
-        background:"white",
-        borderRadius:18,
-        padding:20
+        background: "white",
+        borderRadius: 18,
+        padding: 20
       }}
     >
       <h3>{title}</h3>
@@ -19,4 +22,14 @@ export default function TaskCard({
 
       <span
         style={{
-          background
+          background: color,
+          color: "white",
+          padding: "6px 12px",
+          borderRadius: 20
+        }}
+      >
+        {status}
+      </span>
+    </div>
+  );
+}
