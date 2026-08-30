@@ -11,71 +11,18 @@ import NotificationsPanel from "../../../components/dashboard/NotificationsPanel
 import ComplaintsReportsPanel from "../../../components/dashboard/ComplaintsReportsPanel";
 import PrivacySecurityPanel from "../../../components/dashboard/PrivacySecurityPanel";
 
-const PLATFORM_STATS = [
-  {
-    label: "Total Users",
-    value: "0",
-    icon: "👥",
-    tone: "green",
-  },
-  {
-    label: "Organizations",
-    value: "0",
-    icon: "🏢",
-    tone: "gold",
-  },
-  {
-    label: "Candidates",
-    value: "0",
-    icon: "👤",
-    tone: "blue",
-  },
-  {
-    label: "Elections",
-    value: "0",
-    icon: "🗳️",
-    tone: "purple",
-  },
-  {
-    label: "Polling Stations",
-    value: "0",
-    icon: "📍",
-    tone: "orange",
-  },
-  {
-    label: "Results Submitted",
-    value: "0",
-    icon: "📊",
-    tone: "teal",
-  },
+const STATS = [
+  ["Users", "0", "👥"],
+  ["Organizations", "0", "🏢"],
+  ["Candidates", "0", "👤"],
+  ["Elections", "0", "🗳️"],
+  ["Polling Stations", "0", "📍"],
+  ["Results Submitted", "0", "📊"],
 ];
 
 const REGIONS = [
-  "Ahafo",
-  "Ashanti",
-  "Bono",
-  "Bono East",
-  "Central",
-  "Eastern",
-  "Greater Accra",
-  "Northern",
-  "North East",
-  "Oti",
-  "Savannah",
-  "Upper East",
-  "Upper West",
-  "Volta",
-  "Western",
-  "Western North",
-];
-
-const SYSTEM_HEALTH = [
-  "Server Status",
-  "Database",
-  "API Services",
-  "Storage",
-  "Security",
-  "Backups",
+  "Ahafo", "Ashanti", "Bono", "Bono East",
+  "Central", "Eastern", "Greater Accra", "Northern",
 ];
 
 const APPROVALS = [
@@ -83,12 +30,6 @@ const APPROVALS = [
   ["Organizations", "0", "🏢"],
   ["Polling Stations", "0", "📍"],
   ["Candidates", "0", "👤"],
-];
-
-const ALERTS = [
-  ["High", "0", "⚠️"],
-  ["Medium", "0", "⚠️"],
-  ["Information", "0", "ℹ️"],
 ];
 
 const QUICK_ACTIONS = [
@@ -101,11 +42,8 @@ const QUICK_ACTIONS = [
 ];
 
 export default function SuperAdminDashboard() {
-  const [activeSection, setActiveSection] =
-    useState("overview");
-
-  const [showMobileMenu, setShowMobileMenu] =
-    useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   return (
     <DashboardShell
@@ -115,254 +53,195 @@ export default function SuperAdminDashboard() {
       activeSection={activeSection}
       onSectionChange={setActiveSection}
       mobileMenuOpen={showMobileMenu}
-      onMobileMenuClose={() =>
-        setShowMobileMenu(false)
-      }
+      onMobileMenuClose={() => setShowMobileMenu(false)}
     >
-      <div className="super-admin-page">
+      <div className="super-admin-redesign">
         <main className="dashboard-content">
-
-          {/* ==================================================
-              WELCOME
-          ================================================== */}
-
-          <section className="welcome-section">
-            <div className="welcome-copy">
-              <span className="eyebrow">
-                PLATFORM CONTROL CENTER
-              </span>
-
-              <h2>
-                Good day, Super Administrator
-              </h2>
-
-              <p>
-                Monitor PoliSync Africa, elections,
-                organizations, users, results and
-                platform operations from one control
-                center.
-              </p>
+          <section className="hero">
+            <div>
+              <div className="brand-kicker">POLISYNC AFRICA</div>
+              <h2>Technology • Power • Elections</h2>
+              <p>One intelligent control center for the entire PoliSync Africa platform.</p>
             </div>
-
-            <div className="welcome-actions">
-              <button
-                type="button"
-                className="secondary-button"
-              >
-                + Announcement
-              </button>
-
-              <button
-                type="button"
-                className="primary-button"
-              >
-                Generate Report
-              </button>
-            </div>
+            <div className="hero-badge">SA</div>
           </section>
 
-          {/* ==================================================
-              PLATFORM STATISTICS
-          ================================================== */}
-
-          <section
-            className="stats-grid"
-            aria-label="Platform statistics"
-          >
-            {PLATFORM_STATS.map((stat) => (
-              <StatCard
-                key={stat.label}
-                {...stat}
-              />
+          <section className="stats-grid" aria-label="Platform statistics">
+            {STATS.map(([label, value, icon]) => (
+              <article className="stat-card" key={label}>
+                <span className="stat-icon">{icon}</span>
+                <div>
+                  <span className="stat-label">{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              </article>
             ))}
           </section>
 
-          {/* ==================================================
-              MAIN DASHBOARD GRID
-          ================================================== */}
-
-          <section className="dashboard-grid">
-
-            {/* RESULTS OVERVIEW */}
-
-            <ResultsOverview />
-
-            {/* RESULTS BY REGION */}
-
-            <RegionsOverview />
-
-            {/* SYSTEM HEALTH */}
-
-            <SystemHealth />
-
-            {/* WEATHER */}
-
-            <div className="dashboard-panel">
-              <WeatherCard />
-            </div>
-
-            {/* REMINDERS */}
-
-            <DashboardPanel>
-              <RemindersPanel
-                initialReminders={[]}
-              />
-            </DashboardPanel>
-
-            {/* COMPLAINTS */}
-
-            <DashboardPanel>
-              <ComplaintsReportsPanel
-                initialItems={[]}
-                isSuperAdmin
-              />
-            </DashboardPanel>
-
-            {/* AI ASSISTANT */}
-
-            <DashboardPanel>
+          <section className="feature-grid">
+            <DashboardTile title="AI Personal Assistant" subtitle="How can I help you today?" icon="◈" className="feature-ai">
               <AIPersonalAssistant />
-            </DashboardPanel>
+            </DashboardTile>
 
-            {/* USER ACTIVITY */}
+            <DashboardTile title="Pending Approvals" subtitle="Items requiring attention" icon="✓">
+              <div className="approval-grid">
+                {APPROVALS.map(([label, value, icon]) => (
+                  <div className="approval-item" key={label}>
+                    <span>{icon}</span>
+                    <strong>{value}</strong>
+                    <small>{label}</small>
+                  </div>
+                ))}
+              </div>
+            </DashboardTile>
 
-            <UserActivity />
+            <DashboardTile title="Quick Actions" subtitle="Common administration tasks" icon="ϟ">
+              <div className="quick-grid">
+                {QUICK_ACTIONS.map(([icon, label]) => (
+                  <button type="button" className="quick-action" key={label}>
+                    <span>{icon}</span>
+                    <strong>{label}</strong>
+                  </button>
+                ))}
+              </div>
+            </DashboardTile>
 
-            {/* AI ANALYZER */}
+            <DashboardTile title="Results Overview" subtitle="Election results monitoring" icon="▥">
+              <div className="result-hero">
+                <div className="donut"><div><strong>0%</strong><span>Submitted</span></div></div>
+                <div className="result-list">
+                  <ResultRow label="Submitted" value="0" />
+                  <ResultRow label="Pending" value="0" />
+                  <ResultRow label="Awaiting Verification" value="0" />
+                  <ResultRow label="Rejected" value="0" />
+                </div>
+              </div>
+            </DashboardTile>
 
-            <DashboardPanel>
-              <AIAnalyzer />
-            </DashboardPanel>
+            <DashboardTile title="System Health" subtitle="Platform infrastructure" icon="◇">
+              <div className="health-grid">
+                {[
+                  "Server Status",
+                  "Database",
+                  "API Services",
+                  "Storage",
+                  "Security",
+                  "Backups",
+                ].map((item) => (
+                  <div className="health-item" key={item}>
+                    <span className="health-dot">✓</span>
+                    <span>{item}</span>
+                    <strong>Awaiting data</strong>
+                  </div>
+                ))}
+              </div>
+            </DashboardTile>
 
-            {/* NOTIFICATIONS */}
+            <DashboardTile title="Results by Region" subtitle="Regional submission activity" icon="⌖">
+              <div className="region-grid">
+                {REGIONS.map((region) => (
+                  <div className="region-item" key={region}>
+                    <span>{region}</span>
+                    <strong>0</strong>
+                  </div>
+                ))}
+              </div>
+            </DashboardTile>
 
-            <DashboardPanel>
-              <NotificationsPanel
-                initialNotifications={[]}
-              />
-            </DashboardPanel>
+            <DashboardTile title="Weather" subtitle="Current conditions" icon="☁" className="weather-tile">
+              <WeatherCard />
+            </DashboardTile>
+          </section>
 
-            {/* APPROVALS */}
-
-            <Approvals />
-
-            {/* ALERTS */}
-
-            <SystemAlerts />
-
-            {/* PRIVACY */}
-
-            <DashboardPanel>
-              <PrivacySecurityPanel />
-            </DashboardPanel>
-
-            {/* QUICK ACTIONS */}
-
-            <QuickActions />
-
+          <section className="secondary-grid">
+            <DashboardPanel title="Reminders"><RemindersPanel initialReminders={[]} /></DashboardPanel>
+            <DashboardPanel title="Notifications"><NotificationsPanel initialNotifications={[]} /></DashboardPanel>
+            <DashboardPanel title="Complaints & Reports"><ComplaintsReportsPanel initialItems={[]} isSuperAdmin /></DashboardPanel>
+            <DashboardPanel title="AI Analyzer"><AIAnalyzer /></DashboardPanel>
+            <DashboardPanel title="Privacy & Security"><PrivacySecurityPanel /></DashboardPanel>
           </section>
         </main>
       </div>
 
       <style jsx>{`
-
-        /* ==================================================
-           PAGE
-        ================================================== */
-
-        .super-admin-page {
+        .super-admin-redesign {
+          --green-950: #022d16;
+          --green-900: #043d1d;
+          --green-800: #064d25;
+          --green-700: #075f2b;
+          --green-600: #087b39;
+          --gold: #d6ad35;
+          --gold-bright: #f0cd61;
+          --white: #ffffff;
+          --muted: #c5d6cb;
           min-height: 100%;
-          background: #f4f7f5;
-          color: #1f2d25;
+          color: var(--white);
+          background:
+            radial-gradient(circle at 15% 10%, rgba(34, 150, 83, .18), transparent 30%),
+            radial-gradient(circle at 90% 80%, rgba(214, 173, 53, .10), transparent 25%),
+            repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 32px),
+            repeating-linear-gradient(90deg, rgba(255,255,255,.014) 0 1px, transparent 1px 32px),
+            var(--green-950);
         }
 
-        .dashboard-content {
+        .super-admin-redesign .dashboard-content {
           width: 100%;
-          max-width: 1680px;
+          max-width: 1800px;
           margin: 0 auto;
-          padding: clamp(18px, 2.5vw, 32px);
+          padding: clamp(16px, 2.2vw, 34px);
           box-sizing: border-box;
         }
 
-        /* ==================================================
-           WELCOME
-        ================================================== */
-
-        .welcome-section {
+        .hero {
           display: flex;
-          align-items: flex-end;
+          align-items: center;
           justify-content: space-between;
-          gap: 24px;
-          margin-bottom: 24px;
+          gap: 20px;
+          padding: 8px 2px 24px;
         }
 
-        .welcome-copy {
-          min-width: 0;
+        .brand-kicker {
+          color: var(--gold-bright);
+          font-size: clamp(12px, 1.1vw, 16px);
+          font-weight: 950;
+          letter-spacing: 2.4px;
         }
 
-        .eyebrow {
-          display: inline-block;
-          margin-bottom: 8px;
-          color: #b18b19;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: 1.5px;
-        }
-
-        .welcome-copy h2 {
-          margin: 0;
-          color: #075f2b;
-          font-size: clamp(24px, 2.5vw, 34px);
-          line-height: 1.15;
-          font-weight: 850;
-        }
-
-        .welcome-copy p {
-          max-width: 760px;
-          margin: 9px 0 0;
-          color: #68766e;
-          font-size: 14px;
-          line-height: 1.55;
-        }
-
-        .welcome-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-          flex-shrink: 0;
-        }
-
-        .primary-button,
-        .secondary-button {
-          min-height: 44px;
-          padding: 10px 17px;
-          border-radius: 10px;
-          font-size: 13px;
-          font-weight: 800;
-          cursor: pointer;
-        }
-
-        .primary-button {
-          border: 1px solid #075f2b;
-          background: #075f2b;
+        .hero h2 {
+          margin: 7px 0 4px;
           color: #fff;
+          font-size: clamp(22px, 2.2vw, 34px);
+          line-height: 1.1;
+          font-weight: 900;
+          letter-spacing: -.5px;
         }
 
-        .secondary-button {
-          border: 1px solid #d5e1d9;
-          background: #fff;
-          color: #075f2b;
+        .hero p {
+          margin: 0;
+          color: var(--muted);
+          font-size: clamp(12px, 1vw, 15px);
+          line-height: 1.45;
         }
 
-        /* ==================================================
-           STATISTICS
-        ================================================== */
+        .hero-badge {
+          width: 58px;
+          height: 58px;
+          flex: 0 0 58px;
+          display: grid;
+          place-items: center;
+          border: 2px solid var(--gold-bright);
+          border-radius: 50%;
+          background: var(--green-800);
+          color: var(--gold-bright);
+          font-size: 19px;
+          font-weight: 950;
+          box-shadow: 0 0 24px rgba(214,173,53,.16);
+        }
 
         .stats-grid {
           display: grid;
-          grid-template-columns:
-            repeat(6, minmax(0, 1fr));
-          gap: 14px;
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+          gap: 12px;
           margin-bottom: 14px;
         }
 
@@ -370,161 +249,161 @@ export default function SuperAdminDashboard() {
           min-width: 0;
           display: flex;
           align-items: center;
-          gap: 13px;
-          padding: 17px;
-          border: 1px solid #dce7e0;
-          border-radius: 15px;
-          background: #fff;
-          box-shadow:
-            0 6px 22px
-            rgba(18, 54, 32, 0.045);
+          gap: 11px;
+          padding: 14px;
+          border: 1px solid rgba(214,173,53,.62);
+          border-radius: 14px;
+          background: rgba(4,61,29,.82);
+          box-shadow: inset 0 1px rgba(255,255,255,.06), 0 8px 24px rgba(0,0,0,.16);
+          backdrop-filter: blur(6px);
         }
 
         .stat-icon {
-          width: 48px;
-          height: 48px;
-          flex: 0 0 48px;
+          width: 42px;
+          height: 42px;
+          flex: 0 0 42px;
           display: grid;
           place-items: center;
-          border-radius: 13px;
-          font-size: 22px;
-        }
-
-        .tone-green {
-          background: #e7f5ec;
-        }
-
-        .tone-gold {
-          background: #faf2d9;
-        }
-
-        .tone-blue {
-          background: #e8f1fa;
-        }
-
-        .tone-purple {
-          background: #eeeafa;
-        }
-
-        .tone-orange {
-          background: #fff0e1;
-        }
-
-        .tone-teal {
-          background: #e5f5f3;
-        }
-
-        .stat-copy {
-          min-width: 0;
+          border: 1px solid var(--gold);
+          border-radius: 50%;
+          color: var(--gold-bright);
+          font-size: 19px;
+          background: rgba(0,0,0,.12);
         }
 
         .stat-label {
           display: block;
-          color: #718078;
-          font-size: 12px;
-          line-height: 1.3;
-          font-weight: 650;
-        }
-
-        .stat-value {
-          display: block;
-          margin-top: 5px;
-          color: #26372d;
-          font-size: clamp(21px, 2vw, 27px);
-          line-height: 1;
-          font-weight: 900;
-        }
-
-        .stat-note {
-          display: block;
-          margin-top: 5px;
-          color: #8b9890;
+          color: var(--muted);
           font-size: 10px;
+          line-height: 1.2;
+          font-weight: 750;
+          text-transform: uppercase;
+          letter-spacing: .55px;
         }
 
-        /* ==================================================
-           GRID
-        ================================================== */
+        .stat-card strong {
+          display: block;
+          margin-top: 4px;
+          color: #fff;
+          font-size: 23px;
+          line-height: 1;
+          font-weight: 950;
+        }
 
-        .dashboard-grid {
+        .feature-grid {
           display: grid;
-          grid-template-columns:
-            repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 14px;
-          align-items: stretch;
         }
 
-        .dashboard-panel,
-        .dashboard-card {
+        .tile {
           min-width: 0;
-          padding: 20px;
-          border: 1px solid #dce7e0;
-          border-radius: 16px;
-          background: #fff;
+          padding: clamp(16px, 1.8vw, 24px);
+          border: 2px solid rgba(214,173,53,.9);
+          border-radius: 19px;
+          background:
+            linear-gradient(145deg, rgba(7,95,43,.94), rgba(2,45,22,.96));
           box-shadow:
-            0 6px 22px
-            rgba(18, 54, 32, 0.045);
-          box-sizing: border-box;
+            inset 0 1px rgba(255,255,255,.08),
+            0 12px 32px rgba(0,0,0,.22),
+            0 0 0 1px rgba(255,255,255,.025);
           overflow: hidden;
         }
 
-        .dashboard-panel :global(
-          .polisync-notifications
-        ),
-        .dashboard-panel :global(
-          .polisync-complaints
-        ) {
-          padding: 0;
-          border: 0;
-          box-shadow: none;
-        }
-
-        .dashboard-panel:nth-child(5),
-        .dashboard-panel:nth-child(6),
-        .dashboard-panel:nth-child(7),
-        .dashboard-panel:nth-child(9),
-        .dashboard-panel:nth-child(10),
-        .dashboard-panel:nth-child(13) {
-          grid-column: span 2;
-        }
-
-        /* ==================================================
-           CARD HEADER
-        ================================================== */
-
-        .card-header {
+        .tile-header {
           display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 18px;
-        }
-
-        .card-header h3 {
-          margin: 0;
-          color: #26372d;
-          font-size: 17px;
-          line-height: 1.25;
-          font-weight: 850;
-        }
-
-        .card-header p {
-          margin: 5px 0 0;
-          color: #829088;
-          font-size: 12px;
-          line-height: 1.4;
-        }
-
-        /* ==================================================
-           RESULTS
-        ================================================== */
-
-        .results-layout {
-          display: grid;
-          grid-template-columns:
-            175px minmax(0, 1fr);
-          gap: 25px;
           align-items: center;
+          gap: 14px;
+          margin-bottom: 17px;
+        }
+
+        .tile-icon {
+          width: 54px;
+          height: 54px;
+          flex: 0 0 54px;
+          display: grid;
+          place-items: center;
+          border: 2px solid var(--gold-bright);
+          border-radius: 50%;
+          color: var(--gold-bright);
+          font-size: 25px;
+          font-weight: 900;
+          background: rgba(0,0,0,.14);
+          box-shadow: 0 4px 16px rgba(0,0,0,.22);
+        }
+
+        .tile-header h3 {
+          margin: 0;
+          color: #fff;
+          font-size: clamp(18px, 1.8vw, 27px);
+          line-height: 1.08;
+          font-weight: 900;
+          letter-spacing: -.3px;
+        }
+
+        .tile-header p {
+          margin: 5px 0 0;
+          color: #cfe0d5;
+          font-size: clamp(11px, 1vw, 14px);
+          line-height: 1.35;
+        }
+
+        .feature-ai {
+          min-height: 330px;
+        }
+
+        .approval-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 9px;
+        }
+
+        .approval-item {
+          min-height: 135px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          border: 1px solid rgba(214,173,53,.35);
+          border-radius: 14px;
+          background: rgba(0,0,0,.13);
+          text-align: center;
+        }
+
+        .approval-item span { font-size: 23px; }
+        .approval-item strong { color: #fff; font-size: 26px; font-weight: 950; }
+        .approval-item small { color: #c5d6cb; font-size: 10px; font-weight: 800; }
+
+        .quick-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .quick-action {
+          min-height: 102px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border: 1px solid rgba(214,173,53,.45);
+          border-radius: 13px;
+          background: rgba(0,0,0,.12);
+          color: #fff;
+          cursor: pointer;
+        }
+
+        .quick-action:hover { border-color: var(--gold-bright); background: rgba(214,173,53,.08); }
+        .quick-action span { font-size: 23px; }
+        .quick-action strong { font-size: 11px; font-weight: 850; }
+
+        .result-hero {
+          display: grid;
+          grid-template-columns: 180px minmax(0, 1fr);
+          align-items: center;
+          gap: 22px;
         }
 
         .donut {
@@ -533,14 +412,10 @@ export default function SuperAdminDashboard() {
           display: grid;
           place-items: center;
           border-radius: 50%;
-          background:
-            conic-gradient(
-              #0a8f3c 0 0%,
-              #e7ece9 0 100%
-            );
+          background: conic-gradient(var(--gold-bright) 0 0%, rgba(255,255,255,.12) 0 100%);
         }
 
-        .donut-inner {
+        .donut > div {
           width: 116px;
           height: 116px;
           display: flex;
@@ -548,759 +423,107 @@ export default function SuperAdminDashboard() {
           align-items: center;
           justify-content: center;
           border-radius: 50%;
-          background: #fff;
+          background: var(--green-950);
           text-align: center;
         }
 
-        .donut-inner strong {
-          color: #075f2b;
-          font-size: 27px;
-          font-weight: 900;
-        }
+        .donut strong { font-size: 28px; font-weight: 950; }
+        .donut span { margin-top: 4px; color: var(--muted); font-size: 10px; }
 
-        .donut-inner span {
-          margin-top: 4px;
-          color: #849088;
-          font-size: 11px;
-        }
+        .result-list { display: grid; gap: 5px; }
+        .result-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.08); color: #c5d6cb; font-size: 12px; }
+        .result-row strong { color: #fff; font-size: 14px; }
 
-        .legend {
+        .health-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+        .health-item { display: grid; grid-template-columns: 24px minmax(0,1fr); align-items: center; gap: 8px; min-height: 47px; padding: 7px 9px; border-radius: 10px; background: rgba(0,0,0,.12); color: #d2e0d6; font-size: 11px; }
+        .health-item strong { grid-column: 2; color: #8da498; font-size: 9px; font-weight: 700; }
+        .health-dot { width: 23px; height: 23px; display: grid; place-items: center; border: 1px solid var(--gold); border-radius: 50%; color: var(--gold-bright); font-size: 11px; }
+
+        .region-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 18px; }
+        .region-item { display: flex; align-items: center; justify-content: space-between; min-height: 39px; border-bottom: 1px solid rgba(255,255,255,.08); color: #c5d6cb; font-size: 11px; }
+        .region-item strong { color: #fff; font-size: 13px; }
+
+        .weather-tile :global(.weather-card), .weather-tile :global(.dashboard-card) { background: transparent !important; border: 0 !important; box-shadow: none !important; color: #fff !important; padding: 0 !important; }
+
+        .secondary-grid {
           display: grid;
-          gap: 12px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+          margin-top: 14px;
         }
 
-        .legend-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding-bottom: 10px;
-          border-bottom: 1px solid #edf1ee;
-          font-size: 12px;
-        }
-
-        .legend-name {
-          display: flex;
-          align-items: center;
-          color: #68766e;
-        }
-
-        .legend-dot {
-          width: 9px;
-          height: 9px;
-          margin-right: 8px;
-          border-radius: 50%;
-          background: #cfd8d2;
-        }
-
-        .legend-row strong {
-          color: #344239;
-          font-weight: 850;
-        }
-
-        /* ==================================================
-           REGIONS
-        ================================================== */
-
-        .region-list {
-          display: grid;
-        }
-
-        .region-row {
-          min-height: 42px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          border-bottom: 1px solid #edf1ee;
-          font-size: 12px;
-        }
-
-        .region-row span {
-          color: #68766e;
-        }
-
-        .region-row strong {
-          color: #344239;
-        }
-
-        .empty-label {
-          margin-top: 13px;
-          color: #8a9890;
-          font-size: 11px;
-          line-height: 1.5;
-        }
-
-        /* ==================================================
-           HEALTH
-        ================================================== */
-
-        .health-list {
-          display: grid;
-        }
-
-        .health-row {
-          min-height: 43px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          border-bottom: 1px solid #edf1ee;
-        }
-
-        .health-name {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #68766e;
-          font-size: 12px;
-        }
-
-        .health-check {
-          width: 25px;
-          height: 25px;
-          display: grid;
-          place-items: center;
-          border-radius: 7px;
-          background: #edf2ef;
-          color: #87948c;
-          font-weight: 900;
-        }
-
-        .health-status {
-          color: #7f8b84;
-          font-size: 11px;
-          font-weight: 750;
-        }
-
-        /* ==================================================
-           ACTIVITY
-        ================================================== */
-
-        .activity-card {
-          grid-column: span 2;
+        .secondary-panel {
           min-width: 0;
-          padding: 20px;
-          border: 1px solid #dce7e0;
+          padding: 18px;
+          border: 1px solid rgba(214,173,53,.48);
           border-radius: 16px;
-          background: #fff;
-          box-shadow:
-            0 6px 22px
-            rgba(18, 54, 32, 0.045);
-        }
-
-        .activity-chart {
-          position: relative;
-          height: 260px;
+          background: rgba(2,45,22,.88);
+          color: #fff;
           overflow: hidden;
-          border-radius: 12px;
-          background:
-            repeating-linear-gradient(
-              to bottom,
-              #fff 0,
-              #fff calc(20% - 1px),
-              #edf2ef calc(20% - 1px),
-              #edf2ef 20%
-            );
         }
 
-        .activity-empty {
-          position: absolute;
-          inset: 0;
-          display: grid;
-          place-items: center;
-          color: #8a9890;
-          font-size: 13px;
-          font-weight: 700;
+        .secondary-panel h3 { margin: 0 0 14px; color: var(--gold-bright); font-size: 15px; font-weight: 900; }
+        .secondary-panel :global(.polisync-notifications), .secondary-panel :global(.polisync-complaints) { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+
+        @media (max-width: 1100px) {
+          .stats-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
         }
 
-        /* ==================================================
-           APPROVALS
-        ================================================== */
-
-        .approval-grid {
-          display: grid;
-          grid-template-columns:
-            repeat(4, minmax(0, 1fr));
-          gap: 10px;
+        @media (max-width: 760px) {
+          .feature-grid, .secondary-grid { grid-template-columns: 1fr; }
+          .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+          .result-hero { grid-template-columns: 1fr; justify-items: center; }
+          .result-list { width: 100%; }
         }
-
-        .approval-item {
-          min-height: 105px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 5px;
-          border-radius: 12px;
-          background: #f6f9f7;
-          text-align: center;
-        }
-
-        .approval-icon {
-          font-size: 22px;
-        }
-
-        .approval-value {
-          color: #075f2b;
-          font-size: 23px;
-          font-weight: 900;
-        }
-
-        .approval-label {
-          color: #7d8982;
-          font-size: 11px;
-          font-weight: 700;
-        }
-
-        /* ==================================================
-           ALERTS
-        ================================================== */
-
-        .alert-grid {
-          display: grid;
-          grid-template-columns:
-            repeat(3, minmax(0, 1fr));
-          gap: 10px;
-        }
-
-        .alert-item {
-          min-height: 105px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 5px;
-          border-radius: 12px;
-          background: #fafafa;
-          text-align: center;
-        }
-
-        .alert-icon {
-          font-size: 22px;
-        }
-
-        .alert-value {
-          color: #344239;
-          font-size: 23px;
-          font-weight: 900;
-        }
-
-        .alert-label {
-          color: #7d8982;
-          font-size: 11px;
-          font-weight: 700;
-        }
-
-        /* ==================================================
-           QUICK ACTIONS
-        ================================================== */
-
-        .quick-grid {
-          display: grid;
-          grid-template-columns:
-            repeat(3, minmax(0, 1fr));
-          gap: 10px;
-        }
-
-        .quick-action {
-          min-height: 90px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          border: 1px solid #e0e8e3;
-          border-radius: 12px;
-          background: #fff;
-          color: #536159;
-          cursor: pointer;
-        }
-
-        .quick-action:hover {
-          border-color: #c7d7cc;
-          background: #f8fbf9;
-        }
-
-        .quick-icon {
-          font-size: 23px;
-        }
-
-        .quick-label {
-          font-size: 11px;
-          font-weight: 800;
-        }
-
-        /* ==================================================
-           LARGE TABLETS
-        ================================================== */
-
-        @media (max-width: 1350px) {
-          .stats-grid {
-            grid-template-columns:
-              repeat(3, minmax(0, 1fr));
-          }
-
-          .dashboard-grid {
-            grid-template-columns:
-              repeat(2, minmax(0, 1fr));
-          }
-
-          .dashboard-panel,
-          .activity-card {
-            grid-column: span 1;
-          }
-
-          .dashboard-panel:nth-child(5),
-          .dashboard-panel:nth-child(6),
-          .dashboard-panel:nth-child(7),
-          .dashboard-panel:nth-child(9),
-          .dashboard-panel:nth-child(10),
-          .dashboard-panel:nth-child(13),
-          .activity-card {
-            grid-column: span 2;
-          }
-        }
-
-        /* ==================================================
-           TABLET
-        ================================================== */
-
-        @media (max-width: 900px) {
-          .welcome-section {
-            align-items: flex-start;
-            flex-direction: column;
-          }
-
-          .welcome-actions {
-            width: 100%;
-          }
-
-          .welcome-actions button {
-            flex: 1;
-          }
-
-          .dashboard-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .dashboard-panel,
-          .dashboard-panel:nth-child(n),
-          .activity-card {
-            grid-column: span 1;
-          }
-        }
-
-        /* ==================================================
-           MOBILE
-        ================================================== */
-
-        @media (max-width: 650px) {
-          .dashboard-content {
-            padding: 14px;
-          }
-
-          .stats-grid {
-            grid-template-columns:
-              repeat(2, minmax(0, 1fr));
-          }
-
-          .stat-card {
-            align-items: flex-start;
-            padding: 14px;
-          }
-
-          .stat-icon {
-            width: 42px;
-            height: 42px;
-            flex-basis: 42px;
-            font-size: 19px;
-          }
-
-          .stat-label {
-            font-size: 11px;
-          }
-
-          .stat-value {
-            font-size: 21px;
-          }
-
-          .results-layout {
-            grid-template-columns: 1fr;
-            justify-items: center;
-          }
-
-          .legend {
-            width: 100%;
-          }
-
-          .approval-grid {
-            grid-template-columns:
-              repeat(2, minmax(0, 1fr));
-          }
-
-          .quick-grid {
-            grid-template-columns:
-              repeat(2, minmax(0, 1fr));
-          }
-        }
-
-        /* ==================================================
-           SMALL PHONES
-        ================================================== */
 
         @media (max-width: 430px) {
-          .welcome-copy h2 {
-            font-size: 23px;
-          }
-
-          .welcome-copy p {
-            font-size: 13px;
-          }
-
-          .welcome-actions {
-            flex-direction: column;
-          }
-
-          .welcome-actions button {
-            width: 100%;
-          }
-
-          .stats-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .dashboard-panel,
-          .dashboard-card,
-          .activity-card {
-            padding: 16px;
-          }
-
-          .alert-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .donut {
-            width: 145px;
-            height: 145px;
-          }
-
-          .donut-inner {
-            width: 102px;
-            height: 102px;
-          }
+          .super-admin-redesign .dashboard-content { padding: 12px; }
+          .hero { padding-bottom: 17px; }
+          .hero-badge { width: 46px; height: 46px; flex-basis: 46px; font-size: 15px; }
+          .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+          .stat-card { padding: 10px; gap: 8px; }
+          .stat-icon { width: 34px; height: 34px; flex-basis: 34px; font-size: 15px; }
+          .stat-label { font-size: 8px; }
+          .stat-card strong { font-size: 18px; }
+          .approval-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+          .quick-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+          .health-grid, .region-grid { grid-template-columns: 1fr; }
+          .tile { border-radius: 15px; }
         }
-
       `}</style>
     </DashboardShell>
   );
 }
-function StatCard({
-  label,
-  value,
-  icon,
-  tone,
-}) {
+
+function DashboardTile({ title, subtitle, icon, children, className = "" }) {
   return (
-    <article className="stat-card">
-      <div
-        className={`stat-icon tone-${tone}`}
-        aria-hidden="true"
-      >
-        {icon}
+    <section className={`tile ${className}`}>
+      <div className="tile-header">
+        <div className="tile-icon" aria-hidden="true">{icon}</div>
+        <div>
+          <h3>{title}</h3>
+          {subtitle ? <p>{subtitle}</p> : null}
+        </div>
       </div>
-
-      <div className="stat-copy">
-        <span className="stat-label">
-          {label}
-        </span>
-
-        <strong className="stat-value">
-          {value}
-        </strong>
-
-        <small className="stat-note">
-          Live platform data
-        </small>
-      </div>
-    </article>
-  );
-}
-
-function CardHeader({
-  title,
-  subtitle,
-}) {
-  return (
-    <div className="card-header">
-      <div>
-        <h3>{title}</h3>
-
-        {subtitle ? (
-          <p>{subtitle}</p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function DashboardPanel({
-  children,
-}) {
-  return (
-    <section className="dashboard-panel">
       {children}
     </section>
   );
 }
 
-function ResultsOverview() {
-  const results = [
-    ["Submitted", "0"],
-    ["Pending", "0"],
-    ["Awaiting Verification", "0"],
-    ["Rejected", "0"],
-  ];
-
+function DashboardPanel({ title, children }) {
   return (
-    <section className="dashboard-card">
-      <CardHeader
-        title="Results Overview"
-        subtitle="Election results monitoring"
-      />
-
-      <div className="results-layout">
-        <div className="donut">
-          <div className="donut-inner">
-            <strong>0%</strong>
-            <span>Submitted</span>
-          </div>
-        </div>
-
-        <div className="legend">
-          {results.map(
-            ([label, value]) => (
-              <div
-                className="legend-row"
-                key={label}
-              >
-                <span className="legend-name">
-                  <i className="legend-dot" />
-                  {label}
-                </span>
-
-                <strong>
-                  {value}
-                </strong>
-              </div>
-            )
-          )}
-        </div>
-      </div>
-
-      <div className="empty-label">
-        Election result data will appear here
-        when connected to the results service.
-      </div>
+    <section className="secondary-panel">
+      <h3>{title}</h3>
+      {children}
     </section>
   );
 }
 
-function RegionsOverview() {
+function ResultRow({ label, value }) {
   return (
-    <section className="dashboard-card">
-      <CardHeader
-        title="Results by Region"
-        subtitle="Regional submission activity"
-      />
-
-      <div className="region-list">
-        {REGIONS.slice(0, 8).map(
-          (region) => (
-            <div
-              className="region-row"
-              key={region}
-            >
-              <span>
-                {region}
-              </span>
-
-              <strong>
-                0
-              </strong>
-            </div>
-          )
-        )}
-      </div>
-
-      <div className="empty-label">
-        Regional figures will be populated
-        from live election data.
-      </div>
-    </section>
-  );
-}
-
-function SystemHealth() {
-  return (
-    <section className="dashboard-card">
-      <CardHeader
-        title="System Health"
-        subtitle="Platform infrastructure"
-      />
-
-      <div className="health-list">
-        {SYSTEM_HEALTH.map(
-          (item) => (
-            <div
-              className="health-row"
-              key={item}
-            >
-              <div className="health-name">
-                <span className="health-check">
-                  •
-                </span>
-
-                {item}
-              </div>
-
-              <strong className="health-status">
-                Awaiting data
-              </strong>
-            </div>
-          )
-        )}
-      </div>
-    </section>
-  );
-}
-
-function UserActivity() {
-  return (
-    <section className="activity-card">
-      <CardHeader
-        title="User Activity"
-        subtitle="Live platform activity"
-      />
-
-      <div className="activity-chart">
-        <div className="activity-empty">
-          No activity data available yet.
-        </div>
-      </div>
-
-      <div className="empty-label">
-        Activity analytics will appear after
-        the platform activity service is connected.
-      </div>
-    </section>
-  );
-}
-
-function Approvals() {
-  return (
-    <section className="dashboard-card">
-      <CardHeader
-        title="Pending Approvals"
-        subtitle="Items requiring attention"
-      />
-
-      <div className="approval-grid">
-        {APPROVALS.map(
-          ([label, value, icon]) => (
-            <div
-              className="approval-item"
-              key={label}
-            >
-              <span
-                className="approval-icon"
-                aria-hidden="true"
-              >
-                {icon}
-              </span>
-
-              <strong className="approval-value">
-                {value}
-              </strong>
-
-              <span className="approval-label">
-                {label}
-              </span>
-            </div>
-          )
-        )}
-      </div>
-    </section>
-  );
-}
-
-function SystemAlerts() {
-  return (
-    <section className="dashboard-card">
-      <CardHeader
-        title="System Alerts"
-        subtitle="Current platform alerts"
-      />
-
-      <div className="alert-grid">
-        {ALERTS.map(
-          ([label, value, icon]) => (
-            <div
-              className="alert-item"
-              key={label}
-            >
-              <span
-                className="alert-icon"
-                aria-hidden="true"
-              >
-                {icon}
-              </span>
-
-              <strong className="alert-value">
-                {value}
-              </strong>
-
-              <span className="alert-label">
-                {label}
-              </span>
-            </div>
-          )
-        )}
-      </div>
-    </section>
-  );
-}
-
-function QuickActions() {
-  return (
-    <section className="dashboard-card">
-      <CardHeader
-        title="Quick Actions"
-        subtitle="Common administration tasks"
-      />
-
-      <div className="quick-grid">
-        {QUICK_ACTIONS.map(
-          ([icon, label]) => (
-            <button
-              type="button"
-              className="quick-action"
-              key={label}
-            >
-              <span
-                className="quick-icon"
-                aria-hidden="true"
-              >
-                {icon}
-              </span>
-
-              <span className="quick-label">
-                {label}
-              </span>
-            </button>
-          )
-        )}
-      </div>
-    </section>
+    <div className="result-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
