@@ -54,7 +54,9 @@ Rules:
 8. Structure longer answers with headings and bullet points where useful.
 `;
 
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    // Gemini 2.5 Flash is restricted for new users. Gemini 3.6 Flash is a
+    // current stable model and has a documented free tier.
+    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
@@ -64,7 +66,6 @@ Rules:
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemPrompt }] },
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2 },
         }),
       }
     );
