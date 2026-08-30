@@ -44,21 +44,23 @@ export default function AIAnalyzer({
         }
       );
 
-      const contentType =
-        response.headers.get("content-type") || "";
-
       let data = {};
 
-      if (contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
+try {
+  data = await response.json();
+} catch {
+  data = {
+    error: `AI service returned an invalid response (${response.status}).`,
+  };
+}
 
-        data = {
-          message: text,
-        };
-      }
-
+if (!response.ok) {
+  throw new Error(
+    data?.message ||
+      data?.error ||
+      `AI analysis failed (${response.status}).`
+  );
+}
       if (!response.ok) {
         throw new Error(
           data?.message ||
