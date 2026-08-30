@@ -2163,3 +2163,95 @@ exports.me = async (req, res) => {
     });
   }
 };
+// ============================================================
+// UPDATE PROFILE PHOTO
+// ============================================================
+// PATCH /api/users/me/profile-photo
+// ============================================================
+
+exports.updateProfilePhoto = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication is required.",
+      });
+    }
+
+    const { profilePhoto } = req.body || {};
+
+    if (!profilePhoto) {
+      return res.status(400).json({
+        success: false,
+        message: "Profile photo is required.",
+      });
+    }
+
+    if (typeof profilePhoto !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid profile photo.",
+      });
+    }
+
+    // Only allow supported image Data URLs.
+    const imagePattern =
+      /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=\s]+$/i;
+
+    if (!imagePattern.test(profilePhoto)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Only JPEG, PNG and WebP profile photos are allowed.",
+      });
+    }
+
+    // Approximate decoded image size.
+    const base64Data = profilePhoto.split(",")[1] || "";
+
+    const estimatedBytes =
+      Math.floor((base64Data.length * 3) / 4);
+
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+
+    if (estimatedBytes > MAX_IMAGE_SIZE) {
+      return res.status(413).json({
+        success: false,
+        message: "Profile photo must not exceed 5 MB.",
+      });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Account not found.",
+      });
+    }
+
+    user.profilePhoto = profilePhoto;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile photo updated successfully.",
+      profilePhoto: user.profilePhoto,
+    });
+  } catch (error) {
+    console.error(
+      "Update profile photo error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Unable to update profile photo.",
+    });
+  }
+};
