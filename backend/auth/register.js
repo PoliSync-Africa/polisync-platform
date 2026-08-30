@@ -4,7 +4,7 @@ const PersonalWorkspaceProfile = require("../models/PersonalWorkspaceProfile");
 
 const PASSWORD_MIN_LENGTH = 8;
 const ALLOWED_IDENTIFICATION_TYPES = ["passport", "ghana_card", "voter_id"];
-const PERSONAL_PURPOSES = ["personal_use", "researcher", "journalist", "media_house"];
+const PERSONAL_PURPOSES = ["personal_use", "researcher", "journalist"];
 
 const ROLE_ACCESS = {
   personal_use: {
@@ -18,10 +18,6 @@ const ROLE_ACCESS = {
   journalist: {
     accessProfile: "journalist_read",
     permissions: ["view_public_data", "explore_electoral_geography", "view_results", "view_candidates", "source_verification", "fact_check", "press_calendar", "use_ai_analyzer"],
-  },
-  media_house: {
-    accessProfile: "media_read",
-    permissions: ["view_public_data", "explore_electoral_geography", "view_results", "view_candidates", "source_verification", "fact_check", "newsroom", "editorial_calendar", "use_ai_analyzer"],
   },
 };
 
@@ -69,7 +65,6 @@ const register = async (userData = {}) => {
       regionIds,
       constituencyIds,
       pollingStationIds,
-      organizationName,
       researchFields,
       journalismBeat,
     } = userData;
@@ -100,10 +95,7 @@ const register = async (userData = {}) => {
 
     const selectedPurpose = personalPurpose || purpose || (registrationType === "personal" ? "personal_use" : null);
     if (!selectedPurpose || !PERSONAL_PURPOSES.includes(selectedPurpose)) {
-      return { success: false, message: "Please select whether the personal account is for personal use, research, journalism or a media house." };
-    }
-    if (selectedPurpose === "media_house" && !normalizeText(organizationName)) {
-      return { success: false, message: "Media house name is required." };
+      return { success: false, message: "Please select Personal Use, Researcher or Journalist." };
     }
 
     const [existingEmail, existingPhone, existingIdentification] = await Promise.all([
@@ -146,7 +138,9 @@ const register = async (userData = {}) => {
       twoFactorMethod: null,
       passcodeEnabled: false,
       biometricEnabled: false,
-      accountStatus: "pending",
+      // Personal accounts are self-created and automatically approved.
+      // Email/phone verification remains a security requirement before login.
+      accountStatus: "approved",
     });
 
     const access = ROLE_ACCESS[selectedPurpose];
@@ -157,7 +151,7 @@ const register = async (userData = {}) => {
       regionIds: Array.isArray(regionIds) ? regionIds : [],
       constituencyIds: Array.isArray(constituencyIds) ? constituencyIds : [],
       pollingStationIds: Array.isArray(pollingStationIds) ? pollingStationIds : [],
-      organizationName: normalizeText(organizationName),
+      organizationName: "",
       researchFields: Array.isArray(researchFields) ? researchFields : [],
       journalismBeat: normalizeText(journalismBeat),
       accessProfile: access.accessProfile,
@@ -167,7 +161,7 @@ const register = async (userData = {}) => {
 
     return {
       success: true,
-      message: "Registration successful. Your account is pending approval.",
+      message: "Registration successful. Verify your phone and email to activate sign-in.",
       user: {
         id: user._id,
         username: user.username,
