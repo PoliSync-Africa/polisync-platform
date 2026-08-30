@@ -7,7 +7,8 @@ A personal account is one human identity. During registration the user declares 
 - `personal_use` — Personal / Civic User
 - `researcher` — Researcher
 - `journalist` — Journalist
-- `media_house` — Media House
+
+Personal accounts are self-created and automatically approved by the platform. **No Super Admin approval is required.** Email and phone verification remain security requirements before sign-in.
 
 The declaration determines the initial workspace, public-data permissions and default scope. It does **not** create a political-party organization. A user may later receive separate organization memberships without changing their personal identity.
 
@@ -35,19 +36,13 @@ Personal workspaces are public/read-oriented by default. Private party, candidat
 
 ## Journalist
 
-**Scope:** public platform data with reporting/verification permissions.
+**Scope:** public platform data with reporting, verification and newsroom-style workflow permissions.
 
-**Core components:** election desk, live public results explorer, geographic context, candidate directory, fact-checking desk, source verification, evidence notes, press/election calendar, story evidence and AI Analyzer.
+**Core components:** election desk, live public results explorer, geographic context, candidate directory, fact-checking desk, source verification, evidence notes, press/election calendar, story evidence, personal newsroom workspace and AI Analyzer.
 
-**Reporting workflow:** story → source → verification → geographic/election context → evidence → publication planning.
+A journalist may work independently or separately belong to a media/news organization through an organization membership. There is **no separate Media House personal-account role**.
 
-## Media House
-
-**Scope:** public platform data with newsroom-oriented permissions.
-
-**Core components:** newsroom command, assignment board, data desk, verification desk, staff/workflow controls, editorial calendar, election coverage workspace, candidate/geography intelligence and AI Analyzer.
-
-**Newsroom workflow:** assignment → research → data/evidence → verification → editor review → publication.
+**Reporting workflow:** story → source → verification → geographic/election context → evidence → editorial planning → publication.
 
 ## AI policy
 
@@ -60,4 +55,4 @@ The canonical hierarchy is:
 
 `Ghana → Region → Constituency → Polling Station → EC Polling Station Code`
 
-The platform now exposes authenticated APIs for region discovery, region-to-constituency loading, constituency-to-polling-station loading, station lookup, search and summary counts. Frontend party geography screens consume these APIs rather than maintaining constituency/polling-station placeholder arrays.
+The platform exposes authenticated APIs for region discovery, region-to-constituency loading, constituency-to-polling-station loading, station lookup, search and summary counts. Frontend party geography screens consume these APIs rather than maintaining constituency/polling-station placeholder arrays.
