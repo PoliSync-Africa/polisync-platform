@@ -23,11 +23,11 @@ const resourceSchema = new mongoose.Schema(
     description: { type: String, required: true, trim: true },
     audience: [{
       type: String,
-      enum: ["personal_use", "researcher", "journalist", "media_house"],
+      enum: ["personal_use", "researcher", "journalist"],
     }],
     access: {
       type: String,
-      enum: ["public", "research", "journalist", "media"],
+      enum: ["public", "research", "journalist"],
       default: "public",
     },
     actions: [{ type: String, trim: true }],
