@@ -1,30 +1,23 @@
 "use client";
 
-const POLISYNC_LOGO_SRC =
-  "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aGB0dICwkHh0rIB0eJDUqLS8vLzA1NjY3PDk8Pj8BCgoKDgwOGw8PGT...";
-
 export default function PoliSyncBrand({ compact = false }) {
   return (
     <div className={`polisync-brand ${compact ? "polisync-brand-compact" : ""}`}>
       <img
-        src={POLISYNC_LOGO_SRC}
+        src="/polisync-brand.svg"
         alt="PoliSync Africa — Africa's Political Intelligence Platform"
         className="polisync-brand-image"
       />
-      {!compact && (
-        <div className="polisync-brand-accessible-text">
-          <strong>PoliSync Africa</strong>
-          <span>AFRICA'S POLITICAL INTELLIGENCE PLATFORM</span>
-        </div>
-      )}
+      <span className="sr-only">
+        PoliSync Africa — Africa's Political Intelligence Platform
+      </span>
 
       <style jsx>{`
         .polisync-brand {
           width: 100%;
           display: flex;
-          flex-direction: column;
           align-items: center;
-          gap: 7px;
+          justify-content: center;
           overflow: hidden;
         }
 
@@ -36,12 +29,20 @@ export default function PoliSyncBrand({ compact = false }) {
           object-fit: contain;
         }
 
-        .polisync-brand-accessible-text {
-          display: none;
+        .polisync-brand-compact .polisync-brand-image {
+          max-width: 135px;
         }
 
-        .polisync-brand-compact .polisync-brand-image {
-          max-width: 150px;
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
         }
       `}</style>
     </div>
