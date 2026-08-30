@@ -4,7 +4,6 @@ const PERSONAL_PURPOSES = [
   "personal_use",
   "researcher",
   "journalist",
-  "media_house",
 ];
 
 const SCOPE_LEVELS = [
@@ -36,18 +35,10 @@ const profileSchema = new mongoose.Schema(
       default: "public_platform",
       required: true,
     },
-    regionIds: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Region",
-    }],
-    constituencyIds: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Constituency",
-    }],
-    pollingStationIds: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "PollingStation",
-    }],
+    regionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Region" }],
+    constituencyIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Constituency" }],
+    pollingStationIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "PollingStation" }],
+    // Retained only as a legacy field for existing records; new personal accounts do not create a media-house role.
     organizationName: {
       type: String,
       trim: true,
@@ -63,7 +54,7 @@ const profileSchema = new mongoose.Schema(
     },
     accessProfile: {
       type: String,
-      enum: ["public_read", "research_read", "journalist_read", "media_read"],
+      enum: ["public_read", "research_read", "journalist_read"],
       required: true,
     },
     permissions: [{ type: String, trim: true }],
