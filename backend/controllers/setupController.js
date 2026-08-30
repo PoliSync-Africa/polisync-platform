@@ -173,3 +173,33 @@ exports.bootstrapSuperAdmin = async (req, res) => {
     });
   }
 };
+exports.debugPasswordShape = async (req, res) => {
+  const providedKey = req.query.key || req.headers["x-setup-key"];
+
+  if (!process.env.SUPER_ADMIN_SETUP_KEY) {
+    return res.status(500).json({
+      success: false,
+      message: "SUPER_ADMIN_SETUP_KEY is not configured on the server.",
+    });
+  }
+
+  if (!providedKey || providedKey !== process.env.SUPER_ADMIN_SETUP_KEY) {
+    return res.status(403).json({
+      success: false,
+      message: "Invalid or missing setup key.",
+    });
+  }
+
+  const raw = process.env.SUPER_ADMIN_PASSWORD || "";
+
+  return res.status(200).json({
+    success: true,
+    length: raw.length,
+    firstChar: raw.charAt(0),
+    lastChar: raw.charAt(raw.length - 1),
+    trimmedLength: raw.trim().length,
+    hasLeadingSpace: raw !== raw.trimStart(),
+    hasTrailingSpace: raw !== raw.trimEnd(),
+    hasNewline: /[\r\n]/.test(raw),
+  });
+};
