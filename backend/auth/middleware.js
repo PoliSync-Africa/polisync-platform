@@ -22,6 +22,16 @@ const User = require("../models/User");
 // ============================================================
 
 // ============================================================
+// SESSION SECURITY
+// ============================================================
+// Every authenticated session has a maximum lifetime of 24 hours.
+// After that, the JWT is rejected and the user must log in again.
+// The login flow then enforces the 24-hour phone OTP window.
+// ============================================================
+
+const MAX_AUTH_SESSION_MS = 24 * 60 * 60 * 1000;
+
+// ============================================================
 // AUTHENTICATE USER
 // ============================================================
 
@@ -73,6 +83,22 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: "Invalid authentication token.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // HARD 24-HOUR SESSION LIMIT
+    // ----------------------------------------------------------
+    // Even if an older token was issued with a longer JWT expiry,
+    // PoliSync will not accept it beyond 24 hours.
+    // ----------------------------------------------------------
+
+    if (!decoded.iat || Date.now() - decoded.iat * 1000 >= MAX_AUTH_SESSION_MS) {
+      return res.status(401).json({
+        success: false,
+        code: "SESSION_EXPIRED",
+        message:
+          "Your 24-hour security session has expired. Please log in again and complete phone verification.",
       });
     }
 
@@ -148,9 +174,7 @@ const authenticate = async (req, res, next) => {
 
       req.auth = {
         userId: user._id.toString(),
-
         platformRole: "super_admin",
-
         isSuperAdmin: true,
       };
 
@@ -172,9 +196,7 @@ const authenticate = async (req, res, next) => {
 
     req.auth = {
       userId: user._id.toString(),
-
       platformRole: "user",
-
       isSuperAdmin: false,
     };
 
@@ -224,6 +246,7 @@ const requirePlatformUser = (req, res, next) => {
 // ============================================================
 
 module.exports = {
+  MAX_AUTH_SESSION_MS,
   authenticate,
   requireSuperAdmin,
   requirePlatformUser,
