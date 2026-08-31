@@ -6,13 +6,7 @@ function getGhanaRegions() {
 
 function getRegionBoundary(regionCode) {
   const data = getGhanaRegions();
-
-  return data.features.find(
-    (feature) => feature.properties.code === regionCode
-  );
+  return data.features.find((feature) => feature.properties.code === regionCode) || null;
 }
 
-module.exports = {
-  getGhanaRegions,
-  getRegionBoundary,
-};
+module.exports = { getGhanaRegions, getRegionBoundary };
