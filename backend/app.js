@@ -2,18 +2,8 @@ const express = require("express");
 const cors = require("cors");
 
 const app = express();
-
 const allowedOrigins = ["https://polisync-app.onrender.com"];
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error("CORS origin not allowed."));
-  },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
-  credentials: false,
-}));
-
+app.use(cors({ origin: (origin, callback) => { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error("CORS origin not allowed.")); }, methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization", "Accept"], credentials: false }));
 app.use(express.json({ limit: "400kb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -22,6 +12,7 @@ const phoneOtpRoutes = require("./routes/phoneOtp");
 const profileRoutes = require("./routes/profile");
 const privacyRoutes = require("./routes/privacy");
 const messageRoutes = require("./routes/messages");
+const secureNotificationRoutes = require("./routes/secureNotifications");
 let organizationRoutes; try { organizationRoutes = require("./routes/organization"); } catch { organizationRoutes = null; }
 let partyOrganizationRoutes; try { partyOrganizationRoutes = require("./routes/partyOrganization"); } catch { partyOrganizationRoutes = null; }
 let personalWorkspaceRoutes; try { personalWorkspaceRoutes = require("./routes/personalWorkspace"); } catch { personalWorkspaceRoutes = null; }
@@ -41,6 +32,8 @@ app.use("/api/phone-otp", phoneOtpRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/privacy", privacyRoutes);
 app.use("/api/messages", messageRoutes);
+// Secure notification router is mounted first so legacy userId-based endpoints cannot bypass authentication.
+app.use("/api/notifications", secureNotificationRoutes);
 if (organizationRoutes) app.use("/api/organizations", organizationRoutes);
 if (partyOrganizationRoutes) app.use("/api/party-organizations", partyOrganizationRoutes);
 if (personalWorkspaceRoutes) app.use("/api/personal-workspace", personalWorkspaceRoutes);
@@ -49,11 +42,9 @@ if (electionRoutes) app.use("/api/elections", electionRoutes);
 if (pollingStationRoutes) app.use("/api/polling-stations", pollingStationRoutes);
 if (resultRoutes) app.use("/api/results", resultRoutes);
 if (calendarRoutes) app.use("/api/calendar", calendarRoutes);
-if (notificationRoutes) app.use("/api/notifications", notificationRoutes);
 if (geoRoutes) app.use("/api/geo", geoRoutes);
 if (gisRoutes) app.use("/api/gis", gisRoutes);
 if (setupRoutes) app.use("/api/setup", setupRoutes);
-
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found." }));
 app.use((err, req, res, next) => { console.error("PoliSync API error:", err); res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" }); });
 module.exports = app;
