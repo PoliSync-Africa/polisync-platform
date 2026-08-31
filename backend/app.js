@@ -42,17 +42,13 @@ const setupRoutes = require("./routes/setup");
 const healthRoutes = require("./routes/health");
 const aiRoutes = require("./routes/aiRoutes");
 const platformUserRoutes = require("./routes/platformUsers");
+const auditLogRoutes = require("./routes/auditLogs");
 
 app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backend", status: "running", version: "1.0.0", database: "MongoDB + Mongoose" }));
-// Keep both health paths because Render health checks and older integrations use /health.
 app.use("/health", healthRoutes);
 app.use("/api/health", healthRoutes);
-
-// Password reset routes must be registered before the legacy auth routes.
 app.use("/api/auth", passwordResetRoutes);
 
-// Personal accounts are self-created and do not wait for Super Admin account approval.
-// Keep email/phone verification and all security checks intact.
 app.use("/api/auth", (req, res, next) => {
   if (req.method !== "POST" || req.path !== "/register") return next();
   const originalJson = res.json.bind(res);
@@ -93,6 +89,7 @@ app.use("/api/gis", gisRoutes);
 app.use("/api/setup", setupRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/platform-users", platformUserRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
 
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found." }));
 app.use((err, req, res, next) => { console.error("PoliSync API error:", err); res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" }); });
