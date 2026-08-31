@@ -23,8 +23,8 @@ export default function DashboardShell({
   const [profilePhoto, setProfilePhoto] = useState(() => getStoredUser()?.profilePhoto || user?.profilePhoto || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [location, setLocation] = useState({
-    loading: role !== "super_admin",
-    name: "Location unavailable",
+    loading: true,
+    name: "Locating…",
     country: "",
     countryCode: "",
     flag: "🌍",
@@ -41,12 +41,8 @@ export default function DashboardShell({
     return () => { document.body.style.overflow = previousOverflow; };
   }, [sidebarOpen]);
 
+  // All dashboard roles use the same live-location and atmospheric-temperature service.
   useEffect(() => {
-    if (role === "super_admin") {
-      setLocation((current) => ({ ...current, loading: false, name: "PoliSync Africa", country: "", flag: "🌍" }));
-      return undefined;
-    }
-
     if (!navigator.geolocation) {
       setLocation((current) => ({ ...current, loading: false, name: "Location unavailable" }));
       return undefined;
@@ -85,7 +81,7 @@ export default function DashboardShell({
     }, { enableHighAccuracy: true, maximumAge: 300000, timeout: 12000 });
 
     return () => { cancelled = true; };
-  }, [role]);
+  }, []);
 
   const sections = useMemo(() => {
     if (Array.isArray(navigation)) return navigation;
@@ -259,27 +255,25 @@ export default function DashboardShell({
         .dashboard-header-title h1 { margin:0; color:var(--green); font-size:clamp(21px,2vw,29px); line-height:1.15; font-weight:850; letter-spacing:-.35px; }
         .dashboard-header-title p { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.4; }
         .dashboard-header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-        .dashboard-weather { display:flex; align-items:center; gap:8px; min-width:110px; padding-right:12px; border-right:1px solid #e4ebe6; }
-        .dashboard-weather-icon { font-size:21px; }
-        .dashboard-weather strong { display:block; color:#344139; font-size:12px; }
-        .dashboard-weather small { display:block; margin-top:2px; max-width:105px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--light); font-size:9px; }
-        .dashboard-header-icon { width:42px; height:42px; flex:0 0 42px; display:grid; place-items:center; padding:0; border:1px solid var(--border); border-radius:10px; background:#fff; font-size:18px; cursor:pointer; }
-        .dashboard-profile { position:relative; min-height:44px; display:flex; align-items:center; gap:9px; padding:4px 10px 4px 5px; border:1px solid var(--border); border-radius:999px; background:#fff; cursor:pointer; }
+        .dashboard-weather { display:flex; align-items:center; gap:8px; min-width:110px; padding-right:12px; border-right:1px solid #e5ece7; }
+        .dashboard-weather-icon { font-size:22px; }
+        .dashboard-weather strong { display:block; color:var(--green); font-size:14px; line-height:1.1; }
+        .dashboard-weather small { display:block; margin-top:3px; color:var(--light); font-size:9px; white-space:nowrap; }
+        .dashboard-header-icon { width:40px; height:40px; display:grid; place-items:center; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--green); font-size:18px; cursor:pointer; }
+        .dashboard-profile { position:relative; display:flex; align-items:center; gap:8px; min-width:0; cursor:pointer; }
         .dashboard-photo-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
-        .dashboard-profile-avatar { position:relative; width:35px; height:35px; flex:0 0 35px; display:grid; place-items:center; overflow:hidden; border-radius:50%; background:var(--green); color:#fff; font-size:11px; font-weight:900; border:2px solid var(--gold); }
+        .dashboard-profile-avatar { position:relative; width:42px; height:42px; flex:0 0 42px; display:grid; place-items:center; overflow:hidden; border-radius:50%; background:#eaf5ee; color:var(--green); font-size:14px; font-weight:900; }
         .dashboard-profile-avatar img { width:100%; height:100%; object-fit:cover; }
-        .dashboard-camera { position:absolute; right:-1px; bottom:-1px; width:15px; height:15px; display:grid; place-items:center; border-radius:50%; background:var(--gold); color:#fff; font-size:8px; border:1px solid #fff; }
-        .dashboard-profile-text { min-width:0; display:flex; flex-direction:column; align-items:flex-start; }
-        .dashboard-profile-text strong { max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#344139; font-size:12px; }
-        .dashboard-profile-text small { margin-top:3px; color:var(--green); font-size:10px; font-weight:750; }
-        .dashboard-profile-arrow { color:#7b8780; font-size:9px; }
-        .dashboard-content-wrapper { width:100%; min-width:0; min-height:calc(100vh - 80px); }
-        .dashboard-overlay { position:fixed; inset:0; z-index:1150; border:0; background:rgba(7,34,19,.48); cursor:pointer; }
-        @media (max-width:1200px) { .dashboard-header-brand { display:none; } }
-        @media (max-width:1100px) { .dashboard-sidebar { transform:translateX(-105%); } .dashboard-sidebar-open { transform:translateX(0); } .dashboard-sidebar-close { display:block; } .dashboard-main { width:100%; margin-left:0; } .dashboard-menu-button { display:inline-flex; } .dashboard-header { padding:10px 18px; } }
-        @media (max-width:760px) { .dashboard-header { min-height:68px; gap:8px; padding:9px 12px; } .dashboard-header-title h1 { font-size:19px; } .dashboard-country-line { font-size:9px; } .dashboard-header-title p, .dashboard-weather { display:none; } .dashboard-header-actions { gap:5px; } .dashboard-header-icon { width:38px; height:38px; flex-basis:38px; font-size:17px; } .dashboard-profile { min-height:38px; padding:0; border:0; } .dashboard-profile-text, .dashboard-profile-arrow { display:none; } .dashboard-profile-avatar { width:38px; height:38px; flex-basis:38px; } .dashboard-content-wrapper { min-height:calc(100vh - 68px); } }
-        @media (max-width:430px) { .dashboard-sidebar { width:min(88vw,320px); } .dashboard-menu-button { width:38px; height:38px; flex-basis:38px; font-size:18px; } .dashboard-header-title h1 { font-size:17px; } .dashboard-header-icon { width:36px; height:36px; flex-basis:36px; } .dashboard-profile-avatar { width:36px; height:36px; flex-basis:36px; } }
-        @media (prefers-reduced-motion:reduce) { .dashboard-sidebar, .dashboard-nav-item { transition:none; } }
+        .dashboard-camera { position:absolute; right:-1px; bottom:-1px; width:17px; height:17px; display:grid; place-items:center; border:2px solid #fff; border-radius:50%; background:var(--green); color:#fff; font-size:8px; }
+        .dashboard-profile-text { min-width:0; display:flex; flex-direction:column; }
+        .dashboard-profile-text strong { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#334139; font-size:11px; }
+        .dashboard-profile-text small { color:var(--light); font-size:8px; margin-top:2px; }
+        .dashboard-profile-arrow { color:var(--light); font-size:9px; }
+        .dashboard-content-wrapper { min-height:calc(100vh - 80px); }
+        .dashboard-overlay { display:none; }
+        @media(max-width:980px){.dashboard-header-brand{display:none}.dashboard-header{padding:10px 16px}.dashboard-weather{min-width:auto}.dashboard-profile-text{display:none}}
+        @media(max-width:760px){.dashboard-sidebar{transform:translateX(-102%)}.dashboard-sidebar-open{transform:translateX(0)}.dashboard-sidebar-close{display:block}.dashboard-main{width:100%;margin-left:0}.dashboard-menu-button{display:inline-flex}.dashboard-overlay{position:fixed;inset:0;z-index:1190;display:block;border:0;background:rgba(0,0,0,.34);cursor:pointer}.dashboard-header{min-height:68px}.dashboard-header-title h1{font-size:20px}.dashboard-header-title p{font-size:11px}.dashboard-weather{display:none}.dashboard-header-icon{width:38px;height:38px}.dashboard-profile-avatar{width:38px;height:38px;flex-basis:38px}.dashboard-content-wrapper{min-height:calc(100vh - 68px)}}
+        @media(prefers-reduced-motion:reduce){.dashboard-sidebar{transition:none}}
       `}</style>
     </div>
   );
@@ -287,77 +281,22 @@ export default function DashboardShell({
 
 function FallbackNavigation({ activeSection, onSectionChange, onNavigate }) {
   const items = [
-    ["overview", "⌂", "Dashboard"], ["elections", "◉", "Elections"], ["results", "▣", "Results"], ["analytics", "◫", "Analytics"], ["reports", "◌", "Reports"], ["tasks", "✓", "Tasks & Reminders"], ["ai-analyzer", "◉", "AI Analyzer"], ["ai-assistant", "✦", "AI Personal Assistant"], ["messages", "☷", "Messages"], ["notifications", "🔔", "Notifications"], ["profile", "♙", "Profile"], ["privacy-security", "⚙", "Privacy & Security"], ["help", "?", "Help & Support"],
+    { label: "Dashboard", key: "overview", icon: "⌂" },
+    { label: "Profile", key: "profile", icon: "♙" },
+    { label: "Notifications", key: "notifications", icon: "♧" },
+    { label: "Settings", key: "settings", icon: "⚙" },
   ];
-  return <><div className="dashboard-nav-section">WORKSPACE</div>{items.map(([key, icon, label]) => { const active = activeSection === key; return <a key={key} href="#" className={`dashboard-nav-item ${active ? "dashboard-nav-item-active" : ""}`} aria-current={active ? "page" : undefined} onClick={(event) => { event.preventDefault(); onSectionChange?.(key); onNavigate?.(); }}><span className="dashboard-nav-icon" aria-hidden="true">{icon}</span><span className="dashboard-nav-label">{label}</span></a>; })}</>;
+  return <div className="dashboard-nav-group">
+    {items.map((item) => <a key={item.key} href="#" className={`dashboard-nav-item ${activeSection === item.key ? "dashboard-nav-item-active" : ""}`} onClick={(event) => { event.preventDefault(); onSectionChange?.(item.key); onNavigate?.(); }}><span className="dashboard-nav-icon">{item.icon}</span><span className="dashboard-nav-label">{item.label}</span></a>)}
+  </div>;
 }
 
-function getStoredToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("polisync_token") || sessionStorage.getItem("polisync_token");
-}
-
-function getStoredUser() {
-  if (typeof window === "undefined") return null;
-  try { return JSON.parse(localStorage.getItem("polisync_user") || sessionStorage.getItem("polisync_user") || "null"); } catch { return null; }
-}
-
-function saveStoredUser(user) {
-  if (typeof window === "undefined") return;
-  const remember = localStorage.getItem("polisync_remember") === "true";
-  const target = remember ? localStorage : sessionStorage;
-  target.setItem("polisync_user", JSON.stringify(user));
-}
-
-function resizeImage(file, maxSize = 400, quality = 0.78) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const image = new Image();
-      image.onload = () => {
-        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(image.width * scale));
-        canvas.height = Math.max(1, Math.round(image.height * scale));
-        const context = canvas.getContext("2d");
-        context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", quality));
-      };
-      image.onerror = reject;
-      image.src = reader.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-function countryCodeToFlag(code) {
-  if (!/^[A-Z]{2}$/.test(code)) return "🌍";
-  return String.fromCodePoint(...[...code].map((letter) => 127397 + letter.charCodeAt(0)));
-}
-
-function weatherCodeToText(code) {
-  const map = { 0:"Clear sky", 1:"Mainly clear", 2:"Partly cloudy", 3:"Overcast", 45:"Fog", 48:"Depositing rime fog", 51:"Light drizzle", 53:"Drizzle", 55:"Heavy drizzle", 61:"Light rain", 63:"Rain", 65:"Heavy rain", 71:"Light snow", 73:"Snow", 75:"Heavy snow", 80:"Rain showers", 81:"Rain showers", 82:"Heavy rain showers", 95:"Thunderstorm", 96:"Thunderstorm with hail", 99:"Thunderstorm with hail" };
-  return map[Number(code)] || "Current conditions";
-}
-
-function weatherToIcon(condition) {
-  const value = String(condition || "").toLowerCase();
-  if (value.includes("thunder")) return "⛈️";
-  if (value.includes("rain") || value.includes("drizzle") || value.includes("shower")) return "🌧️";
-  if (value.includes("cloud") || value.includes("overcast") || value.includes("fog")) return "☁️";
-  if (value.includes("snow")) return "❄️";
-  return "☀️";
-}
-
-function formatRole(role) {
-  if (!role) return "User";
-  return String(role).replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function getInitials(value) {
-  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return "U";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
-}
+function formatRole(role) { return String(role || "user").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()); }
+function getInitials(value) { const parts = String(value || "U").trim().split(/\s+/).filter(Boolean); return (parts.length > 1 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : parts[0]?.slice(0, 2) || "U").toUpperCase(); }
+function getStoredToken() { return typeof window === "undefined" ? "" : localStorage.getItem("polisync_token") || sessionStorage.getItem("polisync_token") || ""; }
+function getStoredUser() { if (typeof window === "undefined") return null; try { return JSON.parse(localStorage.getItem("polisync_user") || sessionStorage.getItem("polisync_user") || "null"); } catch { return null; } }
+function saveStoredUser(user) { try { localStorage.setItem("polisync_user", JSON.stringify(user)); } catch {} }
+function resizeImage(file, maxSize, quality) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onerror = reject; reader.onload = () => { const image = new Image(); image.onerror = reject; image.onload = () => { const scale = Math.min(1, maxSize / Math.max(image.width, image.height)); const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.round(image.width * scale)); canvas.height = Math.max(1, Math.round(image.height * scale)); canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL("image/jpeg", quality)); }; image.src = reader.result; }; reader.readAsDataURL(file); }); }
+function countryCodeToFlag(code) { if (!/^[A-Z]{2}$/.test(code)) return "🌍"; return String.fromCodePoint(...[...code].map((char) => 127397 + char.charCodeAt(0))); }
+function weatherCodeToText(code) { const map = { 0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Depositing rime fog",51:"Light drizzle",53:"Drizzle",55:"Dense drizzle",56:"Freezing drizzle",57:"Dense freezing drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",66:"Freezing rain",67:"Heavy freezing rain",71:"Light snow",73:"Snow",75:"Heavy snow",77:"Snow grains",80:"Light rain showers",81:"Rain showers",82:"Heavy rain showers",85:"Light snow showers",86:"Heavy snow showers",95:"Thunderstorm",96:"Thunderstorm with hail",99:"Thunderstorm with heavy hail" }; return map[code] || "Current conditions"; }
+function weatherToIcon(condition) { const value = String(condition || "").toLowerCase(); if (value.includes("thunder")) return "⛈️"; if (value.includes("rain")) return "🌧️"; if (value.includes("snow")) return "🌨️"; if (value.includes("fog")) return "🌫️"; if (value.includes("cloud")) return "☁️"; return "☀️"; }
