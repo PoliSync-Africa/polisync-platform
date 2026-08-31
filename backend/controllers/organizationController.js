@@ -8,6 +8,24 @@ const isSuperAdmin = (user) => user?.platformRole === "super_admin" && user?.acc
 
 const ALLOWED_TYPES = ["political_party", "observer_organization", "parliamentary_candidate", "presidential_candidate", "research"];
 const ALLOWED_RESEARCH_TYPES = ["individual_researcher", "research_institution"];
+const ADMIN_ROLES = [
+  "national_party_admin",
+  "regional_party_admin",
+  "constituency_admin",
+  "national_observer_admin",
+  "regional_observer_admin",
+  "constituency_observer_admin",
+  "research_institution_admin",
+];
+
+async function requireSuperAdmin(req, res) {
+  const admin = await User.findById(getUserId(req));
+  if (!isSuperAdmin(admin)) {
+    res.status(403).json({ success: false, message: "Only the Super Admin can manage this resource." });
+    return null;
+  }
+  return admin;
+}
 
 exports.createOrganizationRequest = async (req, res) => {
   try {
@@ -68,10 +86,80 @@ exports.createOrganizationRequest = async (req, res) => {
   }
 };
 
+exports.getAllOrganizations = async (req, res) => {
+  try {
+    const admin = await requireSuperAdmin(req, res);
+    if (!admin) return;
+
+    const organizations = await Organization.find({}).sort({ createdAt: -1 }).lean();
+    const organizationIds = organizations.map((item) => item._id);
+    const membershipCounts = await OrganizationMembership.aggregate([
+      { $match: { organizationId: { $in: organizationIds }, status: "approved" } },
+      { $group: {
+        _id: "$organizationId",
+        members: { $sum: 1 },
+        admins: { $sum: { $cond: [{ $in: ["$role", ADMIN_ROLES] }, 1, 0] } },
+      } },
+    ]);
+
+    const countMap = new Map(membershipCounts.map((item) => [String(item._id), item]));
+    const enriched = organizations.map((organization) => {
+      const counts = countMap.get(String(organization._id)) || { members: 0, admins: 0 };
+      return {
+        ...organization,
+        memberCount: counts.members || 0,
+        adminCount: counts.admins || 0,
+      };
+    });
+
+    return res.json({
+      success: true,
+      organizations: enriched,
+      totals: {
+        organizations: enriched.length,
+        active: enriched.filter((item) => ["approved"].includes(item.organizationStatus)).length,
+        pending: enriched.filter((item) => item.organizationStatus === "pending").length,
+        suspended: enriched.filter((item) => item.organizationStatus === "suspended").length,
+        politicalParties: enriched.filter((item) => item.organizationType === "political_party").length,
+        observers: enriched.filter((item) => item.organizationType === "observer_organization").length,
+      },
+    });
+  } catch (error) {
+    console.error("Get all organizations error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Unable to retrieve organizations." });
+  }
+};
+
+exports.getCandidates = async (req, res) => {
+  try {
+    const admin = await requireSuperAdmin(req, res);
+    if (!admin) return;
+
+    const candidates = await Organization.find({
+      organizationType: { $in: ["parliamentary_candidate", "presidential_candidate"] },
+    }).sort({ createdAt: -1 }).lean();
+
+    return res.json({
+      success: true,
+      candidates,
+      totals: {
+        total: candidates.length,
+        parliamentary: candidates.filter((item) => item.organizationType === "parliamentary_candidate").length,
+        presidential: candidates.filter((item) => item.organizationType === "presidential_candidate").length,
+        verified: candidates.filter((item) => item.candidate?.registrationStatus === "verified").length,
+        pending: candidates.filter((item) => item.candidate?.registrationStatus === "pending").length,
+      },
+    });
+  } catch (error) {
+    console.error("Get candidates error:", error);
+    return res.status(500).json({ success: false, message: error.message || "Unable to retrieve candidates." });
+  }
+};
+
 exports.getPendingOrganizations = async (req, res) => {
   try {
-    const admin = await User.findById(getUserId(req));
-    if (!isSuperAdmin(admin)) return res.status(403).json({ success: false, message: "Only the Super Admin can manage organization requests." });
+    const admin = await requireSuperAdmin(req, res);
+    if (!admin) return;
     const organizations = await Organization.find({ organizationStatus: "pending" }).sort({ createdAt: -1 }).lean();
     return res.json({ success: true, organizations });
   } catch (error) { return res.status(500).json({ success: false, message: error.message || "Unable to retrieve organization requests." }); }
@@ -79,8 +167,8 @@ exports.getPendingOrganizations = async (req, res) => {
 
 exports.approveOrganization = async (req, res) => {
   try {
-    const admin = await User.findById(getUserId(req));
-    if (!isSuperAdmin(admin)) return res.status(403).json({ success: false, message: "Only the Super Admin can approve organizations." });
+    const admin = await requireSuperAdmin(req, res);
+    if (!admin) return;
     if (!mongoose.Types.ObjectId.isValid(req.params.organizationId)) return res.status(400).json({ success: false, message: "Invalid organization ID." });
     const organization = await Organization.findById(req.params.organizationId);
     if (!organization) return res.status(404).json({ success: false, message: "Organization not found." });
@@ -95,8 +183,8 @@ exports.approveOrganization = async (req, res) => {
 
 exports.rejectOrganization = async (req, res) => {
   try {
-    const admin = await User.findById(getUserId(req));
-    if (!isSuperAdmin(admin)) return res.status(403).json({ success: false, message: "Only the Super Admin can reject organizations." });
+    const admin = await requireSuperAdmin(req, res);
+    if (!admin) return;
     if (!mongoose.Types.ObjectId.isValid(req.params.organizationId)) return res.status(400).json({ success: false, message: "Invalid organization ID." });
     const organization = await Organization.findById(req.params.organizationId);
     if (!organization) return res.status(404).json({ success: false, message: "Organization not found." });
