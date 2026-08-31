@@ -1,10 +1,7 @@
-const { execFile } = require("child_process");
-const { promisify } = require("util");
+const { syncPollingStationsFromEcPdf } = require("./syncPollingStationsFromEc");
 const Region = require("../models/Region");
 const Constituency = require("../models/Constituency");
 const PollingStation = require("../models/PollingStation");
-
-const execFileAsync = promisify(execFile);
 
 async function ensureElectoralGeography() {
   const [regions, constituencies, pollingStations] = await Promise.all([
@@ -18,14 +15,13 @@ async function ensureElectoralGeography() {
     return;
   }
 
-  console.log(`🗺️ Electoral geography incomplete (${regions}/${16} regions, ${constituencies}/${276} constituencies, ${pollingStations} polling stations). Starting canonical Ghana EC import...`);
-  const { stdout, stderr } = await execFileAsync(process.execPath, [require("path").join(__dirname, "seedElectoralGeography.js")], {
-    cwd: require("path").join(__dirname, ".."),
-    env: process.env,
-    maxBuffer: 20 * 1024 * 1024,
-  });
-  if (stdout) console.log(stdout);
-  if (stderr) console.error(stderr);
+  console.log(`🗺️ Electoral geography incomplete (${regions}/16 regions, ${constituencies}/276 constituencies, ${pollingStations} polling stations).`);
+
+  // The old repository CSV placeholder is empty in the deployed project.
+  // Use the official Ghana EC 2024 polling-station PDF as the authoritative source.
+  if (pollingStations === 0) {
+    await syncPollingStationsFromEcPdf();
+  }
 }
 
 module.exports = { ensureElectoralGeography };
