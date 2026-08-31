@@ -17,6 +17,10 @@ const {
   resendLoginOTP,
 } = require("../controllers/authController");
 
+const {
+  requireSuperAdminLoginOtpIfExpired,
+} = require("../middleware/superAdminLoginOtp");
+
 const router = express.Router();
 
 // ============================================================
@@ -51,8 +55,14 @@ router.post("/register", register);
 // ============================================================
 // LOGIN
 // ============================================================
+//
+// Ordinary users already receive a 24-hour phone OTP challenge
+// from authController.login(). The middleware below closes the
+// Super Admin exception so every account follows the same
+// 24-hour phone-security rule without changing privileges.
+// ============================================================
 
-router.post("/login", login);
+router.post("/login", requireSuperAdminLoginOtpIfExpired, login);
 
 // ============================================================
 // EMAIL VERIFICATION
