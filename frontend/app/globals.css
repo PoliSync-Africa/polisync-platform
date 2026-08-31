@@ -1,4 +1,4 @@
- :root {
+:root {
   --ps-green-950: #032b16;
   --ps-green-900: #064a23;
   --ps-green-800: #075f2b;
@@ -32,7 +32,7 @@ body {
   background: var(--ps-surface);
   color: var(--ps-ink);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-  font-size: 32px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
@@ -77,7 +77,7 @@ a {
 }
 
 .dashboard-content-wrapper {
-  font-size: 115%;
+  font-size: 100%;
 }
 
 .dashboard-content-wrapper h1,
@@ -119,25 +119,25 @@ a {
 .dashboard-content-wrapper textarea,
 .dashboard-content-wrapper [role="button"] {
   transition:
-    transform 540ms cubic-bezier(.16, 1, .3, 1),
-    background-color 540ms cubic-bezier(.16, 1, .3, 1),
-    border-color 540ms cubic-bezier(.16, 1, .3, 1),
-    color 540ms cubic-bezier(.16, 1, .3, 1),
-    box-shadow 540ms cubic-bezier(.16, 1, .3, 1),
-    opacity 540ms ease;
+    transform 240ms cubic-bezier(.22, 1, .36, 1),
+    background-color 240ms ease,
+    border-color 240ms ease,
+    color 240ms ease,
+    box-shadow 240ms ease,
+    opacity 240ms ease;
 }
 
 .dashboard-content-wrapper button:hover:not(:disabled),
 .dashboard-content-wrapper [role="button"]:hover,
 .dashboard-content-wrapper a:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .dashboard-content-wrapper button:active:not(:disabled),
 .dashboard-content-wrapper [role="button"]:active,
 .dashboard-content-wrapper a:active {
-  transform: translateY(0) scale(.99);
-  transition-duration: 140ms;
+  transform: translateY(0);
+  transition-duration: 100ms;
 }
 
 .dashboard-content-wrapper section,
@@ -145,7 +145,6 @@ a {
 .dashboard-content-wrapper [class*="card"],
 .dashboard-content-wrapper [class*="panel"] {
   backface-visibility: hidden;
-  transform: translateZ(0);
 }
 
 .polisync-logo-wrapper {
