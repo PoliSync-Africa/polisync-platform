@@ -50,6 +50,8 @@ app.use("/health", healthRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", passwordResetRoutes);
 
+// Personal and organizational registration: email is collected as contact
+// information, but it is never a verification/access requirement.
 app.use("/api/auth", (req, res, next) => {
   if (req.method !== "POST" || req.path !== "/register") return next();
   const originalJson = res.json.bind(res);
@@ -58,11 +60,18 @@ app.use("/api/auth", (req, res, next) => {
       const userId = body?.user?.id;
       if (body?.success && userId) {
         const approvedAt = new Date();
-        await User.findByIdAndUpdate(userId, { $set: { accountStatus: "approved", approvedAt } });
+        await User.findByIdAndUpdate(userId, {
+          $set: {
+            accountStatus: "approved",
+            approvedAt,
+            emailVerified: true,
+          },
+        });
         body.user.accountStatus = "approved";
+        body.user.emailVerified = true;
       }
     } catch (error) {
-      console.error("Personal account auto-approval error:", error);
+      console.error("Registration activation error:", error);
       return originalJson({ success: false, message: "Account was created but could not be activated automatically." });
     }
     return originalJson(body);
