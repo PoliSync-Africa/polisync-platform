@@ -66,27 +66,9 @@ export default function OrganizationalResultsHistory() {
         </section>
 
         <section className="filters" aria-label="Results history filters">
-          <label>
-            <span>Organization</span>
-            <select value={organizationId} onChange={(event) => setOrganizationId(event.target.value)}>
-              <option value="all">All organizations</option>
-              {(data.filters?.organizations || []).map((organization) => <option key={organization._id} value={organization._id}>{organization.name}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Election type</span>
-            <select value={electionType} onChange={(event) => setElectionType(event.target.value)}>
-              <option value="all">All election types</option>
-              {(data.filters?.electionTypes || []).map((type) => <option key={type} value={type}>{type}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Election</span>
-            <select value={electionId} onChange={(event) => setElectionId(event.target.value)}>
-              <option value="all">All elections</option>
-              {elections.map((election) => <option key={election._id} value={election._id}>{election.name}{election.year ? ` • ${election.year}` : ""}</option>)}
-            </select>
-          </label>
+          <label><span>Organization</span><select value={organizationId} onChange={(event) => setOrganizationId(event.target.value)}><option value="all">All organizations</option>{(data.filters?.organizations || []).map((organization) => <option key={organization._id} value={organization._id}>{organization.name}</option>)}</select></label>
+          <label><span>Election type</span><select value={electionType} onChange={(event) => setElectionType(event.target.value)}><option value="all">All election types</option>{(data.filters?.electionTypes || []).map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
+          <label><span>Election</span><select value={electionId} onChange={(event) => setElectionId(event.target.value)}><option value="all">All elections</option>{elections.map((election) => <option key={election._id} value={election._id}>{election.name}{election.year ? ` • ${election.year}` : ""}</option>)}</select></label>
         </section>
 
         {loading && <div className="state-card">Loading organizational results history…</div>}
@@ -101,27 +83,9 @@ export default function OrganizationalResultsHistory() {
               const candidateEntries = Object.entries(item.candidates || {}).sort((a, b) => b[1] - a[1]);
               return (
                 <article className="history-card" key={`${item.organizationId || "unassigned"}-${item.electionId}`}>
-                  <div className="history-card-top">
-                    <div>
-                      <small>{organization?.organizationType || "ORGANIZATION"}</small>
-                      <h3>{organization?.name || "Unassigned organization"}</h3>
-                      <p>{election?.name || "Election"}{election?.year ? ` • ${election.year}` : ""}</p>
-                    </div>
-                    <span className="status">{item.verified ? "Verified" : "Recorded"}</span>
-                  </div>
-                  <div className="metrics">
-                    <div><strong>{item.submittedStations}</strong><span>Stations</span></div>
-                    <div><strong>{item.validVotes}</strong><span>Valid votes</span></div>
-                    <div><strong>{item.verified}</strong><span>Verified</span></div>
-                    <div><strong>{item.pending}</strong><span>Pending</span></div>
-                  </div>
-                  <div className="candidate-list">
-                    <div className="candidate-heading">Candidate totals</div>
-                    {candidateEntries.slice(0, 6).map(([candidate, votes]) => (
-                      <div className="candidate-row" key={candidate}><span>{candidate}</span><strong>{votes}</strong></div>
-                    ))}
-                    {candidateEntries.length === 0 && <div className="empty-line">No candidate totals recorded.</div>}
-                  </div>
+                  <div className="history-card-top"><div><small>{organization?.organizationType || "ORGANIZATION"}</small><h3>{organization?.name || "Unassigned organization"}</h3><p>{election?.name || "Election"}{election?.year ? ` • ${election.year}` : ""}</p></div><span className="status">{item.verified > 0 ? "Verified" : "Recorded"}</span></div>
+                  <div className="metrics"><div><strong>{item.submittedStations}</strong><span>Stations</span></div><div><strong>{item.validVotes}</strong><span>Valid votes</span></div><div><strong>{item.verified}</strong><span>Verified</span></div><div><strong>{item.pending}</strong><span>Pending</span></div></div>
+                  <div className="candidate-list"><div className="candidate-heading">Candidate totals</div>{candidateEntries.slice(0, 6).map(([candidate, votes]) => <div className="candidate-row" key={candidate}><span>{candidate}</span><strong>{votes}</strong></div>)}{candidateEntries.length === 0 && <div className="empty-line">No candidate totals recorded.</div>}</div>
                   <footer>Last submitted: {item.lastSubmittedAt ? new Date(item.lastSubmittedAt).toLocaleString() : "Not available"}</footer>
                 </article>
               );
