@@ -20,6 +20,7 @@ const superAdminNavigation = [
     section: "ELECTION INTELLIGENCE",
     items: [
       { label: "Live Results", href: "/super-admin/results/live", icon: "◉", key: "live-results" },
+      { label: "Results History", href: "/super-admin/results/history", icon: "◉", key: "results-history" },
       { label: "Result Verification", href: "/super-admin/results/verification", icon: "✓", key: "result-verification" },
       { label: "EC8 Verification", href: "/super-admin/results/ec8", icon: "▤", key: "ec8" },
       { label: "Field Reports", href: "/super-admin/reports", icon: "▤", key: "reports" },
