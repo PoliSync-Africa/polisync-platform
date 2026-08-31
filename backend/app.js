@@ -20,11 +20,14 @@ app.use(
   })
 );
 
-app.use(express.json());
+// Profile photos are resized by the frontend before upload.
+// Keep a moderate JSON limit for the resulting base64 image payload.
+app.use(express.json({ limit: "400kb" }));
 app.use(express.urlencoded({ extended: true }));
 
 const authRoutes = require("./routes/auth");
 const phoneOtpRoutes = require("./routes/phoneOtp");
+const profileRoutes = require("./routes/profile");
 let organizationRoutes;
 try { organizationRoutes = require("./routes/organization"); } catch { organizationRoutes = null; }
 let partyOrganizationRoutes;
@@ -62,6 +65,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/phone-otp", phoneOtpRoutes);
+app.use("/api/profile", profileRoutes);
 if (organizationRoutes) app.use("/api/organizations", organizationRoutes);
 if (partyOrganizationRoutes) app.use("/api/party-organizations", partyOrganizationRoutes);
 if (personalWorkspaceRoutes) app.use("/api/personal-workspace", personalWorkspaceRoutes);
