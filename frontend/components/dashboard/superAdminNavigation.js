@@ -24,7 +24,7 @@ const superAdminNavigation = [
       { label: "Result Verification", href: "/super-admin/results/verification", icon: "✓", key: "result-verification" },
       { label: "EC8 Verification", href: "/super-admin/results/ec8", icon: "▤", key: "ec8" },
       { label: "Field Reports", href: "/super-admin/reports", icon: "▤", key: "reports" },
-      { label: "Analytics & Analytics", href: "/super-admin/analytics", icon: "◒", key: "analytics" },
+      { label: "Analytics & Intelligence", href: "/super-admin/analytics", icon: "◒", key: "analytics" },
       { label: "AI Election Intelligence", href: "/super-admin/ai-election-intelligence", icon: "✦", key: "ai-election-intelligence" },
     ],
   },
