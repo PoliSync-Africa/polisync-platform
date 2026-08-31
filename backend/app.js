@@ -50,8 +50,10 @@ app.use("/health", healthRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", passwordResetRoutes);
 
-// Personal and organizational registration: email is collected as contact
-// information, but it is never a verification/access requirement.
+// Registration compatibility layer: email is contact information only.
+// All newly created accounts are immediately treated as email-verified
+// because email verification has been retired. Arkesel SMS OTP remains
+// the required account verification/security channel.
 app.use("/api/auth", (req, res, next) => {
   if (req.method !== "POST" || req.path !== "/register") return next();
   const originalJson = res.json.bind(res);
@@ -61,14 +63,12 @@ app.use("/api/auth", (req, res, next) => {
       if (body?.success && userId) {
         const approvedAt = new Date();
         await User.findByIdAndUpdate(userId, {
-          $set: {
-            accountStatus: "approved",
-            approvedAt,
-            emailVerified: true,
-          },
+          $set: { accountStatus: "approved", approvedAt, emailVerified: true },
         });
         body.user.accountStatus = "approved";
         body.user.emailVerified = true;
+        body.message = "Account created successfully. Use the Arkesel SMS verification code for account security. Your email does not require verification.";
+        if (body.notifications) body.notifications.email = false;
       }
     } catch (error) {
       console.error("Registration activation error:", error);
