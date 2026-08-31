@@ -4,7 +4,6 @@ const { updateProfilePhoto } = require("../controllers/profilePhotoController");
 const profileController = require("../controllers/profileController");
 const User = require("../models/User");
 const OrganizationMembership = require("../models/OrganizationMembership");
-const Reminder = require("../models/Reminder");
 const Notification = require("../models/Notification");
 const Result = require("../models/Result");
 
@@ -19,11 +18,10 @@ router.get("/me", authenticate, async (req, res) => {
     const user = await User.findById(userId).lean();
     if (!user) return res.status(404).json({ success: false, message: "Account not found." });
 
-    const [organizations, assignments, unreadNotifications, activeReminders, results] = await Promise.all([
+    const [organizations, assignments, unreadNotifications, results] = await Promise.all([
       OrganizationMembership.countDocuments({ userId, status: "approved" }),
       OrganizationMembership.countDocuments({ userId, status: "approved", role: { $nin: ["organization_member", "user"] } }),
-      Notification.countDocuments({ userId, read: false }).catch(() => 0),
-      Reminder.countDocuments({ userId, completed: false }).catch(() => 0),
+      Notification.countDocuments({ recipient: userId, read: false }).catch(() => 0),
       Result.countDocuments({ submittedBy: userId }).catch(() => 0),
     ]);
 
@@ -47,7 +45,7 @@ router.get("/me", authenticate, async (req, res) => {
       privacy: user.privacy || null,
     };
 
-    return res.json({ success: true, user: safeUser, metrics: { organizations, assignments, unreadNotifications, activeReminders, results } });
+    return res.json({ success: true, user: safeUser, metrics: { organizations, assignments, unreadNotifications, results } });
   } catch (error) {
     console.error("Current profile error:", error);
     return res.status(500).json({ success: false, message: error.message || "Unable to load current profile." });
