@@ -7,12 +7,7 @@ const GHANA_TIME_ZONE = "Africa/Accra";
 const JOB_HOUR = 8;
 
 function todayInGhana() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: GHANA_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  return new Intl.DateTimeFormat("en-CA", { timeZone: GHANA_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
 function birthdayMessage(firstName) {
@@ -23,17 +18,8 @@ function birthdayMessage(firstName) {
 async function processBirthdayMessages() {
   const birthdayDate = todayInGhana();
   const [, month, day] = birthdayDate.split("-");
-
-  const users = await User.find({
-    platformRole: "user",
-    accountStatus: "approved",
-    dateOfBirth: { $ne: null },
-    phone: { $exists: true, $ne: "" },
-  }).select("_id firstName displayName phone dateOfBirth").lean();
-
-  let sent = 0;
-  let skipped = 0;
-  let failed = 0;
+  const users = await User.find({ platformRole: "user", accountStatus: "approved", dateOfBirth: { $ne: null }, phone: { $exists: true, $ne: "" } }).select("_id firstName displayName phone dateOfBirth").lean();
+  let sent = 0, skipped = 0, failed = 0;
 
   for (const user of users) {
     const dob = new Date(user.dateOfBirth);
@@ -43,17 +29,12 @@ async function processBirthdayMessages() {
     if (dobMonth !== month || dobDay !== day) continue;
 
     const existing = await BirthdayMessageLog.findOne({ user: user._id, birthdayDate });
-    if (existing) {
-      skipped += 1;
-      continue;
-    }
+    if (existing?.status === "sent") { skipped += 1; continue; }
 
     const message = birthdayMessage(user.firstName || user.displayName || "there");
-
     try {
       const result = await sendSms({ phone: user.phone, message });
-
-      await BirthdayMessageLog.create({
+      const logData = {
         user: user._id,
         birthdayDate,
         phone: result.recipient,
@@ -62,36 +43,20 @@ async function processBirthdayMessages() {
         providerCode: result.response?.code ? String(result.response.code) : null,
         providerMessage: result.response?.message || result.response?.status || null,
         sentAt: new Date(),
-      });
+        error: null,
+      };
+      if (existing) await BirthdayMessageLog.updateOne({ _id: existing._id }, { $set: logData });
+      else await BirthdayMessageLog.create(logData);
 
-      await Notification.create({
-        recipient: user._id,
-        type: "system",
-        channel: "in_app",
-        title: "Happy Birthday!",
-        message,
-        status: "sent",
-        metadata: { event: "birthday", birthdayDate },
-        createdBy: null,
-      });
-
+      await Notification.create({ recipient: user._id, type: "system", channel: "in_app", title: "Happy Birthday!", message, status: "sent", metadata: { event: "birthday", birthdayDate }, createdBy: null });
       sent += 1;
     } catch (error) {
       failed += 1;
+      const logData = { user: user._id, birthdayDate, phone: user.phone, status: "failed", provider: "arkesel", providerCode: error.providerCode || null, providerMessage: error.providerResponse?.message || null, error: error.message || "Birthday SMS failed." };
       try {
-        await BirthdayMessageLog.create({
-          user: user._id,
-          birthdayDate,
-          phone: user.phone,
-          status: "failed",
-          provider: "arkesel",
-          providerCode: error.providerCode || null,
-          providerMessage: error.providerResponse?.message || null,
-          error: error.message || "Birthday SMS failed.",
-        });
-      } catch (logError) {
-        if (logError?.code !== 11000) console.error("Birthday log error:", logError);
-      }
+        if (existing) await BirthdayMessageLog.updateOne({ _id: existing._id }, { $set: logData });
+        else await BirthdayMessageLog.create(logData);
+      } catch (logError) { console.error("Birthday log error:", logError.message); }
       console.error(`Birthday SMS failed for user ${user._id}:`, error.message);
     }
   }
@@ -101,26 +66,18 @@ async function processBirthdayMessages() {
 }
 
 function startBirthdayJob() {
-  const runAtNextMinute = () => {
-    const now = new Date();
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: GHANA_TIME_ZONE,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).formatToParts(now).reduce((acc, p) => ({ ...acc, [p.type]: p.value }), {});
+  const isEightAM = () => {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: GHANA_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date()).reduce((acc, p) => ({ ...acc, [p.type]: p.value }), {});
     return Number(parts.hour) === JOB_HOUR && Number(parts.minute) === 0;
   };
-
   let lastRunDate = null;
   const timer = setInterval(async () => {
-    if (!runAtNextMinute()) return;
+    if (!isEightAM()) return;
     const date = todayInGhana();
     if (lastRunDate === date) return;
     lastRunDate = date;
     try { await processBirthdayMessages(); } catch (error) { console.error("Birthday job failed:", error); }
   }, 30 * 1000);
-
   timer.unref?.();
   console.log("🎂 Birthday automation enabled: daily at 08:00 Africa/Accra.");
   return timer;
