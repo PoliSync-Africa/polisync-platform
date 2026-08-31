@@ -1,6 +1,7 @@
 const Region = require("../models/Region");
 const Constituency = require("../models/Constituency");
 const PollingStation = require("../models/PollingStation");
+const { syncPollingStationsFromEcPdf } = require("../scripts/syncPollingStationsFromEc");
 
 exports.regions = async (req, res) => {
   const data = await Region.find({ isActive: true }).sort({ regionNumber: 1, name: 1 }).lean();
@@ -18,10 +19,26 @@ exports.pollingStations = async (req, res) => {
   const filter = { isActive: true };
   if (req.params.constituencyId) filter.constituencyId = req.params.constituencyId;
   if (req.query.regionId) filter.regionId = req.query.regionId;
-  const data = await PollingStation.find(filter)
+
+  let data = await PollingStation.find(filter)
     .sort({ name: 1 })
     .select("pollingStationCode name regionId constituencyId district stationType source sourceYear isActive")
     .lean();
+
+  // The repository previously contained an empty polling-station CSV. If the
+  // MongoDB collection is empty, populate it automatically from the official
+  // Ghana Electoral Commission 2024 register before answering the request.
+  if (data.length === 0 && !req.params.stationId) {
+    const total = await PollingStation.countDocuments({ isActive: true });
+    if (total === 0) {
+      await syncPollingStationsFromEcPdf();
+      data = await PollingStation.find(filter)
+        .sort({ name: 1 })
+        .select("pollingStationCode name regionId constituencyId district stationType source sourceYear isActive")
+        .lean();
+    }
+  }
+
   res.json({ success: true, data });
 };
 
