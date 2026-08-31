@@ -44,6 +44,8 @@ const aiRoutes = require("./routes/aiRoutes");
 const platformUserRoutes = require("./routes/platformUsers");
 
 app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backend", status: "running", version: "1.0.0", database: "MongoDB + Mongoose" }));
+// Keep both health paths because Render health checks and older integrations use /health.
+app.use("/health", healthRoutes);
 app.use("/api/health", healthRoutes);
 
 // Password reset routes must be registered before the legacy auth routes.
