@@ -1,0 +1,81 @@
+/* PoliSync Africa dashboard visual polish
+   - ~15% typography lift through scale variables
+   - crisp rendering and image interpolation
+   - restrained professional transitions
+*/
+:root {
+  --polisync-font-scale: 1.15;
+}
+
+.polisync-dashboard,
+.polisync-dashboard * {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+.polisync-dashboard img,
+.polisync-dashboard svg,
+.polisync-dashboard canvas {
+  image-rendering: auto;
+  shape-rendering: geometricPrecision;
+}
+
+.polisync-dashboard button,
+.polisync-dashboard a,
+.polisync-dashboard input,
+.polisync-dashboard select {
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 180ms cubic-bezier(.2,.7,.2,1),
+    box-shadow 180ms cubic-bezier(.2,.7,.2,1),
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    opacity 180ms ease;
+}
+
+.polisync-dashboard button:hover:not(:disabled),
+.polisync-dashboard a:hover {
+  transform: translateY(-1px);
+}
+
+.polisync-dashboard button:active:not(:disabled),
+.polisync-dashboard a:active {
+  transform: translateY(0);
+}
+
+.polisync-dashboard .dashboard-nav-label,
+.polisync-dashboard .dashboard-nav-section,
+.polisync-dashboard .dashboard-role-label,
+.polisync-dashboard .dashboard-role,
+.polisync-dashboard .dashboard-header-title,
+.polisync-dashboard .dashboard-header-title h1,
+.polisync-dashboard .dashboard-header-title p,
+.polisync-dashboard .dashboard-weather strong,
+.polisync-dashboard .dashboard-weather small,
+.polisync-dashboard .dashboard-profile-text strong,
+.polisync-dashboard .dashboard-profile-text small,
+.polisync-dashboard .dashboard-logout {
+  font-size: calc(1em * var(--polisync-font-scale));
+}
+
+.polisync-dashboard .dashboard-nav-icon,
+.polisync-dashboard .dashboard-header-icon,
+.polisync-dashboard .dashboard-country-flag,
+.polisync-dashboard .dashboard-weather-icon {
+  line-height: 1;
+}
+
+.polisync-dashboard .dashboard-brand :global(.polisync-brand-image),
+.polisync-dashboard .dashboard-header-brand :global(.polisync-brand-image),
+.polisync-dashboard img {
+  image-rendering: -webkit-optimize-contrast;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .polisync-dashboard button,
+  .polisync-dashboard a {
+    transition: none;
+  }
+}
