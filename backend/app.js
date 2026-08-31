@@ -43,6 +43,7 @@ const healthRoutes = require("./routes/health");
 const aiRoutes = require("./routes/aiRoutes");
 const platformUserRoutes = require("./routes/platformUsers");
 const auditLogRoutes = require("./routes/auditLogs");
+const announcementRoutes = require("./routes/announcements");
 
 app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backend", status: "running", version: "1.0.0", database: "MongoDB + Mongoose" }));
 app.use("/health", healthRoutes);
@@ -90,6 +91,7 @@ app.use("/api/setup", setupRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/platform-users", platformUserRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/announcements", announcementRoutes);
 
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found." }));
 app.use((err, req, res, next) => { console.error("PoliSync API error:", err); res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" }); });
