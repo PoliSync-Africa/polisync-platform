@@ -45,6 +45,7 @@ exports.dashboard = async (req, res) => {
     const regionTotals = new Map();
     const constituencyTotals = new Map();
     const stationTotals = new Map();
+    const historyMap = new Map();
     let validVotes = 0, submittedStations = 0, pending = 0, verified = 0, discrepancy = 0, rejected = 0;
 
     for (const result of results) {
@@ -55,6 +56,7 @@ exports.dashboard = async (req, res) => {
       else if (result.verificationStatus === "rejected") rejected += 1;
       else pending += 1;
       addCandidateTotals(national, result.candidateResults);
+
       const rKey = id(result.regionId);
       if (rKey) {
         if (!regionTotals.has(rKey)) regionTotals.set(rKey, { id: rKey, submitted: 0, validVotes: 0, candidates: {} });
@@ -70,9 +72,22 @@ exports.dashboard = async (req, res) => {
         if (!stationTotals.has(sKey)) stationTotals.set(sKey, { id: sKey, constituencyId: cKey, regionId: rKey, submitted: 0, validVotes: 0, candidates: {} });
         const item = stationTotals.get(sKey); item.submitted += 1; item.validVotes += Number(result.manualTotals?.totalValidVotes || 0); addCandidateTotals(item.candidates, result.candidateResults);
       }
+
+      const historyKey = `${id(result.organizationId) || "unassigned"}:${id(result.electionId)}`;
+      if (!historyMap.has(historyKey)) historyMap.set(historyKey, { organizationId: id(result.organizationId) || null, electionId: id(result.electionId), submittedStations: 0, validVotes: 0, pending: 0, verified: 0, discrepancy: 0, rejected: 0, candidates: {}, lastSubmittedAt: result.updatedAt || result.createdAt || null });
+      const history = historyMap.get(historyKey);
+      history.submittedStations += 1;
+      history.validVotes += Number(result.manualTotals?.totalValidVotes || 0);
+      if (result.verificationStatus === "verified") history.verified += 1;
+      else if (["discrepancy", "disputed"].includes(result.verificationStatus)) history.discrepancy += 1;
+      else if (result.verificationStatus === "rejected") history.rejected += 1;
+      else history.pending += 1;
+      addCandidateTotals(history.candidates, result.candidateResults);
+      if (result.updatedAt && (!history.lastSubmittedAt || new Date(result.updatedAt) > new Date(history.lastSubmittedAt))) history.lastSubmittedAt = result.updatedAt;
     }
 
     const organizations = await Organization.find({}).select("name organizationType politicalPartyName organizationStatus").sort({ name: 1 }).lean();
+    const organizationMap = new Map(organizations.map((item) => [id(item._id), item]));
     const regions = await Region.find({ isActive: true }).select("name regionNumber country").sort({ regionNumber: 1, name: 1 }).lean();
     const constituencyFilter = { isActive: true };
     if (regionId && regionId !== "all") constituencyFilter.regionId = regionId;
@@ -82,12 +97,18 @@ exports.dashboard = async (req, res) => {
     if (constituencyId && constituencyId !== "all") stationFilter.constituencyId = constituencyId;
     const pollingStations = await PollingStation.find(stationFilter).select("name pollingStationCode district stationType regionId constituencyId").populate("regionId", "name regionNumber").populate("constituencyId", "name constituencyNumber").sort({ pollingStationCode: 1, name: 1 }).lean();
 
+    const history = Array.from(historyMap.values()).map((item) => {
+      const election = elections.find((candidate) => id(candidate._id) === item.electionId) || null;
+      const organization = item.organizationId ? organizationMap.get(item.organizationId) || null : null;
+      return { ...item, organization, election };
+    }).sort((a, b) => new Date(b.lastSubmittedAt || 0) - new Date(a.lastSubmittedAt || 0));
+
     const decorate = (items, totals) => items.map((item) => { const t = totals.get(id(item._id)) || {}; return { ...item, submitted: t.submitted || 0, validVotes: t.validVotes || 0, candidates: t.candidates || {} }; });
     const selectedRegion = regionId && regionId !== "all" ? await Region.findById(regionId).select("name regionNumber").lean() : null;
     const selectedConstituency = constituencyId && constituencyId !== "all" ? await Constituency.findById(constituencyId).select("name constituencyNumber district regionId").populate("regionId", "name regionNumber").lean() : null;
     const selectedStation = pollingStationId && pollingStationId !== "all" ? await PollingStation.findById(pollingStationId).select("name pollingStationCode district stationType regionId constituencyId").populate("regionId", "name regionNumber").populate("constituencyId", "name constituencyNumber").lean() : null;
 
-    res.json({ success: true, source: "PoliSync EC electoral geography", filters: { organizations, elections, electionTypes: await Election.distinct("type"), regions, constituencies, pollingStations }, selection: { view, organizationId: organizationId || "all", electionId: electionId || "all", electionType: electionType || "all", regionId: regionId || "all", constituencyId: constituencyId || "all", pollingStationId: pollingStationId || "all" }, selected: { region: selectedRegion, constituency: selectedConstituency, pollingStation: selectedStation }, summary: { submittedStations, validVotes, pending, verified, discrepancy, rejected }, national, regional: decorate(regions, regionTotals), constituency: decorate(constituencies, constituencyTotals), pollingStation: decorate(pollingStations, stationTotals) });
+    res.json({ success: true, source: "PoliSync EC electoral geography", filters: { organizations, elections, electionTypes: await Election.distinct("type"), regions, constituencies, pollingStations }, selection: { view, organizationId: organizationId || "all", electionId: electionId || "all", electionType: electionType || "all", regionId: regionId || "all", constituencyId: constituencyId || "all", pollingStationId: pollingStationId || "all" }, selected: { region: selectedRegion, constituency: selectedConstituency, pollingStation: selectedStation }, summary: { submittedStations, validVotes, pending, verified, discrepancy, rejected }, national, history, regional: decorate(regions, regionTotals), constituency: decorate(constituencies, constituencyTotals), pollingStation: decorate(pollingStations, stationTotals) });
   } catch (error) {
     console.error("dynamic results dashboard:", error);
     res.status(500).json({ success: false, message: error.message });
