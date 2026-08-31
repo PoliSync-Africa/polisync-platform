@@ -1,13 +1,10 @@
 const express = require("express");
 const cors = require("cors");
+const User = require("./models/User");
 const app = express();
 
 const configuredFrontendUrl = String(process.env.FRONTEND_URL || "").trim().replace(/\/$/, "");
-
-const allowedOrigins = [
-  "https://polisync-app.onrender.com",
-  configuredFrontendUrl,
-].filter(Boolean);
+const allowedOrigins = ["https://polisync-app.onrender.com", configuredFrontendUrl].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -43,9 +40,30 @@ let gisRoutes; try { gisRoutes = require("./routes/gisRoutes"); } catch { gisRou
 let setupRoutes; try { setupRoutes = require("./routes/setup"); } catch { setupRoutes = null; }
 
 app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backend", status: "running", version: "1.0.0", database: "MongoDB + Mongoose" }));
-app.use("/api/auth", authRoutes);
+
+// Personal accounts are self-created and do not wait for Super Admin account approval.
+// Keep email/phone verification and all security checks intact.
+app.use("/api/auth", (req, res, next) => {
+  if (req.method !== "POST" || req.path !== "/register") return next();
+  const originalJson = res.json.bind(res);
+  res.json = async (body) => {
+    try {
+      const userId = body?.user?.id;
+      if (body?.success && userId) {
+        const approvedAt = new Date();
+        await User.findByIdAndUpdate(userId, { $set: { accountStatus: "approved", approvedAt } });
+        body.user.accountStatus = "approved";
+      }
+    } catch (error) {
+      console.error("Personal account auto-approval error:", error);
+      return originalJson({ success: false, message: "Account was created but could not be activated automatically." });
+    }
+    return originalJson(body);
+  };
+  next();
+}, authRoutes);
+
 app.use("/api/phone-otp", phoneOtpRoutes);
-// Secure profile router handles GET privacy enforcement before the legacy profile router.
 app.use("/api/profile", secureProfileRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/privacy", privacyRoutes);
