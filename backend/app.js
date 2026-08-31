@@ -39,6 +39,7 @@ let notificationRoutes; try { notificationRoutes = require("./routes/notificatio
 let geoRoutes; try { geoRoutes = require("./routes/geoRoutes"); } catch { geoRoutes = null; }
 let gisRoutes; try { gisRoutes = require("./routes/gisRoutes"); } catch { gisRoutes = null; }
 let setupRoutes; try { setupRoutes = require("./routes/setup"); } catch { setupRoutes = null; }
+const platformUserRoutes = require("./routes/platformUsers");
 
 app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backend", status: "running", version: "1.0.0", database: "MongoDB + Mongoose" }));
 
@@ -84,6 +85,7 @@ if (calendarRoutes) app.use("/api/calendar", calendarRoutes);
 if (geoRoutes) app.use("/api/geo", geoRoutes);
 if (gisRoutes) app.use("/api/gis", gisRoutes);
 if (setupRoutes) app.use("/api/setup", setupRoutes);
+app.use("/api/platform-users", platformUserRoutes);
 
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found." }));
 app.use((err, req, res, next) => { console.error("PoliSync API error:", err); res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" }); });
