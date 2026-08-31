@@ -2,7 +2,6 @@ const express = require("express");
 
 const {
   register,
-  login,
   forgotPassword,
   verifyEmail,
   verifyPhone,
@@ -17,27 +16,22 @@ const {
   resendLoginOTP,
 } = require("../controllers/authController");
 
-const {
-  requireSuperAdminLoginOtpIfExpired,
-} = require("../middleware/superAdminLoginOtp");
+const smsLogin = require("../controllers/smsLoginController");
 
 const router = express.Router();
 
 // ============================================================
 // POLISYNC AFRICA — AUTHENTICATION ROUTES
 // ============================================================
-
-// FORM DATA SUPPORT
-
-router.use(
-  express.urlencoded({
-    extended: false,
-  })
-);
-
+//
+// Authentication is SMS-first:
+// - Email remains the account identifier.
+// - Password remains the first credential.
+// - Arkesel SMS OTP is the verification/security challenge.
+// - Email verification is NOT required for login.
 // ============================================================
-// AUTH STATUS
-// ============================================================
+
+router.use(express.urlencoded({ extended: false }));
 
 router.get("/", (req, res) => {
   res.json({
@@ -46,120 +40,26 @@ router.get("/", (req, res) => {
   });
 });
 
-// ============================================================
-// REGISTRATION
-// ============================================================
-
 router.post("/register", register);
 
-// ============================================================
-// LOGIN
-// ============================================================
-//
-// Ordinary users already receive a 24-hour phone OTP challenge
-// from authController.login(). The middleware below closes the
-// Super Admin exception so every account follows the same
-// 24-hour phone-security rule without changing privileges.
-// ============================================================
+// Every account — including Super Admin — uses the same SMS-first login.
+router.post("/login", smsLogin);
 
-router.post("/login", requireSuperAdminLoginOtpIfExpired, login);
-
-// ============================================================
-// EMAIL VERIFICATION
-// ============================================================
-
+// Legacy email verification endpoints remain available for account data
+// compatibility, but they are no longer required for login access.
 router.post("/verify-email", verifyEmail);
-
-// ============================================================
-// PHONE VERIFICATION
-// ============================================================
-
 router.post("/verify-phone", verifyPhone);
-
-// ============================================================
-// RESEND EMAIL VERIFICATION
-// ============================================================
-
 router.post("/resend-email-verification", resendEmailVerification);
-
-// ============================================================
-// RESEND PHONE VERIFICATION
-// ============================================================
-
 router.post("/resend-phone-verification", resendPhoneVerification);
 
-// ============================================================
-// LOGIN PHONE OTP
-// ============================================================
-//
-// This is the OTP issued after successful
-// email + password authentication.
-//
-// Body:
-//
-// {
-// email,
-// code,
-// challengeToken
-// }
-//
-// ============================================================
-
 router.post("/verify-login-otp", verifyLoginOTP);
-
-// ============================================================
-// RESEND LOGIN PHONE OTP
-// ============================================================
-//
-// Body:
-//
-// {
-// email,
-// challengeToken
-// }
-//
-// ============================================================
-
 router.post("/resend-login-otp", resendLoginOTP);
 
-// ============================================================
-// FORGOT PASSWORD
-// ============================================================
-
 router.post("/forgot-password", forgotPassword);
-
-// ============================================================
-// VERIFY PASSWORD RESET
-// ============================================================
-
 router.post("/verify-password-reset", verifyPasswordReset);
-
-// ============================================================
-// RESET PASSWORD
-// ============================================================
-
 router.post("/reset-password", resetPassword);
-
-// ============================================================
-// CHANGE PASSWORD
-// ============================================================
-
 router.post("/change-password", changePassword);
-
-// ============================================================
-// AUTHENTICATED USER
-// ============================================================
-
 router.get("/me", me);
-
-// ============================================================
-// LOGOUT
-// ============================================================
-
 router.post("/logout", logout);
-
-// ============================================================
-// EXPORT
-// ============================================================
 
 module.exports = router;
