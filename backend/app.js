@@ -1,10 +1,27 @@
 const express = require("express");
 const cors = require("cors");
 const app = express();
-const allowedOrigins = ["https://polisync-app.onrender.com"];
-app.use(cors({ origin: (origin, callback) => { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error("CORS origin not allowed.")); }, methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization", "Accept"], credentials: false }));
+
+const configuredFrontendUrl = String(process.env.FRONTEND_URL || "").trim().replace(/\/$/, "");
+
+const allowedOrigins = [
+  "https://polisync-app.onrender.com",
+  configuredFrontendUrl,
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("CORS origin not allowed."));
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  credentials: false,
+}));
+
 app.use(express.json({ limit: "400kb" }));
 app.use(express.urlencoded({ extended: true }));
+
 const authRoutes = require("./routes/auth");
 const phoneOtpRoutes = require("./routes/phoneOtp");
 const profileRoutes = require("./routes/profile");
@@ -24,6 +41,7 @@ let notificationRoutes; try { notificationRoutes = require("./routes/notificatio
 let geoRoutes; try { geoRoutes = require("./routes/geoRoutes"); } catch { geoRoutes = null; }
 let gisRoutes; try { gisRoutes = require("./routes/gisRoutes"); } catch { gisRoutes = null; }
 let setupRoutes; try { setupRoutes = require("./routes/setup"); } catch { setupRoutes = null; }
+
 app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backend", status: "running", version: "1.0.0", database: "MongoDB + Mongoose" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/phone-otp", phoneOtpRoutes);
@@ -44,6 +62,8 @@ if (calendarRoutes) app.use("/api/calendar", calendarRoutes);
 if (geoRoutes) app.use("/api/geo", geoRoutes);
 if (gisRoutes) app.use("/api/gis", gisRoutes);
 if (setupRoutes) app.use("/api/setup", setupRoutes);
+
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found." }));
 app.use((err, req, res, next) => { console.error("PoliSync API error:", err); res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" }); });
+
 module.exports = app;
