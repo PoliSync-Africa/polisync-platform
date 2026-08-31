@@ -35,24 +35,15 @@ export default function PersonalRegistration() {
     try {
       const api = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
       if (!api) throw new Error("Production API URL is not configured.");
-
       const response = await fetch(`${api}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({
-          ...form,
-          personalPurpose: purpose,
-          registrationType: "personal",
-          scopeLevel: "public_platform",
-          researchFields: form.researchFields.split(",").map((item) => item.trim()).filter(Boolean),
-        }),
+        body: JSON.stringify({ ...form, personalPurpose: purpose, registrationType: "personal", scopeLevel: "public_platform", researchFields: form.researchFields.split(",").map((item) => item.trim()).filter(Boolean) }),
       });
-
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) throw new Error(data.message || "Registration failed.");
-
       localStorage.setItem("polisync_personal_purpose", purpose);
-      setSuccess("Account created successfully. Verify your phone and email, then sign in. No Super Admin approval is required.");
+      setSuccess("Account created successfully. Verify your phone with the Arkesel SMS code, then sign in. Email verification is not required.");
     } catch (err) {
       setError(err.message || "Unable to complete registration.");
     } finally {
@@ -68,7 +59,6 @@ export default function PersonalRegistration() {
           <h1 style={{ margin:"8px 0", fontSize:31 }}>Create your personal workspace</h1>
           <p style={{ maxWidth:720, color:"rgba(255,255,255,.78)", lineHeight:1.6 }}>Personal accounts are self-created and automatically enrolled. Choose the purpose that defines your workspace; Super Admin approval is not required.</p>
         </section>
-
         <form onSubmit={submit} style={{ marginTop:14, padding:22, borderRadius:20, background:"#fff", border:"1px solid #dce6df" }}>
           <h2 style={{ color:"#075f2b", marginTop:0 }}>Choose your purpose</h2>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:10 }}>
@@ -79,24 +69,18 @@ export default function PersonalRegistration() {
               </button>
             ))}
           </div>
-
           <div style={{ display:"grid", gridTemplateColumns:"repeat(2,minmax(0,1fr))", gap:11, marginTop:20 }}>
             {[["firstName","First name"],["middleName","Middle name"],["lastName","Last name"],["dateOfBirth","Date of birth"],["nationality","Nationality"],["identificationNumber","Identification number"],["email","Email"],["phone","Phone (+233...)"],["password","Password"],["confirmPassword","Confirm password"]].map(([key,labelText]) => (
               <label key={key} style={label}>{labelText}<input required={key!=="middleName"} type={key.includes("password")?"password":key==="dateOfBirth"?"date":key==="email"?"email":"text"} value={form[key]} onChange={(event)=>update(key,event.target.value)} style={input}/></label>
             ))}
           </div>
-
           <label style={{ ...label, marginTop:11 }}>Identification type
             <select value={form.identificationType} onChange={(event)=>update("identificationType",event.target.value)} style={input}>
-              <option value="ghana_card">Ghana Card</option>
-              <option value="passport">Passport</option>
-              <option value="voter_id">Voter ID</option>
+              <option value="ghana_card">Ghana Card</option><option value="passport">Passport</option><option value="voter_id">Voter ID</option>
             </select>
           </label>
-
           {purpose === "researcher" && <label style={{ ...label, marginTop:11 }}>Research fields <span style={{ fontWeight:400, color:"#87928b" }}>(comma separated)</span><input value={form.researchFields} onChange={(event)=>update("researchFields",event.target.value)} placeholder="elections, governance, public policy" style={input}/></label>}
           {purpose === "journalist" && <label style={{ ...label, marginTop:11 }}>Journalism beat<input value={form.journalismBeat} onChange={(event)=>update("journalismBeat",event.target.value)} placeholder="Politics, elections, parliament" style={input}/></label>}
-
           {error && <div style={errorBox}>{error}</div>}
           {success && <div style={successBox}>{success}</div>}
           <button disabled={busy} type="submit" style={{ ...primary, marginTop:15 }}>{busy ? "Creating workspace..." : "Create Personal Account"}</button>
