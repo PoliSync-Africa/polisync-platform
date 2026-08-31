@@ -4,6 +4,7 @@ require("dotenv").config();
 const app = require("./app");
 const User = require("./models/User");
 const { startBirthdayJob } = require("./jobs/birthdayMessages");
+const { ensureElectoralGeography } = require("./scripts/ensureElectoralGeography");
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 5000;
@@ -19,8 +20,6 @@ mongoose
   .then(async () => {
     console.log("✅ MongoDB Connected");
 
-    // Personal accounts are self-created. Clear any legacy account-approval
-    // backlog left by the old pending-account workflow.
     const migration = await User.updateMany(
       { platformRole: "user", accountStatus: "pending" },
       { $set: { accountStatus: "approved", approvedAt: new Date(), approvedBy: null } }
@@ -29,6 +28,8 @@ mongoose
 
     const arkeselConfigured = Boolean(process.env.ARKESEL_API_KEY || process.env.ARKESEL_MAIN_API_KEY);
     console.log(`📱 Arkesel OTP/SMS configured: ${arkeselConfigured ? "YES" : "NO"}`);
+
+    await ensureElectoralGeography();
 
     startBirthdayJob();
 
