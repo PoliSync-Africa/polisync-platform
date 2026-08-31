@@ -16,8 +16,8 @@ export default function DashboardPager({ current }) {
   const next = DASHBOARD_PAGES[(safeIndex + 1) % DASHBOARD_PAGES.length];
 
   return (
-    <nav className="dashboard-pager" aria-label="Dashboard sections">
-      <div className="pager-track">
+    <div className="dashboard-pager">
+      <div className="pager-track" aria-label="Dashboard sections">
         {DASHBOARD_PAGES.map((page, i) => (
           <Link
             key={page.href}
@@ -25,107 +25,87 @@ export default function DashboardPager({ current }) {
             className={`pager-step ${i === safeIndex ? "active" : ""}`}
             aria-current={i === safeIndex ? "page" : undefined}
           >
-            <span className="step-icon" aria-hidden="true">{page.icon}</span>
-            <span className="step-copy">
-              <strong>{page.label}</strong>
-              <small>Workspace</small>
-            </span>
+            <span className="step-icon">{page.icon}</span>
+            <strong>{page.label}</strong>
           </Link>
         ))}
       </div>
 
-      <div className="pager-controls">
+      <div className="pager-controls" aria-label="Dashboard pager controls">
         <Link href={previous.href} className="pager-button" aria-label={`Previous: ${previous.label}`}>
-          <span aria-hidden="true">‹</span>
-          <span>Previous</span>
+          <span className="pager-arrow">‹</span>
+          <span className="pager-label">Previous</span>
         </Link>
-        <div className="pager-position" aria-hidden="true">
-          <span>{String(safeIndex + 1).padStart(2, "0")}</span>
-          <i>/</i>
+
+        <div className="pager-indicator" aria-live="polite">
+          <strong>{String(safeIndex + 1).padStart(2, "0")}</strong>
+          <span>/</span>
           <span>{String(DASHBOARD_PAGES.length).padStart(2, "0")}</span>
         </div>
-        <Link href={next.href} className="pager-button pager-button-next" aria-label={`Next: ${next.label}`}>
-          <span>Next</span>
-          <span aria-hidden="true">›</span>
+
+        <Link href={next.href} className="pager-button" aria-label={`Next: ${next.label}`}>
+          <span className="pager-label">Next</span>
+          <span className="pager-arrow">›</span>
         </Link>
       </div>
 
       <style jsx>{`
         .dashboard-pager {
-          margin: 0 0 22px;
-          padding: 14px;
-          border: 1px solid rgba(232, 193, 66, 0.78);
-          border-radius: 22px;
-          background: linear-gradient(180deg, rgba(3, 49, 24, 0.98), rgba(2, 39, 19, 0.98));
-          box-shadow: 0 16px 34px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255,255,255,.03);
+          margin: 0 0 20px;
+          padding: 12px;
+          border: 1px solid #f0cd61;
+          border-radius: 20px;
+          background: linear-gradient(180deg, rgba(3,43,22,.96), rgba(4,57,28,.96));
+          box-shadow: 0 16px 34px rgba(0,0,0,.16);
         }
 
         .pager-track {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 10px;
+          gap: 8px;
         }
 
         .pager-step {
-          min-width: 0;
           display: flex;
           align-items: center;
-          gap: 11px;
-          padding: 12px 13px;
-          border: 1px solid rgba(214, 181, 62, 0.36);
-          border-radius: 15px;
-          background: rgba(255, 255, 255, 0.015);
-          color: #fff !important;
+          gap: 10px;
+          min-width: 0;
+          padding: 11px 12px;
+          border: 1px solid rgba(240,205,97,.3);
+          border-radius: 13px;
+          color: #ffffff !important;
           text-decoration: none !important;
-          transition: transform 180ms cubic-bezier(.2,.8,.2,1), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+          font-size: 16px;
+          line-height: 1.2;
+          font-weight: 800;
+          transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
         }
 
         .pager-step:hover {
-          transform: translateY(-2px);
-          background: rgba(255,255,255,.045);
-          border-color: rgba(242,210,101,.9);
-          box-shadow: 0 10px 20px rgba(0,0,0,.14);
+          transform: translateY(-1px);
+          background: rgba(255,255,255,.05);
+          border-color: #f0cd61;
+          box-shadow: 0 8px 20px rgba(0,0,0,.12);
         }
 
         .pager-step.active {
-          background: linear-gradient(180deg, rgba(10, 101, 47, .98), rgba(6, 80, 37, .98));
-          border-color: #f0cd61;
-          box-shadow: 0 8px 18px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.05);
+          background: #075f2b;
+          border-color: #f6d66d;
+          color: #ffffff !important;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 8px 22px rgba(0,0,0,.14);
         }
 
         .step-icon {
-          width: 42px;
-          height: 42px;
+          width: 38px;
+          height: 38px;
           display: grid;
           place-items: center;
-          flex: 0 0 42px;
-          border: 1px solid rgba(240,205,97,.72);
-          border-radius: 13px;
-          color: #f7d96b;
-          background: rgba(0, 0, 0, .08);
-          font-size: 20px;
-          line-height: 1;
-        }
-
-        .step-copy {
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .step-copy strong {
-          color: #fff;
-          font-size: 15px;
-          line-height: 1.2;
-          font-weight: 850;
-          letter-spacing: -.1px;
-        }
-
-        .step-copy small {
-          color: rgba(255,255,255,.66);
-          font-size: 9px;
-          line-height: 1.2;
+          flex: 0 0 38px;
+          border: 1px solid rgba(240,205,97,.55);
+          border-radius: 11px;
+          color: #f6d66d;
+          font-size: 18px;
+          font-weight: 900;
         }
 
         .pager-controls {
@@ -133,90 +113,85 @@ export default function DashboardPager({ current }) {
           grid-template-columns: 1fr auto 1fr;
           align-items: center;
           gap: 12px;
-          margin-top: 13px;
-          padding-top: 13px;
-          border-top: 1px solid rgba(255,255,255,.08);
+          margin-top: 10px;
+          padding-top: 10px;
+          border-top: 1px solid rgba(255,255,255,.1);
         }
 
         .pager-button {
+          min-width: 112px;
+          height: 38px;
           display: inline-flex;
           align-items: center;
-          justify-content: flex-start;
-          gap: 8px;
-          min-height: 42px;
-          padding: 0 14px;
-          border: 1px solid rgba(240,205,97,.52);
-          border-radius: 12px;
-          background: rgba(255,255,255,.025);
-          color: #fff !important;
+          justify-content: center;
+          gap: 6px;
+          padding: 0 12px;
+          border: 1px solid #f0cd61;
+          border-radius: 11px;
+          background: rgba(7,95,43,.55);
+          color: #ffffff !important;
           text-decoration: none !important;
-          font-size: 11px;
-          font-weight: 850;
-          transition: transform 170ms cubic-bezier(.2,.8,.2,1), background 170ms ease, border-color 170ms ease;
+          font-size: 12px;
+          line-height: 1;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: .35px;
+          transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
         }
 
-        .pager-button span:first-child {
-          color: #f6d665;
-          font-size: 22px;
-          line-height: 1;
-        }
+        .pager-button:last-child { justify-self: end; }
 
         .pager-button:hover {
           transform: translateY(-1px);
-          background: rgba(240,205,97,.10);
-          border-color: #f0cd61;
+          background: #0a7135;
+          box-shadow: 0 8px 18px rgba(0,0,0,.14);
         }
 
-        .pager-button-next {
-          justify-content: flex-end;
+        .pager-arrow {
+          color: #f6d66d;
+          font-size: 24px;
+          font-weight: 500;
+          line-height: .8;
         }
 
-        .pager-button-next span:last-child {
-          color: #f6d665;
-          font-size: 22px;
-          line-height: 1;
-        }
-
-        .pager-position {
-          display: flex;
-          align-items: baseline;
-          gap: 5px;
-          color: rgba(255,255,255,.58);
+        .pager-label {
+          color: #ffffff;
           font-size: 11px;
           font-weight: 800;
-          letter-spacing: .8px;
         }
 
-        .pager-position span:first-child {
-          color: #f6d665;
-          font-size: 13px;
+        .pager-indicator {
+          display: flex;
+          align-items: baseline;
+          justify-content: center;
+          gap: 7px;
+          color: rgba(255,255,255,.78);
+          font-size: 11px;
+          font-weight: 800;
+          white-space: nowrap;
         }
 
-        .pager-position i {
-          font-style: normal;
-          color: rgba(255,255,255,.35);
+        .pager-indicator strong {
+          color: #f6d66d;
+          font-size: 16px;
         }
 
-        @media (max-width: 800px) {
+        @media (max-width: 650px) {
           .pager-track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .pager-step { font-size: 14px; padding: 10px; }
+          .step-icon { width: 34px; height: 34px; flex-basis: 34px; }
+          .pager-button { min-width: 96px; }
         }
 
-        @media (max-width: 520px) {
-          .dashboard-pager { padding: 10px; border-radius: 18px; }
-          .pager-track { gap: 8px; }
-          .pager-step { padding: 10px; gap: 9px; }
-          .step-icon { width: 36px; height: 36px; flex-basis: 36px; font-size: 17px; }
-          .step-copy strong { font-size: 13px; }
-          .step-copy small { font-size: 8px; }
-          .pager-controls { gap: 8px; }
-          .pager-button { min-height: 38px; padding: 0 10px; font-size: 10px; }
-          .pager-button span:first-child, .pager-button-next span:last-child { font-size: 19px; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .pager-step, .pager-button { transition: none; }
+        @media (max-width: 420px) {
+          .pager-controls { gap: 7px; }
+          .pager-button { min-width: 84px; padding: 0 8px; }
+          .pager-label { font-size: 9px; }
+          .pager-arrow { font-size: 21px; }
+          .pager-indicator { font-size: 9px; gap: 5px; }
+          .pager-indicator strong { font-size: 14px; }
         }
       `}</style>
-    </nav>
+    </div>
   );
 }
