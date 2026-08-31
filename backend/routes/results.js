@@ -7,11 +7,11 @@ const router = express.Router();
 
 router.get("/", (req, res) => res.json({ status: "success", message: "Results routes ready" }));
 
-// A polling-station agent submits once. The server resolves the station's
-// constituency, region and party organization from trusted assignments.
-router.post("/submit", protect, authorize("polling_station_agent"), submitResult);
+// A polling-station agent submits once. The controller verifies the agent's
+// approved OrganizationMembership for the supplied polling station.
+router.post("/submit", protect, submitResult);
 
 router.get("/election/:electionId", protect, getResults);
-router.get("/dashboard", protect, dashboard);
+router.get("/dashboard", protect, authorize("super_admin"), dashboard);
 
 module.exports = router;
