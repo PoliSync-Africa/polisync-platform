@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import PartyLogo from "../party/PartyLogo";
 
 const SEARCH_ROUTES = [
@@ -16,8 +17,10 @@ export default function PoliSyncBrand({ compact = false }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [party, setParty] = useState(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     try {
       const raw = localStorage.getItem("polisync_user") || sessionStorage.getItem("polisync_user");
       if (!raw) return;
@@ -40,25 +43,30 @@ export default function PoliSyncBrand({ compact = false }) {
   };
 
   if (compact) {
-    return (
-      <div className="polisync-brand polisync-brand-search" role="search">
-        <div className="search-box"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => { setQuery(event.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); event.currentTarget.blur(); } if (event.key === "Enter" && matches[0]) go(matches[0][1]); }} placeholder="Search PoliSync…" aria-label="Search PoliSync" /></div>
+    const search = (
+      <div className="dashboard-search-portal" role="search">
+        <div className="search-box">
+          <span aria-hidden="true">⌕</span>
+          <input value={query} onChange={(event) => { setQuery(event.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); event.currentTarget.blur(); } if (event.key === "Enter" && matches[0]) go(matches[0][1]); }} placeholder="Search PoliSync…" aria-label="Search PoliSync" />
+        </div>
         {open && query.trim() && <div className="search-results">{matches.length ? matches.map(([label, href]) => <button key={href} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => go(href)}><span>⌕</span>{label}</button>) : <div className="no-results">No matching destination</div>}</div>}
         <style jsx>{`
-          .polisync-brand-search { position:relative; width:100%; overflow:visible; }
-          .search-box { width:100%; height:42px; box-sizing:border-box; display:flex; align-items:center; gap:8px; padding:0 12px; background:#fff; border:1.5px solid #dce6df; border-radius:13px; box-shadow:0 4px 14px rgba(7,95,43,.06); }
-          .search-box:focus-within { border-color:#c9a227; box-shadow:0 0 0 3px rgba(201,162,39,.12); }
-          .search-box > span { color:#075f2b; font-size:20px; line-height:1; }
-          .search-box input { width:100%; min-width:0; border:0; outline:0; background:transparent; color:#24352b; font-size:13px; font-weight:600; }
-          .search-box input::placeholder { color:#8a958e; font-weight:550; }
-          .search-results { position:absolute; top:48px; left:0; width:280px; max-height:310px; overflow:auto; padding:7px; box-sizing:border-box; background:#fff; border:1px solid #dce6df; border-radius:13px; box-shadow:0 15px 35px rgba(7,45,25,.16); z-index:2000; }
+          .dashboard-search-portal { position:fixed; top:92px; right:18px; width:310px; z-index:1500; }
+          .search-box { width:100%; height:44px; box-sizing:border-box; display:flex; align-items:center; gap:8px; padding:0 13px; background:#fff; border:1.5px solid #dce6df; border-radius:13px; box-shadow:0 7px 22px rgba(7,55,28,.12); }
+          .search-box:focus-within { border-color:#c9a227; box-shadow:0 0 0 3px rgba(201,162,39,.12),0 7px 22px rgba(7,55,28,.12); }
+          .search-box > span { color:#075f2b; font-size:21px; }
+          .search-box input { width:100%; border:0; outline:0; background:transparent; color:#24352b; font-size:13px; font-weight:650; }
+          .search-box input::placeholder { color:#8a958e; }
+          .search-results { margin-top:6px; padding:7px; background:#fff; border:1px solid #dce6df; border-radius:13px; box-shadow:0 15px 35px rgba(7,45,25,.16); }
           .search-results button { width:100%; display:flex; align-items:center; gap:9px; padding:10px 11px; border:0; border-radius:9px; background:#fff; color:#344139; text-align:left; font-size:13px; font-weight:650; cursor:pointer; }
           .search-results button:hover { background:#edf7f0; color:#075f2b; }
           .search-results button span { color:#c9a227; }
           .no-results { padding:12px; color:#849088; font-size:12px; }
+          @media (max-width:760px) { .dashboard-search-portal { top:76px; left:12px; right:12px; width:auto; } }
         `}</style>
       </div>
     );
+    return mounted ? createPortal(search, document.body) : null;
   }
 
   return (
