@@ -2,7 +2,6 @@ const express = require("express");
 
 const {
   register,
-  login,
   logout,
   me,
   forgotPassword,
@@ -15,6 +14,9 @@ const {
   changePassword,
 } = require("../controllers/authController");
 
+const smsLogin = require("../controllers/smsLoginController");
+const { verifyLoginOTP, resendLoginOTP } = require("../controllers/authController");
+
 const router = express.Router();
 
 // ============================================================
@@ -24,125 +26,34 @@ const router = express.Router();
 router.get("/", (req, res) => {
   res.json({
     success: true,
-    message:
-      "PoliSync Africa Authentication API is running.",
+    message: "PoliSync Africa Authentication API is running.",
   });
 });
 
-// ============================================================
-// REGISTRATION
-// ============================================================
+router.post("/register", register);
 
-router.post(
-  "/register",
-  register
-);
+// SMS-FIRST LOGIN — email verification is not required.
+router.post("/login", smsLogin);
 
-// ============================================================
-// LOGIN
-// ============================================================
+router.post("/logout", logout);
+router.get("/me", me);
 
-router.post(
-  "/login",
-  login
-);
+// Legacy email endpoints remain available for compatibility,
+// but email verification is not a login requirement.
+router.post("/verify-email", verifyEmail);
+router.post("/resend-email-verification", resendEmailVerification);
 
-// ============================================================
-// LOGOUT
-// ============================================================
+// Arkesel phone verification.
+router.post("/verify-phone", verifyPhone);
+router.post("/resend-phone-verification", resendPhoneVerification);
 
-router.post(
-  "/logout",
-  logout
-);
+// Login SMS OTP challenge completion/resend.
+router.post("/verify-login-otp", verifyLoginOTP);
+router.post("/resend-login-otp", resendLoginOTP);
 
-// ============================================================
-// CURRENT AUTHENTICATED USER
-// ============================================================
-
-router.get(
-  "/me",
-  me
-);
-
-// ============================================================
-// EMAIL VERIFICATION
-// ============================================================
-
-router.post(
-  "/verify-email",
-  verifyEmail
-);
-
-router.post(
-  "/resend-email-verification",
-  resendEmailVerification
-);
-
-// ============================================================
-// PHONE VERIFICATION
-// ============================================================
-
-router.post(
-  "/verify-phone",
-  verifyPhone
-);
-
-router.post(
-  "/resend-phone-verification",
-  resendPhoneVerification
-);
-
-// ============================================================
-// PASSWORD RESET
-// ============================================================
-
-router.post(
-  "/forgot-password",
-  forgotPassword
-);
-
-router.post(
-  "/verify-password-reset",
-  verifyPasswordReset
-);
-
-router.post(
-  "/reset-password",
-  resetPassword
-);
-
-// ============================================================
-// CHANGE PASSWORD
-// ============================================================
-//
-// This route requires authentication middleware.
-//
-// IMPORTANT:
-// If your project already has an authentication middleware,
-// replace the comment below with your existing middleware.
-//
-// Example:
-//
-// const { protect } = require("../middleware/authMiddleware");
-//
-// router.post(
-//   "/change-password",
-//   protect,
-//   changePassword
-// );
-//
-// Until the middleware is connected, the controller itself
-// checks req.user.
-// ============================================================
-
-router.post(
-  "/change-password",
-  changePassword
-);
-
-// ============================================================
-// EXPORT
-// ============================================================
+router.post("/forgot-password", forgotPassword);
+router.post("/verify-password-reset", verifyPasswordReset);
+router.post("/reset-password", resetPassword);
+router.post("/change-password", changePassword);
 
 module.exports = router;
