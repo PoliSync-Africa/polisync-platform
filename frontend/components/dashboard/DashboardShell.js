@@ -22,6 +22,7 @@ export default function DashboardShell({
   const [sidebarOpen, setSidebarOpen] = useState(Boolean(mobileMenuOpen));
   const [profilePhoto, setProfilePhoto] = useState(() => getStoredUser()?.profilePhoto || user?.profilePhoto || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [location, setLocation] = useState({
     loading: true,
     name: "Locating…",
@@ -40,6 +41,15 @@ export default function DashboardShell({
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = previousOverflow; };
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return undefined;
+    const close = (event) => {
+      if (!event.target.closest?.(".dashboard-profile-wrap")) setProfileMenuOpen(false);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [profileMenuOpen]);
 
   // All dashboard roles use the same live-location and atmospheric-temperature service.
   useEffect(() => {
@@ -92,6 +102,24 @@ export default function DashboardShell({
   const closeSidebar = () => {
     setSidebarOpen(false);
     onMobileMenuClose?.();
+  };
+
+  const handleSignOut = () => {
+    setProfileMenuOpen(false);
+    closeSidebar();
+    try {
+      ["polisync_token", "polisync_user", "authToken", "accessToken", "token"].forEach((key) => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+    } catch (error) {
+      console.warn("PoliSync local session cleanup failed:", error);
+    }
+    if (typeof onSignOut === "function") {
+      onSignOut();
+      return;
+    }
+    if (typeof window !== "undefined") window.location.href = "/login";
   };
 
   const displayRole = formatRole(role);
@@ -176,7 +204,7 @@ export default function DashboardShell({
         <div className="dashboard-sidebar-footer">
           <div className="dashboard-role-label">CURRENT ROLE</div>
           <div className="dashboard-role">{displayRole}</div>
-          <button type="button" className="dashboard-logout" onClick={() => { closeSidebar(); onSignOut?.(); }}>Sign Out</button>
+          <button type="button" className="dashboard-logout" onClick={handleSignOut}>Sign Out</button>
         </div>
       </aside>
 
@@ -208,15 +236,27 @@ export default function DashboardShell({
             <button type="button" className="dashboard-header-icon" aria-label="Notifications">🔔</button>
             <button type="button" className="dashboard-header-icon" aria-label="Messages">💬</button>
 
-            <label className="dashboard-profile" title="Update profile photo">
-              <input className="dashboard-photo-input" type="file" accept="image/*" onChange={handleProfilePhoto} />
-              <span className="dashboard-profile-avatar">
-                {profilePhoto ? <img src={profilePhoto} alt="Profile" /> : initials}
-                <span className="dashboard-camera">{uploadingPhoto ? "…" : "📷"}</span>
-              </span>
-              <span className="dashboard-profile-text"><strong>{displayName}</strong><small>Update photo</small></span>
-              <span className="dashboard-profile-arrow" aria-hidden="true">▼</span>
-            </label>
+            <div className="dashboard-profile-wrap">
+              <button type="button" className="dashboard-profile" title="Open profile menu" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}>
+                <span className="dashboard-profile-avatar">
+                  {profilePhoto ? <img src={profilePhoto} alt="Profile" /> : initials}
+                  <span className="dashboard-camera">{uploadingPhoto ? "…" : "📷"}</span>
+                </span>
+                <span className="dashboard-profile-text"><strong>{displayName}</strong><small>Profile & security</small></span>
+                <span className="dashboard-profile-arrow" aria-hidden="true">▼</span>
+              </button>
+
+              {profileMenuOpen && (
+                <div className="dashboard-profile-menu" role="menu">
+                  <div className="dashboard-profile-menu-name">{displayName}</div>
+                  <label className="dashboard-profile-menu-item" role="menuitem">
+                    <input className="dashboard-photo-input" type="file" accept="image/*" onChange={handleProfilePhoto} />
+                    📷 Update profile photo
+                  </label>
+                  <button type="button" className="dashboard-profile-menu-item" role="menuitem" onClick={handleSignOut}>↪ Sign Out</button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -260,19 +300,26 @@ export default function DashboardShell({
         .dashboard-weather strong { display:block; color:var(--green); font-size:14px; line-height:1.1; }
         .dashboard-weather small { display:block; margin-top:3px; color:var(--light); font-size:9px; white-space:nowrap; }
         .dashboard-header-icon { width:40px; height:40px; display:grid; place-items:center; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--green); font-size:18px; cursor:pointer; }
-        .dashboard-profile { position:relative; display:flex; align-items:center; gap:8px; min-width:0; cursor:pointer; }
+        .dashboard-profile-wrap { position:relative; }
+        .dashboard-profile { position:relative; display:flex; align-items:center; gap:8px; min-width:0; padding:0; border:0; background:transparent; cursor:pointer; }
         .dashboard-photo-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
         .dashboard-profile-avatar { position:relative; width:42px; height:42px; flex:0 0 42px; display:grid; place-items:center; overflow:hidden; border-radius:50%; background:#eaf5ee; color:var(--green); font-size:14px; font-weight:900; }
         .dashboard-profile-avatar img { width:100%; height:100%; object-fit:cover; }
         .dashboard-camera { position:absolute; right:-1px; bottom:-1px; width:17px; height:17px; display:grid; place-items:center; border:2px solid #fff; border-radius:50%; background:var(--green); color:#fff; font-size:8px; }
-        .dashboard-profile-text { min-width:0; display:flex; flex-direction:column; }
+        .dashboard-profile-text { min-width:0; display:flex; flex-direction:column; text-align:left; }
         .dashboard-profile-text strong { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#334139; font-size:11px; }
         .dashboard-profile-text small { color:var(--light); font-size:8px; margin-top:2px; }
         .dashboard-profile-arrow { color:var(--light); font-size:9px; }
+        .dashboard-profile-menu { position:absolute; top:calc(100% + 10px); right:0; z-index:1400; width:210px; padding:8px; border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow:0 14px 35px rgba(16,59,34,.16); }
+        .dashboard-profile-menu-name { padding:8px 10px 10px; color:var(--green); font-size:13px; font-weight:850; border-bottom:1px solid #edf1ee; margin-bottom:4px; }
+        .dashboard-profile-menu-item { width:100%; min-height:40px; display:flex; align-items:center; gap:8px; box-sizing:border-box; padding:9px 10px; border:0; border-radius:8px; background:#fff; color:#536159; font-size:12px; font-weight:700; text-align:left; text-decoration:none; cursor:pointer; }
+        .dashboard-profile-menu-item:hover { background:#eaf5ee; color:var(--green); }
+        .dashboard-profile-menu-item:last-child { color:#a32c2c; }
+        .dashboard-profile-menu-item:last-child:hover { background:#fff0f0; color:#a32c2c; }
         .dashboard-content-wrapper { min-height:calc(100vh - 80px); }
         .dashboard-overlay { display:none; }
         @media(max-width:980px){.dashboard-header-brand{display:none}.dashboard-header{padding:10px 16px}.dashboard-weather{min-width:auto}.dashboard-profile-text{display:none}}
-        @media(max-width:760px){.dashboard-sidebar{transform:translateX(-102%)}.dashboard-sidebar-open{transform:translateX(0)}.dashboard-sidebar-close{display:block}.dashboard-main{width:100%;margin-left:0}.dashboard-menu-button{display:inline-flex}.dashboard-overlay{position:fixed;inset:0;z-index:1190;display:block;border:0;background:rgba(0,0,0,.34);cursor:pointer}.dashboard-header{min-height:68px}.dashboard-header-title h1{font-size:20px}.dashboard-header-title p{font-size:11px}.dashboard-weather{display:none}.dashboard-header-icon{width:38px;height:38px}.dashboard-profile-avatar{width:38px;height:38px;flex-basis:38px}.dashboard-content-wrapper{min-height:calc(100vh - 68px)}}
+        @media(max-width:760px){.dashboard-sidebar{transform:translateX(-102%)}.dashboard-sidebar-open{transform:translateX(0)}.dashboard-sidebar-close{display:block}.dashboard-main{width:100%;margin-left:0}.dashboard-menu-button{display:inline-flex}.dashboard-overlay{position:fixed;inset:0;z-index:1190;display:block;border:0;background:rgba(0,0,0,.34);cursor:pointer}.dashboard-header{min-height:68px}.dashboard-header-title h1{font-size:20px}.dashboard-header-title p{font-size:11px}.dashboard-weather{display:none}.dashboard-header-icon{width:38px;height:38px}.dashboard-profile-avatar{width:38px;height:38px;flex-basis:38px}.dashboard-content-wrapper{min-height:calc(100vh - 68px)}.dashboard-profile-menu{right:-2px;width:200px}}
         @media(prefers-reduced-motion:reduce){.dashboard-sidebar{transition:none}}
       `}</style>
     </div>
