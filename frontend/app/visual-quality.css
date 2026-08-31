@@ -1,0 +1,99 @@
+/* PoliSync visual-quality layer.
+ * Designed for vector-first UI, crisp typography, and restrained motion.
+ */
+:root {
+  --ps-green: #075f2b;
+  --ps-gold: #c9a227;
+  --ps-text: #1f2d25;
+  --ps-muted: #66736b;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  image-rendering: auto;
+  text-rendering: geometricPrecision;
+}
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+  image-rendering: auto;
+}
+
+img[width][height] {
+  height: auto;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* Scale typography by ~15% without changing component geometry. */
+.dashboard-content-wrapper,
+.dashboard-content-wrapper button,
+.dashboard-content-wrapper input,
+.dashboard-content-wrapper select,
+.dashboard-content-wrapper textarea {
+  letter-spacing: 0.005em;
+}
+
+.dashboard-content-wrapper p,
+.dashboard-content-wrapper li,
+.dashboard-content-wrapper label,
+.dashboard-content-wrapper input,
+.dashboard-content-wrapper select,
+.dashboard-content-wrapper textarea,
+.dashboard-content-wrapper button {
+  font-size: 115%;
+}
+
+.dashboard-content-wrapper small {
+  font-size: 110%;
+}
+
+/* Clean, professional motion. */
+.polisync-dashboard *,
+.polisync-dashboard *::before,
+.polisync-dashboard *::after {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.polisync-dashboard button:not(:disabled):hover,
+.polisync-dashboard a:hover {
+  transform: translateY(-1px);
+}
+
+.polisync-dashboard button:not(:disabled):active,
+.polisync-dashboard a:active {
+  transform: translateY(0);
+}
+
+.polisync-dashboard img,
+.polisync-dashboard svg {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Keep animations accessible. */
+@media (prefers-reduced-motion: reduce) {
+  .polisync-dashboard *,
+  .polisync-dashboard *::before,
+  .polisync-dashboard *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
