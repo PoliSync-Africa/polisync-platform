@@ -36,11 +36,7 @@ const sendEmail = async ({ to, subject, html, text, event = "transactional" }) =
     try {
       response = await fetch(BREVO_API_URL, {
         method: "POST",
-        headers: {
-          "api-key": BREVO_API_KEY,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
+        headers: { "api-key": BREVO_API_KEY, "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           sender: { email: EMAIL_FROM, name: EMAIL_FROM_NAME },
           to: [recipient],
@@ -61,7 +57,6 @@ const sendEmail = async ({ to, subject, html, text, event = "transactional" }) =
     const contentType = response.headers.get("content-type") || "";
     const data = contentType.includes("application/json") ? await response.json() : { message: await response.text() };
     if (!response.ok) throw new Error(data?.message || "Email provider request failed.");
-
     return { success: true, provider: "brevo", event, messageId: data?.messageId || null };
   } catch (error) {
     console.error("PoliSync email service error:", error);
@@ -69,17 +64,14 @@ const sendEmail = async ({ to, subject, html, text, event = "transactional" }) =
   }
 };
 
-const sendEmailVerification = async ({ user, code }) => {
-  if (!user?.email) throw new Error("A user with a registered email is required.");
-  const firstName = user.firstName || "there";
-  return sendEmail({
-    to: { email: user.email, name: user.displayName || firstName },
-    subject: "Verify your PoliSync Africa email",
-    html: `<p>Hi ${firstName},</p><p>Your PoliSync Africa email verification code is:</p><p style="font-size:24px;font-weight:700;letter-spacing:4px;">${code}</p><p>This code will expire shortly. If you did not request this, you can safely ignore this email.</p>`,
-    text: `Hi ${firstName}, your PoliSync Africa email verification code is ${code}.`,
-    event: "email_verification",
-  });
-};
+// Email verification has been permanently retired.
+// Kept as a compatibility function so older controllers do not break.
+const sendEmailVerification = async () => ({
+  success: true,
+  provider: "disabled",
+  event: "email_verification_retired",
+  message: "Email verification is disabled. Use Arkesel SMS OTP.",
+});
 
 const sendPasswordResetEmail = async ({ user, code }) => {
   if (!user?.email) throw new Error("A user with a registered email is required.");
