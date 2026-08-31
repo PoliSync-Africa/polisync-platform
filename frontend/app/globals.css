@@ -37,54 +37,52 @@ body {
   background: var(--ps-surface);
   color: var(--ps-ink);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
 }
 
 *,
 *::before,
-*::after {
-  box-sizing: border-box;
-}
+*::after { box-sizing: border-box; }
 
 img,
 svg,
 video,
-canvas {
-  display: block;
-  max-width: 100%;
-}
-
-img,
-svg {
-  image-rendering: auto;
-}
+canvas { display: block; max-width: 100%; image-rendering: auto; }
 
 button,
 input,
 select,
-textarea {
-  max-width: 100%;
-  font: inherit;
-}
-
+textarea { max-width: 100%; font: inherit; }
 button,
 a,
 input,
 select,
-textarea {
-  -webkit-tap-highlight-color: transparent;
-}
-
+textarea { -webkit-tap-highlight-color: transparent; }
 button,
-a {
-  touch-action: manipulation;
+a { touch-action: manipulation; }
+
+/* Global platform typography scale: 15% above the previous 16px base. */
+.dashboard-content-wrapper,
+.polisync-dashboard {
+  font-size: 115%;
+  line-height: 1.55;
 }
 
-/* Shared dashboard typography: approximately 15% larger than the old baseline. */
-.dashboard-content-wrapper {
-  font-size: 115%;
-}
+.dashboard-content-wrapper h1 { font-size: clamp(2rem, 3vw, 2.9rem); line-height: 1.12; }
+.dashboard-content-wrapper h2 { font-size: clamp(1.75rem, 2.7vw, 2.45rem); line-height: 1.16; }
+.dashboard-content-wrapper h3 { font-size: clamp(1.4rem, 2vw, 1.85rem); line-height: 1.2; }
+.dashboard-content-wrapper h4 { font-size: 1.25rem; line-height: 1.25; }
+.dashboard-content-wrapper p,
+.dashboard-content-wrapper li,
+.dashboard-content-wrapper label,
+.dashboard-content-wrapper td,
+.dashboard-content-wrapper th,
+.dashboard-content-wrapper button,
+.dashboard-content-wrapper input,
+.dashboard-content-wrapper select,
+.dashboard-content-wrapper textarea { font-size: 1.02rem; line-height: 1.55; }
+.dashboard-content-wrapper small { font-size: .92rem; }
 
 .dashboard-content-wrapper h1,
 .dashboard-content-wrapper h2,
@@ -94,33 +92,17 @@ a {
   letter-spacing: -0.02em;
 }
 
-.dashboard-content-wrapper p,
-.dashboard-content-wrapper li,
-.dashboard-content-wrapper label,
-.dashboard-content-wrapper td,
-.dashboard-content-wrapper th,
-.dashboard-content-wrapper input,
-.dashboard-content-wrapper select,
-.dashboard-content-wrapper textarea,
-.dashboard-content-wrapper button {
-  line-height: 1.5;
-}
-
-/* Remove accidental low-quality effects from ordinary dashboard graphics. */
+/* Keep graphics crisp: never apply blur/opacity reductions to dashboard assets. */
 .dashboard-content-wrapper img,
 .dashboard-content-wrapper svg,
-.dashboard-content-wrapper canvas {
-  filter: none !important;
-  opacity: 1 !important;
-}
+.dashboard-content-wrapper canvas { filter: none !important; opacity: 1 !important; }
 
-/* Crisp focus treatment. */
 :focus-visible {
   outline: 3px solid rgba(240, 205, 97, 0.9);
   outline-offset: 3px;
 }
 
-/* Professional, restrained interaction motion. */
+/* Refined interaction motion. */
 .dashboard-content-wrapper a,
 .dashboard-content-wrapper button,
 .dashboard-content-wrapper input,
@@ -138,24 +120,16 @@ a {
 
 .dashboard-content-wrapper button:hover:not(:disabled),
 .dashboard-content-wrapper [role="button"]:hover,
-.dashboard-content-wrapper a:hover {
-  transform: translateY(-1px);
-}
+.dashboard-content-wrapper a:hover { transform: translateY(-1px); }
 
 .dashboard-content-wrapper button:active:not(:disabled),
 .dashboard-content-wrapper [role="button"]:active,
-.dashboard-content-wrapper a:active {
-  transform: translateY(0);
-  transition-duration: 80ms;
-}
+.dashboard-content-wrapper a:active { transform: translateY(0); transition-duration: 80ms; }
 
-/* Soft premium surface treatment for panels that already use cards. */
 .dashboard-content-wrapper section,
 .dashboard-content-wrapper article,
 .dashboard-content-wrapper [class*="card"],
-.dashboard-content-wrapper [class*="panel"] {
-  backface-visibility: hidden;
-}
+.dashboard-content-wrapper [class*="panel"] { backface-visibility: hidden; }
 
 .polisync-logo-wrapper {
   display: flex;
@@ -172,132 +146,36 @@ a {
   will-change: transform;
 }
 
-/* Avoid a constantly moving logo in production UI; use subtle interaction instead. */
-.polisync-logo:hover {
-  transform: scale(1.015);
-}
+.polisync-logo:hover { transform: scale(1.015); }
 
-.dashboard-content-wrapper table {
-  width: 100%;
-  max-width: 100%;
-  border-collapse: collapse;
-}
-
+.dashboard-content-wrapper table { width: 100%; max-width: 100%; border-collapse: collapse; }
 .dashboard-content-wrapper th,
-.dashboard-content-wrapper td {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
+.dashboard-content-wrapper td { max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
 .dashboard-content-wrapper pre,
-.dashboard-content-wrapper code {
-  max-width: 100%;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
+.dashboard-content-wrapper code { max-width: 100%; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .dashboard-content-wrapper [class*="grid"],
-.dashboard-content-wrapper [style*="grid-template-columns"] {
-  min-width: 0;
-}
+.dashboard-content-wrapper [style*="grid-template-columns"] { min-width: 0; }
 
 @media (max-width: 1100px) {
-  .dashboard-sidebar {
-    width: min(320px, 88vw) !important;
-    max-width: 88vw !important;
-    left: 0 !important;
-    right: auto !important;
-  }
-
-  .dashboard-main {
-    width: 100% !important;
-    max-width: 100vw !important;
-    margin-left: 0 !important;
-  }
-
-  .dashboard-header {
-    width: 100%;
-    max-width: 100vw;
-  }
+  .dashboard-sidebar { width: min(320px, 88vw) !important; max-width: 88vw !important; left: 0 !important; right: auto !important; }
+  .dashboard-main { width: 100% !important; max-width: 100vw !important; margin-left: 0 !important; }
+  .dashboard-header { width: 100%; max-width: 100vw; }
 }
 
 @media (max-width: 760px) {
-  .dashboard-content-wrapper {
-    width: 100%;
-    max-width: 100vw;
-    overflow-x: hidden;
-  }
-
-  .dashboard-content-wrapper > * {
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .dashboard-content-wrapper [style*="width: 600px"],
-  .dashboard-content-wrapper [style*="width:600px"],
-  .dashboard-content-wrapper [style*="width: 700px"],
-  .dashboard-content-wrapper [style*="width:700px"],
-  .dashboard-content-wrapper [style*="width: 800px"],
-  .dashboard-content-wrapper [style*="width:800px"],
-  .dashboard-content-wrapper [style*="min-width: 600px"],
-  .dashboard-content-wrapper [style*="min-width:600px"],
-  .dashboard-content-wrapper [style*="min-width: 700px"],
-  .dashboard-content-wrapper [style*="min-width:700px"] {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-  }
-
-  .dashboard-content-wrapper [class*="grid-2"],
-  .dashboard-content-wrapper [class*="two-column"],
-  .dashboard-content-wrapper [class*="twoColumn"] {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-
-  .dashboard-content-wrapper form,
-  .dashboard-content-wrapper [role="form"] {
-    max-width: 100%;
-  }
-
+  .dashboard-content-wrapper { width: 100%; max-width: 100vw; overflow-x: hidden; }
+  .dashboard-content-wrapper > * { width: 100%; max-width: 100%; }
   .dashboard-content-wrapper input,
   .dashboard-content-wrapper select,
-  .dashboard-content-wrapper textarea {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .dashboard-content-wrapper button {
-    max-width: 100%;
-  }
+  .dashboard-content-wrapper textarea { width: 100%; min-width: 0; }
 }
 
 @media (max-width: 430px) {
-  .dashboard-sidebar {
-    width: min(320px, 88vw) !important;
-  }
-
-  .dashboard-navigation {
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-
-  .dashboard-nav-item {
-    min-height: 44px;
-    padding: 9px 10px;
-  }
-
-  .dashboard-nav-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .dashboard-header {
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-  }
+  .dashboard-sidebar { width: min(320px, 88vw) !important; }
+  .dashboard-navigation { padding-left: 10px; padding-right: 10px; }
+  .dashboard-nav-item { min-height: 46px; padding: 10px 11px; font-size: 15px; }
+  .dashboard-nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dashboard-header { padding-left: 10px !important; padding-right: 10px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -307,8 +185,5 @@ a {
   .dashboard-content-wrapper select,
   .dashboard-content-wrapper textarea,
   .dashboard-content-wrapper [role="button"],
-  .polisync-logo {
-    transition: none !important;
-    animation: none !important;
-  }
+  .polisync-logo { transition: none !important; animation: none !important; }
 }
