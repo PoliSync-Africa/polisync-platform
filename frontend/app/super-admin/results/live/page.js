@@ -1,2 +1,10 @@
-import PlatformModulePage from "../../../../components/dashboard/PlatformModulePage";
-export default function Page(){return <PlatformModulePage title="Live Results" subtitle="Real-time election results" activeSection="live-results" description="View results submitted to PoliSync as they move through the platform's verification workflow."/>;}
+import DashboardShell from "../../../../components/dashboard/DashboardShell";
+import DynamicResultsExplorer from "../../../../components/dashboard/DynamicResultsExplorer";
+
+export default function Page() {
+  return (
+    <DashboardShell role="super_admin" title="Live Results" subtitle="Real-time election results" activeSection="live-results">
+      <DynamicResultsExplorer />
+    </DashboardShell>
+  );
+}
