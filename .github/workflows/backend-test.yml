@@ -32,3 +32,6 @@ jobs:
 
       - name: Check app.js syntax
         run: node --check app.js
+
+      - name: Check required modules and GIS data
+        run: node scripts/smokeTest.js
