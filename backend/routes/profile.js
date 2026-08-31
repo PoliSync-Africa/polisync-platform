@@ -39,7 +39,11 @@ router.get("/me", authenticate, async (req, res) => {
       profilePhoto: user.profilePhoto || null,
       platformRole: user.platformRole,
       accountStatus: user.accountStatus,
-      verified: Boolean(user.emailVerified || user.phoneVerified),
+      // Verification badge/security status is based on phone verification,
+      // never on email verification.
+      verified: Boolean(user.phoneVerified),
+      emailVerified: true,
+      phoneVerified: Boolean(user.phoneVerified),
       dateOfBirth: user.dateOfBirth || null,
       profileCompletion: Math.round((completed / sourceFields.length) * 100),
       privacy: user.privacy || null,
