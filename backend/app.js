@@ -12,7 +12,7 @@ app.use(cors({
     return callback(new Error("CORS origin not allowed."));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Setup-Secret"],
   credentials: false,
 }));
 
@@ -27,21 +27,24 @@ const secureProfileRoutes = require("./routes/secureProfiles");
 const privacyRoutes = require("./routes/privacy");
 const messageRoutes = require("./routes/messages");
 const secureNotificationRoutes = require("./routes/secureNotifications");
-let organizationRoutes; try { organizationRoutes = require("./routes/organization"); } catch { organizationRoutes = null; }
-let partyOrganizationRoutes; try { partyOrganizationRoutes = require("./routes/partyOrganization"); } catch { partyOrganizationRoutes = null; }
-let personalWorkspaceRoutes; try { personalWorkspaceRoutes = require("./routes/personalWorkspace"); } catch { personalWorkspaceRoutes = null; }
-let electoralGeographyRoutes; try { electoralGeographyRoutes = require("./routes/electoralGeography"); } catch { electoralGeographyRoutes = null; }
-let electionRoutes; try { electionRoutes = require("./routes/elections"); } catch { electionRoutes = null; }
-let pollingStationRoutes; try { pollingStationRoutes = require("./routes/pollingStationRoutes"); } catch { pollingStationRoutes = null; }
-let resultRoutes; try { resultRoutes = require("./routes/results"); } catch { resultRoutes = null; }
-let calendarRoutes; try { calendarRoutes = require("./routes/calendar"); } catch { calendarRoutes = null; }
-let notificationRoutes; try { notificationRoutes = require("./routes/notifications"); } catch { notificationRoutes = null; }
-let geoRoutes; try { geoRoutes = require("./routes/geoRoutes"); } catch { geoRoutes = null; }
-let gisRoutes; try { gisRoutes = require("./routes/gisRoutes"); } catch { gisRoutes = null; }
-let setupRoutes; try { setupRoutes = require("./routes/setup"); } catch { setupRoutes = null; }
+const organizationRoutes = require("./routes/organization");
+const partyOrganizationRoutes = require("./routes/partyOrganization");
+const personalWorkspaceRoutes = require("./routes/personalWorkspace");
+const electoralGeographyRoutes = require("./routes/electoralGeography");
+const electionRoutes = require("./routes/elections");
+const pollingStationRoutes = require("./routes/pollingStationRoutes");
+const resultRoutes = require("./routes/results");
+const calendarRoutes = require("./routes/calendar");
+const notificationRoutes = require("./routes/notifications");
+const geoRoutes = require("./routes/geoRoutes");
+const gisRoutes = require("./routes/gisRoutes");
+const setupRoutes = require("./routes/setup");
+const healthRoutes = require("./routes/health");
+const aiRoutes = require("./routes/aiRoutes");
 const platformUserRoutes = require("./routes/platformUsers");
 
 app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backend", status: "running", version: "1.0.0", database: "MongoDB + Mongoose" }));
+app.use("/api/health", healthRoutes);
 
 // Password reset routes must be registered before the legacy auth routes.
 app.use("/api/auth", passwordResetRoutes);
@@ -74,17 +77,19 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/privacy", privacyRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", secureNotificationRoutes);
-if (organizationRoutes) app.use("/api/organizations", organizationRoutes);
-if (partyOrganizationRoutes) app.use("/api/party-organizations", partyOrganizationRoutes);
-if (personalWorkspaceRoutes) app.use("/api/personal-workspace", personalWorkspaceRoutes);
-if (electoralGeographyRoutes) app.use("/api/electoral-geography", electoralGeographyRoutes);
-if (electionRoutes) app.use("/api/elections", electionRoutes);
-if (pollingStationRoutes) app.use("/api/polling-stations", pollingStationRoutes);
-if (resultRoutes) app.use("/api/results", resultRoutes);
-if (calendarRoutes) app.use("/api/calendar", calendarRoutes);
-if (geoRoutes) app.use("/api/geo", geoRoutes);
-if (gisRoutes) app.use("/api/gis", gisRoutes);
-if (setupRoutes) app.use("/api/setup", setupRoutes);
+app.use("/api/organizations", organizationRoutes);
+app.use("/api/party-organizations", partyOrganizationRoutes);
+app.use("/api/personal-workspace", personalWorkspaceRoutes);
+app.use("/api/electoral-geography", electoralGeographyRoutes);
+app.use("/api/elections", electionRoutes);
+app.use("/api/polling-stations", pollingStationRoutes);
+app.use("/api/results", resultRoutes);
+app.use("/api/calendar", calendarRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/geo", geoRoutes);
+app.use("/api/gis", gisRoutes);
+app.use("/api/setup", setupRoutes);
+app.use("/api/ai", aiRoutes);
 app.use("/api/platform-users", platformUserRoutes);
 
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found." }));
