@@ -36,11 +36,7 @@ export default function PoliSyncBrand({ compact = false }) {
     const search = (
       <div className="dashboard-search-portal" role="search">
         <div className="dashboard-search-row">
-          <img
-            src={OFFICIAL_LOGO}
-            alt="PoliSync Africa"
-            className="official-corner-logo"
-          />
+          <img src={OFFICIAL_LOGO} alt="PoliSync Africa" className="official-corner-logo" />
           <div className="search-box">
             <span aria-hidden="true">⌕</span>
             <input
@@ -66,20 +62,20 @@ export default function PoliSyncBrand({ compact = false }) {
           </div>
         )}
         <style jsx>{`
-          .dashboard-search-portal { position:fixed; top:18px; right:18px; width:420px; z-index:1500; }
-          .dashboard-search-row { display:flex; align-items:center; gap:10px; }
-          .official-corner-logo { flex:0 0 auto; width:86px; height:44px; object-fit:contain; object-position:center; }
-          .search-box { flex:1; width:100%; height:44px; box-sizing:border-box; display:flex; align-items:center; gap:8px; padding:0 13px; background:#fff; border:1.5px solid #dce6df; border-radius:13px; box-shadow:0 7px 22px rgba(7,55,28,.12); }
+          .dashboard-search-portal { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); width:min(420px,calc(100vw - 28px)); z-index:1500; }
+          .dashboard-search-row { display:flex; align-items:center; gap:9px; }
+          .official-corner-logo { flex:0 0 48px; width:48px; height:48px; object-fit:contain; object-position:center; border-radius:50%; }
+          .search-box { flex:1; min-width:0; height:44px; box-sizing:border-box; display:flex; align-items:center; gap:8px; padding:0 13px; background:#fff; border:1.5px solid #dce6df; border-radius:13px; box-shadow:0 7px 22px rgba(7,55,28,.12); }
           .search-box:focus-within { border-color:#c9a227; box-shadow:0 0 0 3px rgba(201,162,39,.12),0 7px 22px rgba(7,55,28,.12); }
           .search-box > span { color:#075f2b; font-size:21px; }
           .search-box input { width:100%; border:0; outline:0; background:transparent; color:#24352b; font-size:13px; font-weight:650; }
           .search-box input::placeholder { color:#8a958e; }
-          .search-results { margin-top:6px; margin-left:96px; padding:7px; background:#fff; border:1px solid #dce6df; border-radius:13px; box-shadow:0 15px 35px rgba(7,45,25,.16); }
+          .search-results { margin-top:6px; margin-left:57px; padding:7px; background:#fff; border:1px solid #dce6df; border-radius:13px; box-shadow:0 15px 35px rgba(7,45,25,.16); }
           .search-results button { width:100%; display:flex; align-items:center; gap:9px; padding:10px 11px; border:0; border-radius:9px; background:#fff; color:#344139; text-align:left; font-size:13px; font-weight:650; cursor:pointer; }
           .search-results button:hover { background:#edf7f0; color:#075f2b; }
           .search-results button span { color:#c9a227; }
           .no-results { padding:12px; color:#849088; font-size:12px; }
-          @media (max-width:760px) { .dashboard-search-portal { top:10px; left:10px; right:10px; width:auto; } .official-corner-logo { width:72px; } .search-results { margin-left:82px; } }
+          @media (max-width:760px) { .dashboard-search-portal { left:12px; right:12px; bottom:12px; transform:none; width:auto; } .official-corner-logo { flex-basis:44px; width:44px; height:44px; } .search-results { margin-left:53px; } }
         `}</style>
       </div>
     );
