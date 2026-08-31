@@ -25,17 +25,23 @@ exports.pollingStations = async (req, res) => {
     .select("pollingStationCode name regionId constituencyId district stationType source sourceYear isActive")
     .lean();
 
-  // The repository previously contained an empty polling-station CSV. If the
-  // MongoDB collection is empty, populate it automatically from the official
-  // Ghana Electoral Commission 2024 register before answering the request.
-  if (data.length === 0 && !req.params.stationId) {
-    const total = await PollingStation.countDocuments({ isActive: true });
-    if (total === 0) {
-      await syncPollingStationsFromEcPdf();
-      data = await PollingStation.find(filter)
-        .sort({ name: 1 })
-        .select("pollingStationCode name regionId constituencyId district stationType source sourceYear isActive")
-        .lean();
+  if (data.length === 0) {
+    const totalStations = await PollingStation.countDocuments({ isActive: true });
+    if (totalStations === 0) {
+      try {
+        await syncPollingStationsFromEcPdf();
+        data = await PollingStation.find(filter)
+          .sort({ name: 1 })
+          .select("pollingStationCode name regionId constituencyId district stationType source sourceYear isActive")
+          .lean();
+      } catch (error) {
+        console.error("Polling station EC sync failed:", error);
+        return res.status(503).json({
+          success: false,
+          code: "POLLING_STATION_SYNC_FAILED",
+          message: "The official polling-station register could not be synchronized yet. Please try Refresh again.",
+        });
+      }
     }
   }
 
