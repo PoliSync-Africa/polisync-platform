@@ -8,10 +8,19 @@ const { canMessage } = require("../controllers/privacyController");
 
 const router = express.Router();
 router.use(authenticate);
-
 const me = (req) => req.auth.userId;
 const valid = (id) => mongoose.Types.ObjectId.isValid(id);
 const safeUser = (u) => ({ id: u._id, username: u.username, displayName: u.displayName || [u.firstName, u.lastName].filter(Boolean).join(" "), profilePhoto: u.profilePhoto || null });
+
+router.get("/users", async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim();
+    if (q.length < 2) return res.json({ success: true, users: [] });
+    const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    const users = await User.find({ _id: { $ne: me(req) }, accountStatus: "approved", $or: [{ username: rx }, { displayName: rx }, { firstName: rx }, { lastName: rx }] }).select("username displayName firstName lastName profilePhoto privacy.messagePrivacy").limit(20).lean();
+    return res.json({ success: true, users: users.map((u) => ({ ...safeUser(u), messagePrivacy: u.privacy?.messagePrivacy || "nobody" })) });
+  } catch (error) { return res.status(500).json({ success: false, message: "Unable to search users." }); }
+});
 
 router.get("/inbox", async (req, res) => {
   try {
@@ -29,6 +38,8 @@ router.get("/conversation/:userId", async (req, res) => {
     const owner = await User.findById(me(req));
     const other = await User.findById(userId);
     if (!other) return res.status(404).json({ success: false, message: "User not found." });
+    const allowed = await canMessage(owner, other);
+    if (!allowed && owner._id.toString() !== other._id.toString()) return res.status(403).json({ success: false, message: "This conversation is not available under the recipient's privacy settings." });
     const messages = await DirectMessage.find({ $or: [{ sender: owner._id, recipient: other._id }, { sender: other._id, recipient: owner._id }], deletedBySender: false, deletedByRecipient: false }).sort({ createdAt: 1 }).limit(500).lean();
     await DirectMessage.updateMany({ sender: other._id, recipient: owner._id, read: false }, { $set: { read: true, readAt: new Date() } });
     return res.json({ success: true, user: safeUser(other), messages });
