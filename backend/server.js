@@ -20,11 +20,25 @@ mongoose
   .then(async () => {
     console.log("✅ MongoDB Connected");
 
-    const migration = await User.updateMany(
+    // Personal accounts remain self-approved.
+    const approvalMigration = await User.updateMany(
       { platformRole: "user", accountStatus: "pending" },
       { $set: { accountStatus: "approved", approvedAt: new Date(), approvedBy: null } }
     );
-    console.log(`👤 Personal accounts auto-approved: ${migration.modifiedCount || 0}`);
+    console.log(`👤 Personal accounts auto-approved: ${approvalMigration.modifiedCount || 0}`);
+
+    // ========================================================
+    // EMAIL VERIFICATION RETIRED
+    // ========================================================
+    // Email is contact/login information only. It is no longer
+    // a verification or access requirement for ANY account type.
+    // This migration permanently normalizes existing accounts so
+    // old records cannot trigger the retired email gate.
+    const emailVerificationMigration = await User.updateMany(
+      { emailVerified: { $ne: true } },
+      { $set: { emailVerified: true } }
+    );
+    console.log(`📧 Email verification retired for accounts: ${emailVerificationMigration.modifiedCount || 0}`);
 
     const arkeselConfigured = Boolean(process.env.ARKESEL_API_KEY || process.env.ARKESEL_MAIN_API_KEY);
     console.log(`📱 Arkesel OTP/SMS configured: ${arkeselConfigured ? "YES" : "NO"}`);
@@ -36,8 +50,6 @@ mongoose
       console.log("📊 Database: MongoDB + Mongoose");
       console.log(`🔗 API: http://localhost:${PORT}`);
 
-      // Do not block server startup on a large electoral-data import.
-      // If the database is missing polling stations, the importer runs in the background.
       ensureElectoralGeography().catch((error) => {
         console.error("⚠️ Electoral geography bootstrap failed:", error.message);
       });
