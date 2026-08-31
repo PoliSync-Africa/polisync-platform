@@ -95,7 +95,7 @@ export default function LoginPage() {
         <div style={{ textAlign: "center", marginTop: "27px", color: "#555", fontSize: "15px", lineHeight: "1.6" }}><div>Don't have an account?</div><Link href="/register" style={{ display: "inline-block", marginTop: "3px", color: "#C9A227", textDecoration: "none", fontWeight: "800", fontSize: "16px" }}>Create Account</Link></div>
 
         <footer style={{ textAlign: "center", marginTop: "30px", paddingTop: "18px", borderTop: "1px solid #E8E8E8", color: "#777", fontSize: "12px", lineHeight: "1.7" }}>
-          <div style={{ fontWeight: "700", color: "#065F2B", fontSize: "12px" }}>PoliSync Africa is Powered by SyncTech Co. Ltd</div>
+          <div style={{ fontWeight: "700", color: "#065F2B", fontSize: "12px" }}>PoliSync Africa™ is powered by SyncTech Co. Ltd.</div>
           <div>© 2026 SyncTech Co. Ltd. All rights reserved.</div>
         </footer>
       </div>
