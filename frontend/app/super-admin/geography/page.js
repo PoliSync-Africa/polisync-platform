@@ -1,2 +1,5 @@
-import PlatformModulePage from "../../../components/dashboard/PlatformModulePage";
-export default function Page(){return <PlatformModulePage title="Geographic Data" subtitle="Electoral geography and administrative boundaries" activeSection="geography" description="Access the platform's electoral geography hierarchy and geographic data services."/>;}
+import ElectoralGeographyExplorer from "../../../components/dashboard/ElectoralGeographyExplorer";
+
+export default function Page() {
+  return <ElectoralGeographyExplorer mode="regions" />;
+}
