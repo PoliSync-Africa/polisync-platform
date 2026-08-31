@@ -29,14 +29,18 @@ mongoose
     const arkeselConfigured = Boolean(process.env.ARKESEL_API_KEY || process.env.ARKESEL_MAIN_API_KEY);
     console.log(`📱 Arkesel OTP/SMS configured: ${arkeselConfigured ? "YES" : "NO"}`);
 
-    await ensureElectoralGeography();
-
     startBirthdayJob();
 
     app.listen(PORT, () => {
       console.log(`🚀 PoliSync Africa Backend running on port ${PORT}`);
       console.log("📊 Database: MongoDB + Mongoose");
       console.log(`🔗 API: http://localhost:${PORT}`);
+
+      // Do not block server startup on a large electoral-data import.
+      // If the database is missing polling stations, the importer runs in the background.
+      ensureElectoralGeography().catch((error) => {
+        console.error("⚠️ Electoral geography bootstrap failed:", error.message);
+      });
     });
   })
   .catch((err) => {
