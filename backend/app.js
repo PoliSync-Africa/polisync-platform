@@ -20,6 +20,7 @@ app.use(express.json({ limit: "400kb" }));
 app.use(express.urlencoded({ extended: true }));
 
 const authRoutes = require("./routes/auth");
+const passwordResetRoutes = require("./routes/passwordResetRoutes");
 const phoneOtpRoutes = require("./routes/phoneOtp");
 const profileRoutes = require("./routes/profile");
 const secureProfileRoutes = require("./routes/secureProfiles");
@@ -40,6 +41,9 @@ let gisRoutes; try { gisRoutes = require("./routes/gisRoutes"); } catch { gisRou
 let setupRoutes; try { setupRoutes = require("./routes/setup"); } catch { setupRoutes = null; }
 
 app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backend", status: "running", version: "1.0.0", database: "MongoDB + Mongoose" }));
+
+// Password reset routes must be registered before the legacy auth routes.
+app.use("/api/auth", passwordResetRoutes);
 
 // Personal accounts are self-created and do not wait for Super Admin account approval.
 // Keep email/phone verification and all security checks intact.
