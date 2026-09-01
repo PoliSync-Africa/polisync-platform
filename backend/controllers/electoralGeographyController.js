@@ -17,7 +17,11 @@ exports.constituencies = async (req, res) => {
 
 exports.pollingStations = async (req, res) => {
   const filter = { isActive: true };
-  if (req.params.constituencyId) filter.constituencyId = req.params.constituencyId;
+
+  // Accept both the REST path parameter and query-string form. The frontend
+  // uses the query form through the stable /polling-stations proxy route.
+  const constituencyId = req.params.constituencyId || req.query.constituencyId;
+  if (constituencyId) filter.constituencyId = constituencyId;
   if (req.query.regionId) filter.regionId = req.query.regionId;
 
   let data = await PollingStation.find(filter)
@@ -25,6 +29,9 @@ exports.pollingStations = async (req, res) => {
     .select("pollingStationCode name regionId constituencyId district stationType source sourceYear isActive")
     .lean();
 
+  // If the database is empty, bootstrap the official EC register once and
+  // then re-run the exact requested filter. This also fixes the case where
+  // the first request is made for a specific constituency.
   if (data.length === 0) {
     const totalStations = await PollingStation.countDocuments({ isActive: true });
     if (totalStations === 0) {
