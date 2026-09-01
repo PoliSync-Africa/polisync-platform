@@ -51,7 +51,8 @@ export default function DashboardShell({
     return () => document.removeEventListener("click", close);
   }, [profileMenuOpen]);
 
-  // All dashboard roles use the same live-location and atmospheric-temperature service.
+  // All dashboard roles use the same live device location and atmospheric-temperature service.
+  // watchPosition keeps the header synchronized when the user moves to a new location.
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocation((current) => ({ ...current, loading: false, name: "Location unavailable" }));
@@ -59,11 +60,15 @@ export default function DashboardShell({
     }
 
     let cancelled = false;
-    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+    let refreshTimer = null;
+
+    const loadLocation = async ({ coords }) => {
       try {
+        const latitude = coords.latitude;
+        const longitude = coords.longitude;
         const [geoResponse, weatherResponse] = await Promise.all([
-          fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(coords.latitude)}&longitude=${encodeURIComponent(coords.longitude)}&localityLanguage=en`),
-          fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(coords.latitude)}&longitude=${encodeURIComponent(coords.longitude)}&current=temperature_2m,weather_code&timezone=auto`),
+          fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&localityLanguage=en`, { cache: "no-store" }),
+          fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&current=temperature_2m,weather_code&timezone=auto`, { cache: "no-store" }),
         ]);
 
         const geo = geoResponse.ok ? await geoResponse.json() : {};
@@ -86,11 +91,49 @@ export default function DashboardShell({
       } catch {
         if (!cancelled) setLocation((current) => ({ ...current, loading: false, name: "Location unavailable" }));
       }
-    }, () => {
-      if (!cancelled) setLocation((current) => ({ ...current, loading: false, name: "Location permission not granted" }));
-    }, { enableHighAccuracy: true, maximumAge: 300000, timeout: 12000 });
+    };
 
-    return () => { cancelled = true; };
+    const handleError = (error) => {
+      if (!cancelled) {
+        setLocation((current) => ({
+          ...current,
+          loading: false,
+          name: error?.code === 1 ? "Location permission not granted" : "Location unavailable",
+        }));
+      }
+    };
+
+    const requestFreshLocation = () => {
+      navigator.geolocation.getCurrentPosition(loadLocation, handleError, {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 12000,
+      });
+    };
+
+    const watchId = navigator.geolocation.watchPosition(loadLocation, handleError, {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 12000,
+    });
+
+    requestFreshLocation();
+
+    const refreshOnReturn = () => {
+      if (document.visibilityState === "visible") requestFreshLocation();
+    };
+
+    window.addEventListener("focus", requestFreshLocation);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    refreshTimer = window.setInterval(requestFreshLocation, 2 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      navigator.geolocation.clearWatch(watchId);
+      window.clearInterval(refreshTimer);
+      window.removeEventListener("focus", requestFreshLocation);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
   }, []);
 
   const sections = useMemo(() => {
