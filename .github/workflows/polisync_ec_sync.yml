@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # PoliSync production Render backend.
+  POLISYNC_API_URL: https://polisync-platform-1.onrender.com
+
 jobs:
   sync-electoral-data:
     name: Synchronize Ghana EC polling stations
@@ -16,17 +20,14 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Validate required secrets
+      - name: Validate required secret
         env:
-          POLISYNC_API_URL: ${{ secrets.POLISYNC_API_URL }}
           POLISYNC_API_TOKEN: ${{ secrets.POLISYNC_API_TOKEN }}
         run: |
-          test -n "$POLISYNC_API_URL" || { echo "Missing GitHub Actions secret: POLISYNC_API_URL"; exit 1; }
           test -n "$POLISYNC_API_TOKEN" || { echo "Missing GitHub Actions secret: POLISYNC_API_TOKEN"; exit 1; }
 
       - name: Synchronize Electoral Commission data
         env:
-          POLISYNC_API_URL: ${{ secrets.POLISYNC_API_URL }}
           POLISYNC_API_TOKEN: ${{ secrets.POLISYNC_API_TOKEN }}
         run: |
           set -euo pipefail
