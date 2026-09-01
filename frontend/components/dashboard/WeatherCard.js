@@ -66,7 +66,6 @@ export default function WeatherCard({ compact = false }) {
       const current = data.current;
       setWeather({
         loading: false,
-        // Coordinates are retained internally for weather requests only and are never rendered.
         location: locationName || "Current location",
         latitude,
         longitude,
@@ -87,7 +86,6 @@ export default function WeatherCard({ compact = false }) {
       setWeather((current) => ({
         ...current,
         loading: false,
-        // Never fall back to latitude/longitude.
         location: current.location === "Requesting current location..." ? "Location unavailable" : current.location,
         condition: "Weather unavailable",
       }));
@@ -100,7 +98,15 @@ export default function WeatherCard({ compact = false }) {
     let mounted = true;
     loadWeather();
     const interval = window.setInterval(() => mounted && loadWeather(), REFRESH_MS);
-    return () => { mounted = false; window.clearInterval(interval); };
+    const refreshOnReturn = () => { if (document.visibilityState === "visible") loadWeather(); };
+    window.addEventListener("focus", loadWeather);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", loadWeather);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
   }, [loadWeather]);
 
   const visibleHourly = useMemo(() => weather.hourly.slice(0, 6), [weather.hourly]);
@@ -165,11 +171,10 @@ export default function WeatherCard({ compact = false }) {
 
 function WeatherDetail({ icon, label, value }) { return <div className="weather-detail"><span className="weather-detail-icon">{icon}</span><span className="weather-detail-label">{label}</span><span className="weather-detail-value">{value}</span></div>; }
 
-function getCurrentPosition() { return new Promise((resolve, reject) => { navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, maximumAge: 5 * 60 * 1000, timeout: 15 * 1000 }); }); }
+function getCurrentPosition() { return new Promise((resolve, reject) => { navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, maximumAge: 0, timeout: 15 * 1000 }); }); }
 
 async function resolveLocationName(latitude, longitude) {
   try {
-    // Free client-side reverse geocoding; coordinates never need to be sent to PoliSync's backend.
     const url = new URL("https://api.bigdatacloud.net/data/reverse-geocode-client");
     url.searchParams.set("latitude", String(latitude));
     url.searchParams.set("longitude", String(longitude));
