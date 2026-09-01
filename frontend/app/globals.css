@@ -9,7 +9,7 @@
   --ps-white: #ffffff;
   --ps-ink: #163126;
   --ps-muted: #66766d;
-  --ps-border: #dce7e0;
+  --ps-border: #0a7135;
   --ps-surface: #f5f8f6;
   --ps-shadow: 0 14px 34px rgba(4, 43, 22, 0.08);
 }
@@ -145,6 +145,37 @@ a {
 .dashboard-content-wrapper [class*="card"],
 .dashboard-content-wrapper [class*="panel"] {
   backface-visibility: hidden;
+}
+
+/* PoliSync global white-surface border system: green borders only, no layout changes. */
+.dashboard-content-wrapper .card,
+.dashboard-content-wrapper .panel,
+.dashboard-content-wrapper .hero,
+.dashboard-content-wrapper .stat-card,
+.dashboard-content-wrapper .metric-card,
+.dashboard-content-wrapper .table-card,
+.dashboard-content-wrapper .form-card,
+.dashboard-content-wrapper .list-card,
+.dashboard-content-wrapper .surface-card {
+  border-color: var(--ps-green-700) !important;
+}
+
+.dashboard-content-wrapper input:not([type="checkbox"]):not([type="radio"]),
+.dashboard-content-wrapper select,
+.dashboard-content-wrapper textarea {
+  border-color: var(--ps-green-700) !important;
+}
+
+.dashboard-sidebar,
+.dashboard-brand,
+.dashboard-sidebar-close,
+.dashboard-logout,
+.dashboard-header,
+.dashboard-menu-button,
+.dashboard-header-icon,
+.dashboard-profile,
+.dashboard-profile-menu {
+  border-color: var(--ps-green-700) !important;
 }
 
 .polisync-logo-wrapper {
