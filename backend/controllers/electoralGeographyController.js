@@ -15,40 +15,62 @@ exports.constituencies = async (req, res) => {
   res.json({ success: true, data });
 };
 
+async function findPollingStations(filter) {
+  return PollingStation.find(filter)
+    .sort({ name: 1 })
+    .select("pollingStationCode name regionId constituencyId district stationType source sourceYear isActive")
+    .lean();
+}
+
 exports.pollingStations = async (req, res) => {
   const filter = { isActive: true };
 
-  // Accept both the REST path parameter and query-string form. The frontend
-  // uses the query form through the stable /polling-stations proxy route.
+  // Accept both the REST path parameter and query-string form.
   const constituencyId = req.params.constituencyId || req.query.constituencyId;
   if (constituencyId) filter.constituencyId = constituencyId;
   if (req.query.regionId) filter.regionId = req.query.regionId;
 
-  let data = await PollingStation.find(filter)
-    .sort({ name: 1 })
-    .select("pollingStationCode name regionId constituencyId district stationType source sourceYear isActive")
-    .lean();
+  let data = await findPollingStations(filter);
 
-  // If the database is empty, bootstrap the official EC register once and
-  // then re-run the exact requested filter. This also fixes the case where
-  // the first request is made for a specific constituency.
-  if (data.length === 0) {
-    const totalStations = await PollingStation.countDocuments({ isActive: true });
-    if (totalStations === 0) {
-      try {
+  // IMPORTANT: Do not only bootstrap when the entire collection is empty.
+  // A partially populated/incorrectly linked database can contain stations
+  // for other constituencies while returning zero for the constituency the
+  // user selected. In that case the old code skipped the EC synchronization
+  // and the UI incorrectly showed an empty directory.
+  //
+  // If a requested constituency has no stations, synchronize the official EC
+  // register and retry the exact same filter. The sync is protected by its
+  // internal promise so concurrent requests share one synchronization job.
+  if (data.length === 0 && (constituencyId || req.query.regionId)) {
+    try {
+      await syncPollingStationsFromEcPdf();
+      data = await findPollingStations(filter);
+    } catch (error) {
+      console.error("Polling station EC sync failed:", error);
+      return res.status(503).json({
+        success: false,
+        code: "POLLING_STATION_SYNC_FAILED",
+        message: "The official polling-station register could not be synchronized yet. Please try Refresh again.",
+      });
+    }
+  }
+
+  // If no geographic filter was supplied and the collection is empty, also
+  // bootstrap the register so the general polling-station endpoint works.
+  if (data.length === 0 && !constituencyId && !req.query.regionId) {
+    try {
+      const totalStations = await PollingStation.countDocuments({ isActive: true });
+      if (totalStations === 0) {
         await syncPollingStationsFromEcPdf();
-        data = await PollingStation.find(filter)
-          .sort({ name: 1 })
-          .select("pollingStationCode name regionId constituencyId district stationType source sourceYear isActive")
-          .lean();
-      } catch (error) {
-        console.error("Polling station EC sync failed:", error);
-        return res.status(503).json({
-          success: false,
-          code: "POLLING_STATION_SYNC_FAILED",
-          message: "The official polling-station register could not be synchronized yet. Please try Refresh again.",
-        });
+        data = await findPollingStations(filter);
       }
+    } catch (error) {
+      console.error("Polling station EC sync failed:", error);
+      return res.status(503).json({
+        success: false,
+        code: "POLLING_STATION_SYNC_FAILED",
+        message: "The official polling-station register could not be synchronized yet. Please try Refresh again.",
+      });
     }
   }
 
@@ -71,10 +93,13 @@ exports.search = async (req, res) => {
   const [regions, constituencies, pollingStations] = await Promise.all([
     Region.find({ isActive: true, name: { $regex: q, $options: "i" } }).limit(20).lean(),
     Constituency.find({ isActive: true, name: { $regex: q, $options: "i" } }).limit(50).lean(),
-    PollingStation.find({ isActive: true, $or: [
-      { name: { $regex: q, $options: "i" } },
-      { pollingStationCode: { $regex: q, $options: "i" } },
-    ] }).limit(50).lean(),
+    PollingStation.find({
+      isActive: true,
+      $or: [
+        { name: { $regex: q, $options: "i" } },
+        { pollingStationCode: { $regex: q, $options: "i" } },
+      ],
+    }).limit(50).lean(),
   ]);
 
   res.json({ success: true, data: { regions, constituencies, pollingStations } });
