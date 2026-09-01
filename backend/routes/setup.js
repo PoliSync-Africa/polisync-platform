@@ -1,12 +1,24 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const { syncPollingStationsFromEcPdf } = require("../scripts/syncPollingStationsFromEc");
 
 const router = express.Router();
 
 const SUPER_ADMIN_EMAIL = "danielamonyamekye@gmail.com";
 const SUPER_ADMIN_PHONE = "+233540992581";
 const SUPER_ADMIN_USERNAME = "polisync.africa";
+
+function isValidSyncToken(req) {
+  const configuredToken = String(process.env.POLISYNC_API_TOKEN || "").trim();
+  if (!configuredToken) return false;
+
+  const authorization = String(req.headers.authorization || "").trim();
+  const bearerToken = authorization.replace(/^Bearer\s+/i, "").trim();
+  const suppliedToken = String(req.headers["x-polisync-api-token"] || "").trim();
+
+  return bearerToken === configuredToken || suppliedToken === configuredToken;
+}
 
 router.get("/bootstrap-super-admin", async (req, res) => {
   try {
@@ -82,6 +94,29 @@ router.post("/bootstrap-super-admin", async (req, res) => {
   } catch (error) {
     console.error("Super Admin bootstrap error:", error);
     return res.status(500).json({ success: false, message: error.message || "Unable to bootstrap Super Admin." });
+  }
+});
+
+router.post("/sync-electoral-data", async (req, res) => {
+  if (!isValidSyncToken(req)) {
+    return res.status(401).json({ success: false, message: "Valid PoliSync API authorization is required." });
+  }
+
+  try {
+    const result = await syncPollingStationsFromEcPdf();
+
+    return res.status(200).json({
+      success: true,
+      message: "Ghana Electoral Commission polling-station data synchronized successfully.",
+      source: "Ghana Electoral Commission 2024 Polling Stations",
+      ...result,
+    });
+  } catch (error) {
+    console.error("EC electoral data sync error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Unable to synchronize Electoral Commission data.",
+    });
   }
 });
 
