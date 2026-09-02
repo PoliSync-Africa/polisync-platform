@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import superAdminNavigation from "../../../components/dashboard/superAdminNavigation";
 
-const apiBase = () => String(process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+// Use the Next.js same-origin API proxy so browser requests always reach the
+// backend configured by the deployed frontend. The proxy forwards the user's
+// bearer token and prevents NEXT_PUBLIC_API_URL drift from breaking geography.
+const apiBase = () => "";
 const getToken = () => typeof window === "undefined" ? "" : localStorage.getItem("polisync_token") || sessionStorage.getItem("polisync_token") || localStorage.getItem("token") || sessionStorage.getItem("token") || localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken") || "";
 
 async function request(path) {
