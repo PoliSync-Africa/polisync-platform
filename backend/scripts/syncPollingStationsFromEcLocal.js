@@ -33,7 +33,8 @@ function readRows() {
   const headers = parseCSVLine(lines[0]).map(normalize);
   const required = ["polling_station_code", "polling_station_name", "constituency", "district", "region"];
   for (const h of required) if (!headers.includes(h)) throw new Error(`Missing EC CSV column: ${h}`);
-  return lines.slice(1).map(parseCSVLine).map(values => Object.fromEntries(headers.map((h, i) => [h, normalize(values[i])])));
+  return lines.slice(1).map(parseCSVLine).map(values => Object.fromEntries(headers.map((h, i) => [h, normalize(values[i])])))
+    .filter(row => row.polling_station_code);
 }
 
 async function syncPollingStationsFromEcPdf() {
@@ -47,22 +48,64 @@ async function syncPollingStationsFromEcPdf() {
     if (regions.length !== 16) throw new Error(`Expected 16 active regions; found ${regions.length}.`);
     if (constituencies.length < 276) throw new Error(`Expected at least 276 active constituencies; found ${constituencies.length}.`);
 
-    const regionMap = new Map(regions.map(r => [key(r.name), r]));
-    const constituencyMap = new Map();
+    // Build candidate lists by name instead of relying on a single region
+    // document. This is important when a database contains duplicate legacy
+    // Region records: the UI may use one region _id while the importer had
+    // previously linked stations to another _id for the same named region.
+    const regionNameById = new Map(regions.map(r => [String(r._id), key(r.name)]));
+    const regionCandidates = new Map();
+    for (const region of regions) {
+      const k = key(region.name);
+      const list = regionCandidates.get(k) || [];
+      list.push(region);
+      regionCandidates.set(k, list);
+    }
+
+    const constituencyCandidates = new Map();
     for (const c of constituencies) {
-      constituencyMap.set(`${String(c.regionId)}::${key(c.name)}`, c);
+      const k = key(c.name);
+      const list = constituencyCandidates.get(k) || [];
+      list.push(c);
+      constituencyCandidates.set(k, list);
     }
 
     const operations = [];
     const seen = new Set();
     let skipped = 0;
+    let ambiguous = 0;
+
     for (const row of rows) {
       const code = normalize(row.polling_station_code).toUpperCase();
       if (!code || seen.has(code)) { if (!code) skipped++; continue; }
       seen.add(code);
-      const region = regionMap.get(key(row.region));
-      const constituency = region && constituencyMap.get(`${String(region._id)}::${key(row.constituency)}`);
-      if (!region || !constituency || !row.polling_station_name || !row.district) { skipped++; continue; }
+
+      const regionKey = key(row.region);
+      const regionOptions = regionCandidates.get(regionKey) || [];
+      const constituencyOptions = constituencyCandidates.get(key(row.constituency)) || [];
+
+      // Prefer a constituency whose referenced region has the same EC region
+      // name. If there are duplicate legacy records, prefer the candidate whose
+      // region _id is also one of the active region records for this EC region.
+      let constituency = constituencyOptions.find(c => {
+        const candidateRegionKey = regionNameById.get(String(c.regionId));
+        return candidateRegionKey === regionKey;
+      });
+
+      // If no matching region relationship exists, use the unique constituency
+      // name as a safe fallback. Ghana's parliamentary constituency names are
+      // unique within the official geography dataset.
+      if (!constituency && constituencyOptions.length === 1) {
+        constituency = constituencyOptions[0];
+      }
+
+      let region = regionOptions.find(r => String(r._id) === String(constituency?.regionId)) || regionOptions[0];
+
+      if (!region || !constituency || !row.polling_station_name || !row.district) {
+        skipped++;
+        continue;
+      }
+      if (constituencyOptions.length > 1) ambiguous++;
+
       operations.push({ updateOne: { filter: { pollingStationCode: code }, update: { $set: {
         pollingStationCode: code,
         name: row.polling_station_name,
@@ -75,12 +118,13 @@ async function syncPollingStationsFromEcPdf() {
         isActive: true,
       } }, upsert: true } });
     }
+
     if (operations.length < 1000) throw new Error(`Only ${operations.length} valid EC polling stations could be linked; refusing incomplete sync.`);
 
     const bulk = await PollingStation.bulkWrite(operations, { ordered: false });
     const activeCount = await PollingStation.countDocuments({ isActive: true });
-    console.log(`✅ EC CSV sync complete: ${activeCount.toLocaleString()} active polling stations; ${operations.length.toLocaleString()} linked; ${skipped.toLocaleString()} skipped.`);
-    return { count: activeCount, matchedRows: operations.length, skipped, modified: bulk.modifiedCount || 0, upserted: bulk.upsertedCount || 0 };
+    console.log(`EC CSV sync complete: ${activeCount.toLocaleString()} active polling stations; ${operations.length.toLocaleString()} linked; ${skipped.toLocaleString()} skipped; ${ambiguous.toLocaleString()} duplicate-name candidates resolved.`);
+    return { count: activeCount, matchedRows: operations.length, skipped, ambiguous, modified: bulk.modifiedCount || 0, upserted: bulk.upsertedCount || 0 };
   })().finally(() => { syncPromise = null; });
   return syncPromise;
 }
