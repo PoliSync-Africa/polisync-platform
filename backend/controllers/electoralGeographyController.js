@@ -22,6 +22,21 @@ async function findPollingStations(filter) {
     .lean();
 }
 
+async function findStationsForConstituencyWithLegacyAliases(constituencyId) {
+  const selected = await Constituency.findOne({ _id: constituencyId, isActive: true }).lean();
+  if (!selected) return [];
+
+  // Legacy imports can leave more than one active Constituency document with
+  // the same official name. Treat those records as aliases of the same EC
+  // constituency so an older linked station is still visible from the UI.
+  const aliases = await Constituency.find({
+    isActive: true,
+    name: selected.name,
+  }).select("_id").lean();
+  const ids = aliases.map(c => c._id);
+  return findPollingStations({ isActive: true, constituencyId: { $in: ids } });
+}
+
 exports.pollingStations = async (req, res) => {
   const filter = { isActive: true };
 
@@ -32,19 +47,18 @@ exports.pollingStations = async (req, res) => {
 
   let data = await findPollingStations(filter);
 
-  // IMPORTANT: Do not only bootstrap when the entire collection is empty.
-  // A partially populated/incorrectly linked database can contain stations
-  // for other constituencies while returning zero for the constituency the
-  // user selected. In that case the old code skipped the EC synchronization
-  // and the UI incorrectly showed an empty directory.
-  //
-  // If a requested constituency has no stations, synchronize the official EC
-  // register and retry the exact same filter. The sync is protected by its
-  // internal promise so concurrent requests share one synchronization job.
+  // If a selected constituency is empty, first repair/synchronize the EC
+  // register, then retry the exact filter.
   if (data.length === 0 && (constituencyId || req.query.regionId)) {
     try {
       await syncPollingStationsFromEcPdf();
       data = await findPollingStations(filter);
+
+      // Final compatibility fallback for databases that contain duplicate
+      // legacy Constituency records with the same official name.
+      if (data.length === 0 && constituencyId && !req.query.regionId) {
+        data = await findStationsForConstituencyWithLegacyAliases(constituencyId);
+      }
     } catch (error) {
       console.error("Polling station EC sync failed:", error);
       return res.status(503).json({
