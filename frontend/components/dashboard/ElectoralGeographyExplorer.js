@@ -21,6 +21,7 @@ export default function ElectoralGeographyExplorer({ mode = "regions" }) {
   const [stations, setStations] = useState([]);
   const [selectedRegion, setSelectedRegion] = useState("");
   const [selectedConstituency, setSelectedConstituency] = useState("");
+  const [selectedStation, setSelectedStation] = useState("");
   const [loading, setLoading] = useState(true);
   const [stationsLoading, setStationsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,7 +38,11 @@ export default function ElectoralGeographyExplorer({ mode = "regions" }) {
 
   useEffect(() => {
     let cancelled = false;
-    setConstituencies([]); setSelectedConstituency(""); setStations([]); setError("");
+    setConstituencies([]);
+    setSelectedConstituency("");
+    setStations([]);
+    setSelectedStation("");
+    setError("");
     if (!selectedRegion) return;
     request(`/api/electoral-geography/regions/${encodeURIComponent(selectedRegion)}/constituencies`)
       .then((data) => { if (!cancelled) setConstituencies(data); })
@@ -47,7 +52,9 @@ export default function ElectoralGeographyExplorer({ mode = "regions" }) {
 
   useEffect(() => {
     let cancelled = false;
-    setStations([]); setError("");
+    setStations([]);
+    setSelectedStation("");
+    setError("");
     if (!selectedConstituency) return;
     setStationsLoading(true);
     request(`/api/electoral-geography/constituencies/${encodeURIComponent(selectedConstituency)}/polling-stations`)
@@ -57,12 +64,38 @@ export default function ElectoralGeographyExplorer({ mode = "regions" }) {
     return () => { cancelled = true; };
   }, [selectedConstituency]);
 
+  const selectedStationData = stations.find((station) => String(station._id) === String(selectedStation));
+
   return <DashboardShell role="party" navigation={[{section:"PARTY GEOGRAPHY",items:[{label:"Regions",href:"/party/regions",key:"regions",icon:"◎"},{label:"Constituencies",href:"/party/constituencies",key:"constituencies",icon:"▦"},{label:"Polling Stations",href:"/party/polling-stations",key:"stations",icon:"▣"},{label:"AI Analyzer",href:"#ai-analyzer",key:"ai",icon:"✦"}]}]} activeSection={mode}>
     <main style={{padding:20,background:"#f4f7f5",minHeight:"100vh"}}>
       <section style={hero}><span>CONNECTED ELECTORAL GEOGRAPHY</span><h1>Regions → Constituencies → Polling Stations</h1><p>Live electoral geography is loaded through the PoliSync application API.</p></section>
       {error && <div style={errorBox}>{error}</div>}
       <section style={grid}><Metric title="Regions" value={loading?"—":regions.length}/><Metric title="Loaded Constituencies" value={constituencies.length}/><Metric title="Loaded Polling Stations" value={stations.length}/></section>
-      <section style={panel}><h2>Region</h2><select style={select} value={selectedRegion} onChange={e=>setSelectedRegion(e.target.value)} disabled={loading}><option value="">Select region</option>{regions.map(r=><option key={r._id} value={r._id}>{r.name}</option>)}</select><h2 style={{marginTop:20}}>Constituency</h2><select style={select} value={selectedConstituency} onChange={e=>setSelectedConstituency(e.target.value)} disabled={!selectedRegion||constituencies.length===0}><option value="">Select constituency</option>{constituencies.map(c=><option key={c._id} value={c._id}>{c.name}</option>)}</select></section>
+      <section style={panel}>
+        <h2>Region</h2>
+        <select style={select} value={selectedRegion} onChange={e=>setSelectedRegion(e.target.value)} disabled={loading}>
+          <option value="">Select region</option>
+          {regions.map(r=><option key={r._id} value={r._id}>{r.name}</option>)}
+        </select>
+
+        <h2 style={{marginTop:20}}>Constituency</h2>
+        <select style={select} value={selectedConstituency} onChange={e=>setSelectedConstituency(e.target.value)} disabled={!selectedRegion||constituencies.length===0}>
+          <option value="">Select constituency</option>
+          {constituencies.map(c=><option key={c._id} value={c._id}>{c.name}</option>)}
+        </select>
+
+        <h2 style={{marginTop:20}}>Polling Station</h2>
+        <select style={select} value={selectedStation} onChange={e=>setSelectedStation(e.target.value)} disabled={!selectedConstituency||stationsLoading||stations.length===0}>
+          <option value="">{stationsLoading ? "Loading polling stations…" : stations.length === 0 ? "Select a constituency first" : "Select polling station"}</option>
+          {stations.map(s=><option key={s._id||s.pollingStationCode} value={s._id}>{s.name}{s.pollingStationCode ? ` — ${s.pollingStationCode}` : ""}</option>)}
+        </select>
+
+        {selectedStationData && <div style={selectedStationCard}>
+          <strong>{selectedStationData.name}</strong>
+          <span>{selectedStationData.pollingStationCode || "No polling station code"}</span>
+          <small>{selectedStationData.stationType || "Polling station"} • {selectedStationData.sourceYear || "EC dataset"}</small>
+        </div>}
+      </section>
       <section style={panel}><h2>Polling stations {selectedConstituency?`(${stations.length})`:""}</h2>{!selectedConstituency?<p style={{color:"#7b877f"}}>Select a constituency to load its polling stations.</p>:stationsLoading?<p style={{color:"#7b877f"}}>Loading polling stations…</p>:stations.length===0?<p style={{color:"#a00000"}}>No polling stations were returned for this constituency.</p>:<div style={stationGrid}>{stations.map(s=><article key={s._id||s.pollingStationCode} style={station}><strong>{s.name}</strong><span>{s.pollingStationCode||"No code"}</span><small>{s.stationType||"Polling station"} • {s.sourceYear||"EC dataset"}</small></article>)}</div>}</section>
       <section id="ai-analyzer" style={{...panel,border:"1px solid #c9a227"}}><AIAnalyzer role="party"/></section>
     </main>
@@ -72,6 +105,7 @@ const hero={padding:28,borderRadius:22,background:"linear-gradient(135deg,#04351
 const grid={display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,margin:"12px 0"};
 const panel={padding:18,borderRadius:16,background:"#fff",border:"1px solid #dce6df",marginBottom:12};
 const select={width:"100%",padding:13,border:"1px solid #d6e1d9",borderRadius:10,background:"#fbfdfb"};
+const selectedStationCard={marginTop:12,padding:14,borderRadius:12,border:"1px solid #c9a227",background:"#f7fbf8",display:"grid",gap:4};
 const errorBox={marginBottom:12,padding:13,border:"1px solid #efcccc",borderRadius:12,background:"#fff5f5",color:"#a00000",fontSize:12};
 const stationGrid={display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:9};
 const station={padding:12,borderRadius:12,border:"1px solid #e0e7e2",background:"#fbfdfb",display:"grid",gap:4};
