@@ -6,18 +6,39 @@ const PASSWORD_MIN_LENGTH = 8;
 const ALLOWED_IDENTIFICATION_TYPES = ["passport", "ghana_card", "voter_id"];
 const PERSONAL_PURPOSES = ["personal_use", "researcher", "journalist"];
 
+// Personal workspaces are intentionally broad civic workspaces. These permissions
+// operate on the user's own campaign/field/research workspace and never grant access
+// to private organization records.
+const UNIVERSAL_PERSONAL_PERMISSIONS = [
+  "view_public_data",
+  "explore_electoral_geography",
+  "view_results",
+  "view_candidates",
+  "save_items",
+  "use_ai_analyzer",
+  "use_research_tools",
+  "create_research_projects",
+  "export_public_data",
+  "manage_personal_campaigns",
+  "manage_personal_field_operations",
+  "manage_personal_tasks",
+  "read_ghana_politics_news",
+  "read_ghana_governance_news",
+  "read_ghana_economy_news",
+];
+
 const ROLE_ACCESS = {
   personal_use: {
     accessProfile: "public_read",
-    permissions: ["view_public_data", "explore_electoral_geography", "view_results", "view_candidates", "save_items", "use_ai_analyzer"],
+    permissions: UNIVERSAL_PERSONAL_PERMISSIONS,
   },
   researcher: {
     accessProfile: "research_read",
-    permissions: ["view_public_data", "explore_electoral_geography", "view_results", "view_candidates", "compare_regions", "save_research", "export_public_data", "use_ai_analyzer"],
+    permissions: [...UNIVERSAL_PERSONAL_PERMISSIONS, "compare_regions", "save_research", "source_verification"],
   },
   journalist: {
     accessProfile: "journalist_read",
-    permissions: ["view_public_data", "explore_electoral_geography", "view_results", "view_candidates", "source_verification", "fact_check", "press_calendar", "use_ai_analyzer"],
+    permissions: [...UNIVERSAL_PERSONAL_PERMISSIONS, "source_verification", "fact_check", "press_calendar", "newsroom", "editorial_calendar"],
   },
 };
 
@@ -46,29 +67,7 @@ const createUsername = async (firstName, lastName) => {
 
 const register = async (userData = {}) => {
   try {
-    const {
-      username,
-      firstName,
-      middleName,
-      lastName,
-      dateOfBirth,
-      nationality,
-      identificationType,
-      identificationNumber,
-      email,
-      phone,
-      password,
-      registrationType,
-      personalPurpose,
-      purpose,
-      scopeLevel,
-      regionIds,
-      constituencyIds,
-      pollingStationIds,
-      researchFields,
-      journalismBeat,
-    } = userData;
-
+    const { username, firstName, middleName, lastName, dateOfBirth, nationality, identificationType, identificationNumber, email, phone, password, registrationType, personalPurpose, purpose, scopeLevel, regionIds, constituencyIds, pollingStationIds, researchFields, journalismBeat } = userData;
     const normalizedFirstName = normalizeText(firstName);
     const normalizedMiddleName = normalizeText(middleName);
     const normalizedLastName = normalizeText(lastName);
@@ -80,23 +79,13 @@ const register = async (userData = {}) => {
     if (!normalizedFirstName || !normalizedLastName || !normalizedDateOfBirth || !identificationType || !normalizedIdentification || !normalizedEmail || !normalizedPhone || !password) {
       return { success: false, message: "First name, last name, date of birth, identification details, email, phone and password are required." };
     }
-    if (normalizedFirstName.length > 80 || normalizedLastName.length > 80 || normalizedMiddleName.length > 80) {
-      return { success: false, message: "Name fields are too long." };
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      return { success: false, message: "Please provide a valid email address." };
-    }
-    if (!ALLOWED_IDENTIFICATION_TYPES.includes(identificationType)) {
-      return { success: false, message: "Invalid identification type." };
-    }
-    if (String(password).length < PASSWORD_MIN_LENGTH) {
-      return { success: false, message: "Password must contain at least 8 characters." };
-    }
+    if (normalizedFirstName.length > 80 || normalizedLastName.length > 80 || normalizedMiddleName.length > 80) return { success: false, message: "Name fields are too long." };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return { success: false, message: "Please provide a valid email address." };
+    if (!ALLOWED_IDENTIFICATION_TYPES.includes(identificationType)) return { success: false, message: "Invalid identification type." };
+    if (String(password).length < PASSWORD_MIN_LENGTH) return { success: false, message: "Password must contain at least 8 characters." };
 
     const selectedPurpose = personalPurpose || purpose || (registrationType === "personal" ? "personal_use" : null);
-    if (!selectedPurpose || !PERSONAL_PURPOSES.includes(selectedPurpose)) {
-      return { success: false, message: "Please select Personal Use, Researcher or Journalist." };
-    }
+    if (!selectedPurpose || !PERSONAL_PURPOSES.includes(selectedPurpose)) return { success: false, message: "Please select Personal Use, Researcher or Journalist." };
 
     const [existingEmail, existingPhone, existingIdentification] = await Promise.all([
       User.findOne({ email: normalizedEmail }),
@@ -110,13 +99,9 @@ const register = async (userData = {}) => {
     let finalUsername;
     if (username) {
       finalUsername = String(username).trim().toLowerCase();
-      if (!/^[a-z0-9._-]+$/.test(finalUsername) || finalUsername.length < 3 || finalUsername.length > 30) {
-        return { success: false, message: "Username must contain 3-30 lowercase letters, numbers, dots, underscores or hyphens." };
-      }
+      if (!/^[a-z0-9._-]+$/.test(finalUsername) || finalUsername.length < 3 || finalUsername.length > 30) return { success: false, message: "Username must contain 3-30 lowercase letters, numbers, dots, underscores or hyphens." };
       if (await User.findOne({ username: finalUsername })) return { success: false, message: "Username is already taken." };
-    } else {
-      finalUsername = await createUsername(normalizedFirstName, normalizedLastName);
-    }
+    } else finalUsername = await createUsername(normalizedFirstName, normalizedLastName);
 
     const hashedPassword = await bcrypt.hash(String(password), 12);
     const user = await User.create({
@@ -138,8 +123,6 @@ const register = async (userData = {}) => {
       twoFactorMethod: null,
       passcodeEnabled: false,
       biometricEnabled: false,
-      // Personal accounts are self-created and automatically approved.
-      // Email/phone verification remains a security requirement before login.
       accountStatus: "approved",
     });
 
@@ -159,36 +142,12 @@ const register = async (userData = {}) => {
       onboardingComplete: true,
     });
 
-    return {
-      success: true,
-      message: "Registration successful. Verify your phone and email to activate sign-in.",
-      user: {
-        id: user._id,
-        username: user.username,
-        firstName: user.firstName,
-        middleName: user.middleName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        platformRole: user.platformRole,
-        accountStatus: user.accountStatus,
-        emailVerified: user.emailVerified,
-        phoneVerified: user.phoneVerified,
-        personalPurpose: selectedPurpose,
-        accessProfile: access.accessProfile,
-      },
-    };
+    return { success: true, message: "Registration successful. Verify your phone to activate sign-in.", user: { id: user._id, username: user.username, firstName: user.firstName, middleName: user.middleName, lastName: user.lastName, email: user.email, phone: user.phone, platformRole: user.platformRole, accountStatus: user.accountStatus, emailVerified: user.emailVerified, phoneVerified: user.phoneVerified, personalPurpose: selectedPurpose, accessProfile: access.accessProfile } };
   } catch (error) {
     console.error("Registration service error:", error);
     if (error?.code === 11000) {
       const duplicateField = Object.keys(error.keyPattern || {})[0];
-      const messages = {
-        email: "An account with this email already exists.",
-        phone: "An account with this phone number already exists.",
-        username: "Username is already taken.",
-        identificationNumber: "An account with this identification number already exists.",
-        userId: "A personal workspace profile already exists for this account.",
-      };
+      const messages = { email: "An account with this email already exists.", phone: "An account with this phone number already exists.", username: "Username is already taken.", identificationNumber: "An account with this identification number already exists.", userId: "A personal workspace profile already exists for this account." };
       return { success: false, message: messages[duplicateField] || "An account with these details already exists." };
     }
     return { success: false, message: error.message || "Registration failed." };
