@@ -17,6 +17,17 @@ const superAdminNavigation = [
     ],
   },
   {
+    section: "FIELD OPERATIONS",
+    items: [
+      { label: "Field Operations", href: "/super-admin/field-operations", icon: "⚑", key: "field-operations" },
+      { label: "Volunteers", href: "/super-admin/field-operations?tab=volunteers", icon: "♙", key: "field-volunteers" },
+      { label: "Polling Agent Deployment", href: "/super-admin/field-operations?tab=agents", icon: "◉", key: "field-agents" },
+      { label: "Attendance & Check-ins", href: "/super-admin/field-operations?tab=attendance", icon: "✓", key: "field-attendance" },
+      { label: "Incidents", href: "/super-admin/field-operations?tab=incidents", icon: "⚠", key: "field-incidents" },
+      { label: "Logistics", href: "/super-admin/field-operations?tab=logistics", icon: "▣", key: "field-logistics" },
+    ],
+  },
+  {
     section: "ELECTION INTELLIGENCE",
     items: [
       { label: "Live Results", href: "/super-admin/results/live", icon: "◉", key: "live-results" },
