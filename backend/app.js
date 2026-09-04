@@ -15,7 +15,6 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Setup-Secret"],
   credentials: false,
 }));
-
 app.use(express.json({ limit: "400kb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -30,6 +29,7 @@ const secureNotificationRoutes = require("./routes/secureNotifications");
 const organizationRoutes = require("./routes/organization");
 const partyOrganizationRoutes = require("./routes/partyOrganization");
 const personalWorkspaceRoutes = require("./routes/personalWorkspace");
+const personalOperationsRoutes = require("./routes/personalOperations");
 const electoralGeographyRoutes = require("./routes/electoralGeography");
 const electionRoutes = require("./routes/elections");
 const pollingStationRoutes = require("./routes/pollingStationRoutes");
@@ -49,11 +49,6 @@ app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backe
 app.use("/health", healthRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", passwordResetRoutes);
-
-// Registration compatibility layer: email is contact information only.
-// All newly created accounts are immediately treated as email-verified
-// because email verification has been retired. Arkesel SMS OTP remains
-// the required account verification/security channel.
 app.use("/api/auth", (req, res, next) => {
   if (req.method !== "POST" || req.path !== "/register") return next();
   const originalJson = res.json.bind(res);
@@ -62,9 +57,7 @@ app.use("/api/auth", (req, res, next) => {
       const userId = body?.user?.id;
       if (body?.success && userId) {
         const approvedAt = new Date();
-        await User.findByIdAndUpdate(userId, {
-          $set: { accountStatus: "approved", approvedAt, emailVerified: true },
-        });
+        await User.findByIdAndUpdate(userId, { $set: { accountStatus: "approved", approvedAt, emailVerified: true } });
         body.user.accountStatus = "approved";
         body.user.emailVerified = true;
         body.message = "Account created successfully. Use the Arkesel SMS verification code for account security. Your email does not require verification.";
@@ -78,16 +71,18 @@ app.use("/api/auth", (req, res, next) => {
   };
   next();
 }, authRoutes);
-
 app.use("/api/phone-otp", phoneOtpRoutes);
-app.use("/api/profile", secureProfileRoutes);
+
+// /me must be handled before the secure /:userId profile route.
 app.use("/api/profile", profileRoutes);
+app.use("/api/profile", secureProfileRoutes);
 app.use("/api/privacy", privacyRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", secureNotificationRoutes);
 app.use("/api/organizations", organizationRoutes);
 app.use("/api/party-organizations", partyOrganizationRoutes);
 app.use("/api/personal-workspace", personalWorkspaceRoutes);
+app.use("/api/personal-operations", personalOperationsRoutes);
 app.use("/api/electoral-geography", electoralGeographyRoutes);
 app.use("/api/elections", electionRoutes);
 app.use("/api/polling-stations", pollingStationRoutes);
@@ -104,5 +99,4 @@ app.use("/api/announcements", announcementRoutes);
 
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found." }));
 app.use((err, req, res, next) => { console.error("PoliSync API error:", err); res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" }); });
-
 module.exports = app;
