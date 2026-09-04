@@ -1,0 +1,5 @@
+"use client";
+import DashboardShell from "../../components/dashboard/DashboardShell";
+import NotificationsPanel from "../../components/dashboard/NotificationsPanel";
+const nav=[{section:"WORKSPACE",items:[{label:"Notifications",href:"/notifications",key:"notifications"},{label:"Messages",href:"/messages",key:"messages"},{label:"Dashboard",href:"/dashboard",key:"overview"}]}];
+export default function Notifications(){return <DashboardShell role="user" navigation={nav} activeSection="notifications"><main style={{padding:"clamp(14px,2.5vw,32px)",background:"#f4f7f5",minHeight:"100%"}}><section style={{padding:28,borderRadius:22,background:"linear-gradient(135deg,#04351a,#075f2b)",border:"1px solid #c9a227",color:"#fff"}}><span style={{color:"#c9a227",fontSize:10,fontWeight:900,letterSpacing:1.5}}>WORKSPACE NOTIFICATIONS</span><h1 style={{margin:"8px 0",fontSize:32}}>Notifications</h1><p style={{color:"#dce9e1",fontSize:12}}>Account, workspace, research, campaign and field-work updates.</p></section><section style={{marginTop:12,padding:18,border:"1px solid #dce6df",borderRadius:17,background:"#fff"}}><NotificationsPanel/></section></main></DashboardShell>}
