@@ -89,16 +89,38 @@ export default function LoginPage() {
           <div style={{ marginBottom: "12px" }}><label htmlFor="password" style={{ display: "block", fontWeight: "650", color: "#222", marginBottom: "8px", fontSize: "15px" }}>Password</label><div style={{ position: "relative", width: "100%" }}><input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" disabled={loading} style={{ width: "100%", boxSizing: "border-box", padding: "15px 70px 15px 18px", borderRadius: "999px", border: "3px solid #B89A4A", background: loading ? "#F5F5F5" : "#FFFFFF", fontSize: "16px", outline: "none" }} /><button type="button" onClick={() => setShowPassword(!showPassword)} disabled={loading} aria-label={showPassword ? "Hide password" : "Show password"} style={{ position: "absolute", right: "16px", top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "#065F2B", cursor: loading ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "14px", padding: "4px" }}>{showPassword ? "Hide" : "Show"}</button></div></div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", margin: "14px 0 24px", fontSize: "14px" }}><label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: "#333" }}><input type="checkbox" checked={remember} onChange={() => setRemember(!remember)} disabled={loading} style={{ width: "17px", height: "17px", cursor: "pointer" }} /><span>Remember Me</span></label><Link href="/forgot-password" style={{ color: "#065F2B", textDecoration: "none", fontWeight: "700", whiteSpace: "nowrap" }}>Forgot Password?</Link></div>
           {error && <div role="alert" style={{ marginBottom: "16px", padding: "12px 14px", borderRadius: "12px", background: "#FFF3F3", border: "1px solid #F0CACA", color: "#A00000", fontSize: "14px", lineHeight: "1.4" }}>{error}</div>}
-          <button type="submit" disabled={loading} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: loading ? "#7BAE8D" : "linear-gradient(90deg,#0A8F3C,#065F2B)", color: "#FFFFFF", fontSize: "17px", fontWeight: "800", cursor: loading ? "not-allowed" : "pointer", boxShadow: "0 12px 30px rgba(6,95,43,.25)", transition: "all .2s ease" }}>{loading ? "Signing In..." : "Login"}</button>
+          <button className="auth-action" type="submit" disabled={loading} aria-busy={loading} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: loading ? "#7BAE8D" : "linear-gradient(90deg,#0A8F3C,#065F2B)", color: "#FFFFFF", fontSize: "17px", fontWeight: "800", cursor: loading ? "not-allowed" : "pointer", boxShadow: "0 12px 30px rgba(6,95,43,.25)", transition: "transform .16s ease, box-shadow .25s ease, filter .25s ease" }}>
+            {loading ? <span className="button-content"><span className="spinner" aria-hidden="true" /> Signing In...</span> : <span className="button-content"><span>Sign In</span><span className="arrow" aria-hidden="true">→</span></span>}
+          </button>
         </form>
 
-        <div style={{ textAlign: "center", marginTop: "27px", color: "#555", fontSize: "15px", lineHeight: "1.6" }}><div>Don't have an account?</div><Link href="/register" style={{ display: "inline-block", marginTop: "3px", color: "#C9A227", textDecoration: "none", fontWeight: "800", fontSize: "16px" }}>Create Account</Link></div>
+        <div style={{ textAlign: "center", marginTop: "27px", color: "#555", fontSize: "15px", lineHeight: "1.6" }}><div>Don't have an account?</div><Link className="auth-link" href="/register" style={{ display: "inline-block", marginTop: "3px", color: "#C9A227", textDecoration: "none", fontWeight: "800", fontSize: "16px" }}>Create Account</Link></div>
 
         <footer style={{ textAlign: "center", marginTop: "30px", paddingTop: "18px", borderTop: "1px solid #E8E8E8", color: "#777", fontSize: "12px", lineHeight: "1.7" }}>
           <div style={{ fontWeight: "700", color: "#065F2B", fontSize: "12px" }}>PoliSync Africa™ is powered by SyncTech Co. Ltd.</div>
           <div>© 2026 SyncTech Co. Ltd. All rights reserved.</div>
         </footer>
       </div>
+      <style jsx>{`
+        .auth-action { position: relative; overflow: hidden; }
+        .auth-action::after { content: ""; position: absolute; inset: 0; transform: translateX(-110%); background: linear-gradient(105deg, transparent 25%, rgba(255,255,255,.24) 50%, transparent 75%); pointer-events: none; }
+        .auth-action:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(6,95,43,.34) !important; filter: brightness(1.04); }
+        .auth-action:not(:disabled):hover::after { animation: buttonShine .7s ease; }
+        .auth-action:not(:disabled):active { transform: scale(.975); box-shadow: 0 7px 18px rgba(6,95,43,.22) !important; }
+        .button-content { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+        .arrow { display: inline-block; transition: transform .2s ease; }
+        .auth-action:not(:disabled):hover .arrow { transform: translateX(4px); }
+        .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.42); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+        .auth-link { transition: transform .18s ease, opacity .18s ease; }
+        .auth-link:hover { transform: translateY(-1px); opacity: .84; }
+        .auth-link:active { transform: scale(.96); }
+        @keyframes buttonShine { from { transform: translateX(-110%); } to { transform: translateX(110%); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) {
+          .auth-action, .auth-link, .arrow { transition: none; }
+          .auth-action::after, .spinner { animation: none; }
+        }
+      `}</style>
     </main>
   );
 }
