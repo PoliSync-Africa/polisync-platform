@@ -11,55 +11,35 @@ import AlertPanel from "../components/AlertPanel";
 
 export default function CommandCenter() {
   return (
-    <div style={{ display: "flex", background: "#EEF2F7" }}>
+    <div className="command-center-shell">
       <Sidebar />
 
-      <div style={{ flex: 1 }}>
+      <div className="command-center-main">
         <Topbar />
 
-        <div style={{ padding: 30 }}>
-          <h1 style={{ color: "#0B3D2E" }}>
-            Election Night Command Center
-          </h1>
+        <main className="command-center-content">
+          <section className="command-center-hero">
+            <h1>Election Night Command Center</h1>
+            <p>Manage elections across Africa from one secure operations center.</p>
+          </section>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-              gap: 20,
-              marginTop: 30
-            }}
-          >
+          <section className="command-center-stats" aria-label="Election overview">
             <StatCard title="Reporting" value="92%" />
             <StatCard title="Polling Stations" value="24,731" />
             <StatCard title="Countries" value="5" />
             <StatCard title="Live Alerts" value="3" />
-          </div>
+          </section>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr",
-              gap: 24,
-              marginTop: 30
-            }}
-          >
+          <section className="command-center-map-grid">
             <AfricaMap />
             <GhanaMap />
-          </div>
+          </section>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1.5fr 1fr",
-              gap: 24,
-              marginTop: 30
-            }}
-          >
+          <section className="command-center-feed-grid">
             <LiveFeed />
             <AlertPanel />
-          </div>
-        </div>
+          </section>
+        </main>
 
         <SupportBubble />
       </div>
