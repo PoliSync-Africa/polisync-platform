@@ -331,3 +331,357 @@ a {
     transition: none !important;
   }
 }
+
+/* Responsive command-center shell */
+.command-center-shell {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: #eef2f7;
+}
+
+.command-center-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 0;
+  max-width: 100%;
+}
+
+.command-center-content {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 30px;
+  overflow-x: hidden;
+}
+
+.command-center-hero {
+  min-width: 0;
+}
+
+.command-center-hero h1 {
+  margin: 0;
+  max-width: 900px;
+  color: #0b3d2e;
+  font-size: clamp(32px, 4vw, 58px);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.command-center-hero p {
+  margin: 14px 0 0;
+  max-width: 760px;
+  color: #24463b;
+  font-size: clamp(16px, 1.8vw, 22px);
+  line-height: 1.45;
+}
+
+.command-center-stats,
+.command-center-map-grid,
+.command-center-feed-grid {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  margin-top: 30px;
+  gap: 20px;
+}
+
+.command-center-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.command-center-map-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 24px;
+}
+
+.command-center-feed-grid {
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+  gap: 24px;
+}
+
+.command-center-stats > *,
+.command-center-map-grid > *,
+.command-center-feed-grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.command-center-map-grid svg {
+  width: 100% !important;
+  max-width: 100%;
+  height: auto !important;
+  max-height: 400px;
+}
+
+.command-center-map-grid button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.polisync-sidebar {
+  flex: 0 0 240px;
+  width: 240px;
+  min-height: 100vh;
+  padding: 28px 22px;
+  background: #082c24;
+  color: #fff;
+  z-index: 1100;
+}
+
+.polisync-sidebar-brand {
+  color: #d4af37;
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-align: center;
+}
+
+.polisync-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 52px;
+}
+
+.polisync-sidebar-item {
+  width: 100%;
+  padding: 13px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.polisync-sidebar-item:hover,
+.polisync-sidebar-item:focus-visible {
+  background: rgba(255,255,255,.08);
+}
+
+.mobile-sidebar-toggle,
+.mobile-sidebar-overlay {
+  display: none;
+}
+
+.polisync-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  min-height: 82px;
+  padding: 18px 30px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.polisync-topbar-title,
+.polisync-topbar-title h2 {
+  min-width: 0;
+}
+
+.polisync-topbar-title h2 {
+  margin: 0;
+  color: #163126;
+  font-size: clamp(20px, 2.2vw, 30px);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.polisync-topbar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.polisync-notification,
+.polisync-profile {
+  border: 0;
+  cursor: pointer;
+}
+
+.polisync-notification {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  font-size: 22px;
+}
+
+.polisync-profile {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  background: #0b3d2e;
+  color: #fff;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .command-center-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .command-center-map-grid,
+  .command-center-feed-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .command-center-content {
+    padding: 22px 16px 90px;
+  }
+
+  .command-center-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 22px;
+  }
+
+  .command-center-map-grid,
+  .command-center-feed-grid {
+    margin-top: 22px;
+    gap: 16px;
+  }
+
+  .command-center-stats > * {
+    padding: 18px !important;
+    border-radius: 15px !important;
+  }
+
+  .command-center-stats h2 {
+    font-size: 25px !important;
+  }
+
+  .polisync-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(290px, 84vw);
+    min-height: 100dvh;
+    padding: 28px 20px;
+    box-shadow: 18px 0 45px rgba(0,0,0,.22);
+    transform: translateX(-105%);
+    transition: transform 220ms ease;
+  }
+
+  .polisync-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .mobile-sidebar-toggle {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+    border: 1px solid rgba(8,44,36,.16);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(4,43,22,.12);
+    cursor: pointer;
+    z-index: 1200;
+  }
+
+  .mobile-sidebar-toggle span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    border-radius: 2px;
+    background: #082c24;
+  }
+
+  .mobile-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(3,43,22,.42);
+    cursor: pointer;
+    z-index: 1090;
+  }
+
+  .polisync-topbar {
+    min-height: 72px;
+    padding: 14px 14px 14px 70px;
+  }
+
+  .polisync-topbar-title h2 {
+    font-size: 21px;
+  }
+
+  .polisync-topbar-actions {
+    gap: 6px;
+  }
+
+  .polisync-notification,
+  .polisync-profile {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@media (max-width: 430px) {
+  .command-center-content {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .command-center-hero h1 {
+    font-size: clamp(30px, 9vw, 40px);
+  }
+
+  .command-center-hero p {
+    font-size: 15px;
+  }
+
+  .command-center-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .command-center-map-grid > *,
+  .command-center-feed-grid > * {
+    border-radius: 18px !important;
+    padding: 18px !important;
+  }
+
+  .command-center-map-grid svg {
+    max-height: 300px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-content-wrapper a,
+  .dashboard-content-wrapper button,
+  .dashboard-content-wrapper input,
+  .dashboard-content-wrapper select,
+  .dashboard-content-wrapper textarea,
+  .dashboard-content-wrapper [role="button"],
+  .polisync-logo,
+  .polisync-sidebar {
+    transition: none !important;
+  }
+}
