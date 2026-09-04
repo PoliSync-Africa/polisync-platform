@@ -1,5 +1,6 @@
-
 "use client";
+
+import { useState } from "react";
 
 const menu = [
   "Dashboard",
@@ -12,33 +13,47 @@ const menu = [
 ];
 
 export default function Sidebar() {
-  return (
-    <aside
-      style={{
-        width: 240,
-        background: "#082C24",
-        color: "white",
-        padding: 24,
-        minHeight: "100vh"
-      }}
-    >
-      <h2 style={{ color: "#D4AF37" }}>POLISYNC</h2>
+  const [open, setOpen] = useState(false);
 
-      <div style={{ marginTop: 40 }}>
-        {menu.map((item) => (
-          <div
-            key={item}
-            style={{
-              padding: "14px",
-              borderRadius: 10,
-              marginBottom: 8,
-              cursor: "pointer"
-            }}
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-    </aside>
+  return (
+    <>
+      <button
+        type="button"
+        className="mobile-sidebar-toggle"
+        aria-label={open ? "Close navigation" : "Open navigation"}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span />
+        <span />
+        <span />
+      </button>
+
+      {open && (
+        <button
+          type="button"
+          className="mobile-sidebar-overlay"
+          aria-label="Close navigation"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      <aside className={`polisync-sidebar${open ? " is-open" : ""}`}>
+        <div className="polisync-sidebar-brand">POLISYNC</div>
+
+        <nav className="polisync-sidebar-nav" aria-label="Primary navigation">
+          {menu.map((item) => (
+            <button
+              type="button"
+              className="polisync-sidebar-item"
+              key={item}
+              onClick={() => setOpen(false)}
+            >
+              {item}
+            </button>
+          ))}
+        </nav>
+      </aside>
+    </>
   );
 }
