@@ -1,0 +1,67 @@
+/* POLISYNC AFRICA — Stable dashboard header
+ * Keep the primary dashboard header outside the page's scroll flow so the
+ * workspace can scroll independently while identity, navigation and actions
+ * remain anchored to the viewport.
+ */
+
+.polisync-dashboard .dashboard-header {
+  position: fixed !important;
+  top: 0;
+  right: 0;
+  left: 280px;
+  z-index: 1100;
+  width: auto;
+  height: 80px;
+  min-height: 80px;
+  max-height: 80px;
+  overflow: visible;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.polisync-dashboard .dashboard-main {
+  position: relative;
+  min-width: 0;
+}
+
+.polisync-dashboard .dashboard-content-wrapper {
+  min-height: 100vh;
+  padding-top: 80px;
+}
+
+@media (max-width: 760px) {
+  .polisync-dashboard .dashboard-header {
+    left: 0;
+    height: 68px;
+    min-height: 68px;
+    max-height: 68px;
+  }
+
+  .polisync-dashboard .dashboard-content-wrapper {
+    min-height: 100vh;
+    padding-top: 68px;
+  }
+}
+
+/* The navigation drawer remains independently anchored while page content scrolls. */
+.polisync-dashboard .dashboard-sidebar {
+  position: fixed !important;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
+
+/* Prevent nested dashboard wrappers from creating a competing scroll container. */
+.polisync-dashboard,
+.polisync-dashboard .dashboard-main,
+.polisync-dashboard .dashboard-content-wrapper {
+  overflow-x: clip;
+}
+
+@supports not (overflow: clip) {
+  .polisync-dashboard,
+  .polisync-dashboard .dashboard-main,
+  .polisync-dashboard .dashboard-content-wrapper {
+    overflow-x: hidden;
+  }
+}
