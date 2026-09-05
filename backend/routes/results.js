@@ -15,7 +15,12 @@ const requirePollingStationAssignment = async (req, res, next) => {
     if (!pollingStationId) return res.status(400).json({ success: false, message: "Polling station is required." });
     const membership = await OrganizationMembership.findOne({ userId: req.user._id, role: "polling_station_agent", pollingStationId, status: "approved" }).lean();
     if (!membership) return res.status(403).json({ success: false, message: "You are not an approved polling-station agent for this station." });
+
+    // The controller historically expects req.user.role. Set it only after
+    // the exact approved station assignment has been verified; this does not
+    // change the user's persisted platformRole or JWT.
     req.pollingStationMembership = membership;
+    req.user.role = membership.role;
     next();
   } catch (error) {
     console.error("Polling-station result authorization error:", error);
