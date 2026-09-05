@@ -67,8 +67,8 @@ export default function ElectoralGeographyExplorer({ mode = "regions" }) {
   const selectedStationData = stations.find((station) => String(station._id) === String(selectedStation));
 
   return <DashboardShell role="party" navigation={[{section:"PARTY GEOGRAPHY",items:[{label:"Regions",href:"/party/regions",key:"regions",icon:"◎"},{label:"Constituencies",href:"/party/constituencies",key:"constituencies",icon:"▦"},{label:"Polling Stations",href:"/party/polling-stations",key:"stations",icon:"▣"},{label:"AI Analyzer",href:"#ai-analyzer",key:"ai",icon:"✦"}]}]} activeSection={mode}>
-    <main style={{padding:20,background:"#f4f7f5",minHeight:"100vh"}}>
-      <section style={hero}><span>CONNECTED ELECTORAL GEOGRAPHY</span><h1>Regions → Constituencies → Polling Stations</h1><p>Live electoral geography is loaded through the PoliSync application API.</p></section>
+    <main style={{padding:"clamp(12px,3vw,20px)",background:"#f4f7f5",minHeight:"100vh",minWidth:0,overflowX:"hidden"}}>
+      <section style={hero}><span>CONNECTED ELECTORAL GEOGRAPHY</span><h1 style={{overflowWrap:"anywhere"}}>Regions → Constituencies → Polling Stations</h1><p>Live electoral geography is loaded through the PoliSync application API.</p></section>
       {error && <div style={errorBox}>{error}</div>}
       <section style={grid}><Metric title="Regions" value={loading?"—":regions.length}/><Metric title="Loaded Constituencies" value={constituencies.length}/><Metric title="Loaded Polling Stations" value={stations.length}/></section>
       <section style={panel}>
@@ -90,23 +90,19 @@ export default function ElectoralGeographyExplorer({ mode = "regions" }) {
           {stations.map(s=><option key={s._id||s.pollingStationCode} value={s._id}>{s.name}{s.pollingStationCode ? ` — ${s.pollingStationCode}` : ""}</option>)}
         </select>
 
-        {selectedStationData && <div style={selectedStationCard}>
-          <strong>{selectedStationData.name}</strong>
-          <span>{selectedStationData.pollingStationCode || "No polling station code"}</span>
-          <small>{selectedStationData.stationType || "Polling station"} • {selectedStationData.sourceYear || "EC dataset"}</small>
-        </div>}
+        {selectedStationData && <div style={selectedStationCard}><strong>{selectedStationData.name}</strong><span>{selectedStationData.pollingStationCode || "No polling station code"}</span><small>{selectedStationData.stationType || "Polling station"} • {selectedStationData.sourceYear || "EC dataset"}</small></div>}
       </section>
-      <section style={panel}><h2>Polling stations {selectedConstituency?`(${stations.length})`:""}</h2>{!selectedConstituency?<p style={{color:"#7b877f"}}>Select a constituency to load its polling stations.</p>:stationsLoading?<p style={{color:"#7b877f"}}>Loading polling stations…</p>:stations.length===0?<p style={{color:"#a00000"}}>No polling stations were returned for this constituency.</p>:<div style={stationGrid}>{stations.map(s=><article key={s._id||s.pollingStationCode} style={station}><strong>{s.name}</strong><span>{s.pollingStationCode||"No code"}</span><small>{s.stationType||"Polling station"} • {s.sourceYear||"EC dataset"}</small></article>)}</div>}</section>
+      <section style={panel}><h2>Polling stations {selectedConstituency?`(${stations.length})`:""}</h2>{!selectedConstituency?<p style={{color:"#7b877f"}}>Select a constituency to load its polling stations.</p>:stationsLoading?<p style={{color:"#7b877f"}}>Loading polling stations…</p>:stations.length===0?<p style={{color:"#a00000"}}>No polling stations were returned for this constituency.</p>:<div style={stationGrid}>{stations.map(s=><article key={s._id||s.pollingStationCode} style={station}><strong style={{overflowWrap:"anywhere"}}>{s.name}</strong><span style={{overflowWrap:"anywhere"}}>{s.pollingStationCode||"No code"}</span><small>{s.stationType||"Polling station"} • {s.sourceYear||"EC dataset"}</small></article>)}</div>}</section>
       <section id="ai-analyzer" style={{...panel,border:"1px solid #c9a227"}}><AIAnalyzer role="party"/></section>
     </main>
   </DashboardShell>;
 }
-const hero={padding:28,borderRadius:22,background:"linear-gradient(135deg,#04351a,#075f2b)",border:"1px solid #c9a227",color:"#fff"};
-const grid={display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,margin:"12px 0"};
-const panel={padding:18,borderRadius:16,background:"#fff",border:"1px solid #dce6df",marginBottom:12};
-const select={width:"100%",padding:13,border:"1px solid #d6e1d9",borderRadius:10,background:"#fbfdfb"};
-const selectedStationCard={marginTop:12,padding:14,borderRadius:12,border:"1px solid #c9a227",background:"#f7fbf8",display:"grid",gap:4};
-const errorBox={marginBottom:12,padding:13,border:"1px solid #efcccc",borderRadius:12,background:"#fff5f5",color:"#a00000",fontSize:12};
-const stationGrid={display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:9};
-const station={padding:12,borderRadius:12,border:"1px solid #e0e7e2",background:"#fbfdfb",display:"grid",gap:4};
-function Metric({title,value}){return <div style={{padding:15,borderRadius:13,background:"#fff",border:"1px solid #dce6df"}}><small style={{color:"#7b877f"}}>{title}</small><strong style={{display:"block",color:"#075f2b",fontSize:20,marginTop:4}}>{value}</strong></div>}
+const hero={padding:"clamp(18px,4vw,28px)",borderRadius:22,background:"linear-gradient(135deg,#04351a,#075f2b)",border:"1px solid #c9a227",color:"#fff",overflow:"hidden"};
+const grid={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(220px,100%),1fr))",gap:10,margin:"12px 0"};
+const panel={padding:"clamp(14px,3vw,18px)",borderRadius:16,background:"#fff",border:"1px solid #dce6df",marginBottom:12,minWidth:0,overflow:"hidden"};
+const select={width:"100%",boxSizing:"border-box",padding:13,border:"1px solid #d6e1d9",borderRadius:10,background:"#fbfdfb",minWidth:0};
+const selectedStationCard={marginTop:12,padding:14,borderRadius:12,border:"1px solid #c9a227",background:"#f7fbf8",display:"grid",gap:4,minWidth:0};
+const errorBox={marginBottom:12,padding:13,border:"1px solid #efcccc",borderRadius:12,background:"#fff5f5",color:"#a00000",fontSize:12,overflowWrap:"anywhere"};
+const stationGrid={display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(240px,100%),1fr))",gap:9};
+const station={padding:12,borderRadius:12,border:"1px solid #e0e7e2",background:"#fbfdfb",display:"grid",gap:4,minWidth:0};
+function Metric({title,value}){return <div style={{padding:15,borderRadius:13,background:"#fff",border:"1px solid #dce6df",minWidth:0}}><small style={{color:"#7b877f"}}>{title}</small><strong style={{display:"block",color:"#075f2b",fontSize:20,marginTop:4}}>{value}</strong></div>}
