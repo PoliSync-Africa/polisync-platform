@@ -44,7 +44,7 @@ export default function ProfilePage() {
           {[["First name", user.firstName],["Middle name", user.middleName],["Last name", user.lastName],["Email", user.email],["Phone", user.phone],["Date of birth", user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : "Not provided"],["Platform role", user.platformRole || "user"],["Account status", user.accountStatus || "active"]].map(([label,value]) => <div className="card info" key={label}><small>{label}</small><strong>{value || "Not provided"}</strong></div>)}
         </section>
         <section className="grid stats">
-          {[["Profile completion", `${user.profileCompletion ?? 0}%"], ["Organizations", metricsValue(state.metrics.organizations)], ["Assignments", metricsValue(state.metrics.assignments)], ["Results submitted", metricsValue(state.metrics.results)]].map(([label,value]) => <div className="card info" key={label}><small>{label}</small><strong>{value}</strong></div>)}
+          {[["Profile completion", `${user.profileCompletion ?? 0}%`], ["Organizations", metricsValue(state.metrics.organizations)], ["Assignments", metricsValue(state.metrics.assignments)], ["Results submitted", metricsValue(state.metrics.results)]].map(([label,value]) => <div className="card info" key={label}><small>{label}</small><strong>{value}</strong></div>)}
         </section>
       </>}
     </main>
