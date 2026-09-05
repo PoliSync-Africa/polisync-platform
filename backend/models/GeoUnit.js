@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 
 const GeoUnitSchema = new mongoose.Schema(
@@ -73,6 +72,5 @@ const GeoUnitSchema = new mongoose.Schema(
 
 GeoUnitSchema.index({ country: 1, level: 1 });
 GeoUnitSchema.index({ parent: 1 });
-GeoUnitSchema.index({ code: 1 }, { unique: true });
 
 module.exports = mongoose.model("GeoUnit", GeoUnitSchema);
