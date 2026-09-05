@@ -26,9 +26,10 @@ async function findPollingStations(filter) {
 async function resolveConstituencyIds(identifier) {
   if (!identifier) return [];
   if (mongoose.Types.ObjectId.isValid(identifier)) return [identifier];
-  const matches = await Constituency.find({ isActive: true, slug: String(identifier).trim().toLowerCase() }).select("_id name").lean();
+  const normalized = String(identifier).trim();
+  const matches = await Constituency.find({ isActive: true, slug: normalized.toLowerCase() }).select("_id name").lean();
   if (matches.length) return matches.map((item) => item._id);
-  const byName = await Constituency.find({ isActive: true, name: String(identifier).trim() }).select("_id name").lean();
+  const byName = await Constituency.find({ isActive: true, name: normalized }).select("_id name").lean();
   return byName.map((item) => item._id);
 }
 
@@ -44,7 +45,17 @@ async function findStationsForConstituencyWithLegacyAliases(const constituencyId
 exports.pollingStations = async (req, res) => {
   const filter = { isActive: true };
   const identifier = req.params.constituencyId || req.query.constituencyId;
-  const constituencyIds = await resolveConstituencyIds(identifier);
+  let constituencyIds = await resolveConstituencyIds(identifier);
+
+  if (identifier && !constituencyIds.length) {
+    try {
+      await syncPollingStationsFromEcPdf();
+      constituencyIds = await resolveConstituencyIds(identifier);
+    } catch (error) {
+      console.error("Polling station EC sync failed:", error);
+      return res.status(503).json({ success: false, code: "POLLING_STATION_SYNC_FAILED", message: "The official polling-station register could not be synchronized yet. Please try Refresh again." });
+    }
+  }
 
   if (identifier) {
     if (!constituencyIds.length) return res.status(404).json({ success: false, message: "Constituency not found." });
