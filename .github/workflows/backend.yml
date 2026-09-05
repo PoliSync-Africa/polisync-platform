@@ -1,0 +1,48 @@
+name: Test PoliSync Backend
+
+on:
+  push:
+    branches:
+      - main
+      - fix/results-security-and-nextjs
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check server.js
+          node --check app.js
+          find . -path './node_modules' -prune -o -name '*.js' -type f -print0 | xargs -0 -n1 node --check
+
+      - name: Verify application starts without crashing
+        run: |
+          timeout 15s node server.js > /tmp/polisync-backend.log 2>&1 || test $? -eq 124
+          cat /tmp/polisync-backend.log
+        env:
+          NODE_ENV: test
+          PORT: 5000
+          JWT_SECRET: ci-test-secret
+          MONGO_URI: mongodb://127.0.0.1:27017/polisync_ci
