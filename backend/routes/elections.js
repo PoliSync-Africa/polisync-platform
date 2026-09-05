@@ -15,4 +15,11 @@ router.post(
   electionController.createElection
 );
 
+router.patch(
+  "/:electionId",
+  protect,
+  authorize("super_admin"),
+  electionController.updateElection
+);
+
 module.exports = router;
