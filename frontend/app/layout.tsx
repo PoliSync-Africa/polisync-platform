@@ -1,6 +1,5 @@
 import "./globals.css";
 import "./visual-quality.css";
-import "./responsive-overrides.css";
 
 export const metadata = {
   title: "POLISYNC AFRICA",
