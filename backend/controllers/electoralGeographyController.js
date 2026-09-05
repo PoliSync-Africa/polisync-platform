@@ -33,7 +33,7 @@ async function resolveConstituencyIds(identifier) {
   return byName.map((item) => item._id);
 }
 
-async function findStationsForConstituencyWithLegacyAliases(const constituencyIds) {
+async function findStationsForConstituencyWithLegacyAliases(constituencyIds) {
   if (!constituencyIds.length) return [];
   const selected = await Constituency.find({ _id: { $in: constituencyIds }, isActive: true }).select("_id name").lean();
   if (!selected.length) return [];
