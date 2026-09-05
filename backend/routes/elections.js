@@ -23,3 +23,5 @@ router.patch(
 );
 
 module.exports = router;
+
+// Render boot-safety: this module intentionally exports the Express router.
