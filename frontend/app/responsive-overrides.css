@@ -1,0 +1,292 @@
+/* POLISYNC AFRICA — cross-dashboard responsive hardening
+ * Loaded after the existing dashboard styles so mobile fixes are consistent.
+ */
+
+html, body { overflow-x: hidden; }
+
+/* Never allow a dashboard child to force the viewport wider than its container. */
+.party-page,
+.observer-page,
+.command-center-content,
+.dashboard-content-wrapper,
+.dashboard-main,
+.electionos-page,
+.war-room-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.party-page *,
+.observer-page *,
+.command-center-content *,
+.dashboard-content-wrapper *,
+.electionos-page *,
+.war-room-page * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.party-page img,
+.party-page svg,
+.observer-page img,
+.observer-page svg,
+.dashboard-content-wrapper img,
+.dashboard-content-wrapper svg,
+.electionos-page img,
+.electionos-page svg,
+.war-room-page img,
+.war-room-page svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Party / candidate / observer dashboard grids. */
+.metrics-grid,
+.dashboard-grid,
+.results-grid,
+.operations-grid,
+.analytics-grid,
+.cards-grid,
+.stats-grid,
+.tools-grid,
+.feature-grid {
+  width: 100%;
+  min-width: 0;
+}
+
+.metrics-grid > *,
+.dashboard-grid > *,
+.results-grid > *,
+.operations-grid > *,
+.analytics-grid > *,
+.cards-grid > *,
+.stats-grid > *,
+.tools-grid > *,
+.feature-grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Tables remain usable on phones instead of expanding the viewport. */
+.party-page table,
+.observer-page table,
+.dashboard-content-wrapper table,
+.electionos-page table,
+.war-room-page table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Long labels, IDs and election values must wrap instead of creating overflow. */
+.party-page h1,
+.party-page h2,
+.party-page h3,
+.party-page p,
+.observer-page h1,
+.observer-page h2,
+.observer-page h3,
+.observer-page p,
+.dashboard-content-wrapper h1,
+.dashboard-content-wrapper h2,
+.dashboard-content-wrapper h3,
+.dashboard-content-wrapper p,
+.dashboard-content-wrapper button,
+.dashboard-content-wrapper a,
+.dashboard-content-wrapper label {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 1100px) {
+  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .dashboard-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+  .party-page .hero-content,
+  .party-page .hero-emblem,
+  .observer-page .hero-content,
+  .observer-page .hero-emblem {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .party-page,
+  .observer-page {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-bottom: 90px !important;
+  }
+
+  .metrics-grid,
+  .dashboard-grid,
+  .results-grid,
+  .operations-grid,
+  .analytics-grid,
+  .cards-grid,
+  .stats-grid,
+  .tools-grid,
+  .feature-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .party-page .party-hero,
+  .observer-page .hero,
+  .observer-page .hero-content {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .party-page .hero-badges {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .party-page .operations-content {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 20px !important;
+  }
+
+  .party-page .score-ring {
+    margin-inline: auto;
+  }
+
+  .party-page .panel,
+  .observer-page .panel,
+  .observer-page .card {
+    padding: 18px !important;
+    border-radius: 16px !important;
+  }
+
+  .party-page button,
+  .observer-page button,
+  .dashboard-content-wrapper button,
+  .dashboard-content-wrapper input,
+  .dashboard-content-wrapper select,
+  .dashboard-content-wrapper textarea {
+    min-height: 44px;
+  }
+
+  /* Fixed-width search/filter controls are a common mobile overflow source. */
+  .dashboard-content-wrapper [style*="min-width"],
+  .dashboard-content-wrapper [style*="width:"] {
+    max-width: 100% !important;
+  }
+
+  .dashboard-content-wrapper [style*="min-width: 240px"],
+  .dashboard-content-wrapper [style*="min-width:240px"],
+  .dashboard-content-wrapper [style*="min-width: 280px"],
+  .dashboard-content-wrapper [style*="min-width:280px"],
+  .dashboard-content-wrapper [style*="min-width: 300px"],
+  .dashboard-content-wrapper [style*="min-width:300px"] {
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .party-page,
+  .observer-page,
+  .command-center-content {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .party-page .party-hero h1,
+  .observer-page h1,
+  .command-center-hero h1 {
+    font-size: clamp(28px, 9vw, 40px) !important;
+    line-height: 1.08 !important;
+  }
+
+  .party-page .hero-badges {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .metrics-grid,
+  .results-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .metric-card,
+  .result-metric,
+  .regional-row {
+    width: 100% !important;
+  }
+
+  .regional-row {
+    grid-template-columns: 34px minmax(0, 1fr) auto !important;
+  }
+
+  .dashboard-content-wrapper .search,
+  .dashboard-content-wrapper .filters,
+  .dashboard-content-wrapper [class*="search"],
+  .dashboard-content-wrapper [class*="filter"] {
+    max-width: 100% !important;
+  }
+}
+
+/* Election Command Center / War Room */
+.war-room-page {
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.war-room-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr) !important;
+  gap: 24px !important;
+  width: 100%;
+}
+
+.war-room-layout > * { min-width: 0; }
+
+@media (max-width: 900px) {
+  .war-room-layout { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+@media (max-width: 560px) {
+  .war-room-page { padding: 16px !important; }
+  .war-room-page h1 { font-size: clamp(26px, 8vw, 34px) !important; }
+  .war-room-layout { gap: 14px !important; }
+}
+
+/* ElectionOS: preserve cards but make the shell and content fluid. */
+.electionos-page {
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.electionos-content {
+  width: 100%;
+  min-width: 0;
+  padding: clamp(16px, 3vw, 30px);
+}
+
+.electionos-content > * { min-width: 0; max-width: 100%; }
+
+.electionos-stations {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)) !important;
+  gap: 20px !important;
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .electionos-content { padding: 16px 12px 80px; }
+  .electionos-stations { grid-template-columns: minmax(0, 1fr) !important; gap: 14px !important; }
+}
+
+/* Prevent flex rows from overflowing on narrow screens. */
+@media (max-width: 760px) {
+  .dashboard-content-wrapper [style*="display: flex"],
+  .dashboard-content-wrapper [style*="display:flex"] {
+    flex-wrap: wrap;
+  }
+}
