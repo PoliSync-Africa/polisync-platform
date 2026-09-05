@@ -7,7 +7,9 @@ const navigation = [
   {
     section: "Account",
     items: [
-      { label: "Dashboard", href: "/", key: "overview", icon: "⌂" },
+      { label: "Dashboard", href: "/dashboard", key: "overview", icon: "⌂" },
+      { label: "Profile", href: "/profile", key: "profile", icon: "♙" },
+      { label: "Results", href: "/results", key: "results", icon: "↗" },
       { label: "Privacy & Security", href: "/settings/security", key: "security", icon: "♢" },
     ],
   },
