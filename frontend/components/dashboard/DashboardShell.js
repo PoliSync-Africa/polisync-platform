@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import superAdminNavigation from "./superAdminNavigation";
 import PoliSyncBrand from "./PoliSyncBrand";
+import WeatherLocationSelector from "./WeatherLocationSelector";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
@@ -23,15 +24,7 @@ export default function DashboardShell({
   const [profilePhoto, setProfilePhoto] = useState(() => getStoredUser()?.profilePhoto || user?.profilePhoto || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [location, setLocation] = useState({
-    loading: true,
-    name: "Locating…",
-    country: "",
-    countryCode: "",
-    flag: "🌍",
-    temperature: null,
-    condition: "",
-  });
+  const [location, setLocation] = useState({ loading: true, name: "Locating…", country: "", countryCode: "", flag: "🌍", temperature: null, condition: "" });
 
   useEffect(() => setSidebarOpen(Boolean(mobileMenuOpen)), [mobileMenuOpen]);
 
@@ -44,24 +37,18 @@ export default function DashboardShell({
 
   useEffect(() => {
     if (!profileMenuOpen) return undefined;
-    const close = (event) => {
-      if (!event.target.closest?.(".dashboard-profile-wrap")) setProfileMenuOpen(false);
-    };
+    const close = (event) => { if (!event.target.closest?.(".dashboard-profile-wrap")) setProfileMenuOpen(false); };
     document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
   }, [profileMenuOpen]);
 
-  // All dashboard roles use the same live device location and atmospheric-temperature service.
-  // watchPosition keeps the header synchronized when the user moves to a new location.
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocation((current) => ({ ...current, loading: false, name: "Location unavailable" }));
       return undefined;
     }
-
     let cancelled = false;
     let refreshTimer = null;
-
     const loadLocation = async ({ coords }) => {
       try {
         const latitude = coords.latitude;
@@ -70,63 +57,27 @@ export default function DashboardShell({
           fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&localityLanguage=en`, { cache: "no-store" }),
           fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&current=temperature_2m,weather_code&timezone=auto`, { cache: "no-store" }),
         ]);
-
         const geo = geoResponse.ok ? await geoResponse.json() : {};
         const weather = weatherResponse.ok ? await weatherResponse.json() : {};
         if (cancelled) return;
-
         const countryCode = String(geo.countryCode || geo.countryCodeIso2 || "").toUpperCase();
         const locality = geo.locality || geo.city || geo.principalSubdivision || geo.countryName || "Current location";
         const region = geo.principalSubdivision && geo.principalSubdivision !== locality ? geo.principalSubdivision : "";
-
-        setLocation({
-          loading: false,
-          name: region ? `${locality}, ${region}` : locality,
-          country: geo.countryName || "",
-          countryCode,
-          flag: countryCodeToFlag(countryCode),
-          temperature: weather?.current?.temperature_2m ?? null,
-          condition: weatherCodeToText(weather?.current?.weather_code),
-        });
+        setLocation({ loading: false, name: region ? `${locality}, ${region}` : locality, country: geo.countryName || "", countryCode, flag: countryCodeToFlag(countryCode), temperature: weather?.current?.temperature_2m ?? null, condition: weatherCodeToText(weather?.current?.weather_code) });
       } catch {
         if (!cancelled) setLocation((current) => ({ ...current, loading: false, name: "Location unavailable" }));
       }
     };
-
     const handleError = (error) => {
-      if (!cancelled) {
-        setLocation((current) => ({
-          ...current,
-          loading: false,
-          name: error?.code === 1 ? "Location permission not granted" : "Location unavailable",
-        }));
-      }
+      if (!cancelled) setLocation((current) => ({ ...current, loading: false, name: error?.code === 1 ? "Location permission not granted" : "Location unavailable" }));
     };
-
-    const requestFreshLocation = () => {
-      navigator.geolocation.getCurrentPosition(loadLocation, handleError, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 12000,
-      });
-    };
-
-    const watchId = navigator.geolocation.watchPosition(loadLocation, handleError, {
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 12000,
-    });
-
+    const requestFreshLocation = () => navigator.geolocation.getCurrentPosition(loadLocation, handleError, { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 });
+    const watchId = navigator.geolocation.watchPosition(loadLocation, handleError, { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 });
     requestFreshLocation();
-
-    const refreshOnReturn = () => {
-      if (document.visibilityState === "visible") requestFreshLocation();
-    };
-
+    const refreshOnReturn = () => { if (document.visibilityState === "visible") requestFreshLocation(); };
     window.addEventListener("focus", requestFreshLocation);
     document.addEventListener("visibilitychange", refreshOnReturn);
     refreshTimer = window.setInterval(requestFreshLocation, 2 * 60 * 1000);
-
     return () => {
       cancelled = true;
       navigator.geolocation.clearWatch(watchId);
@@ -142,26 +93,13 @@ export default function DashboardShell({
     return [];
   }, [navigation, role]);
 
-  const closeSidebar = () => {
-    setSidebarOpen(false);
-    onMobileMenuClose?.();
-  };
+  const closeSidebar = () => { setSidebarOpen(false); onMobileMenuClose?.(); };
 
   const handleSignOut = () => {
     setProfileMenuOpen(false);
     closeSidebar();
-    try {
-      ["polisync_token", "polisync_user", "authToken", "accessToken", "token"].forEach((key) => {
-        localStorage.removeItem(key);
-        sessionStorage.removeItem(key);
-      });
-    } catch (error) {
-      console.warn("PoliSync local session cleanup failed:", error);
-    }
-    if (typeof onSignOut === "function") {
-      onSignOut();
-      return;
-    }
+    try { ["polisync_token", "polisync_user", "authToken", "accessToken", "token"].forEach((key) => { localStorage.removeItem(key); sessionStorage.removeItem(key); }); } catch (error) { console.warn("PoliSync local session cleanup failed:", error); }
+    if (typeof onSignOut === "function") { onSignOut(); return; }
     if (typeof window !== "undefined") window.location.href = "/login";
   };
 
@@ -180,189 +118,81 @@ export default function DashboardShell({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file || !file.type.startsWith("image/")) return;
-
     setUploadingPhoto(true);
     try {
       const dataUrl = await resizeImage(file, 400, 0.78);
       setProfilePhoto(dataUrl);
-
       const storedUser = getStoredUser() || {};
-      const updatedUser = { ...storedUser, ...user, profilePhoto: dataUrl };
-      saveStoredUser(updatedUser);
-
+      saveStoredUser({ ...storedUser, ...user, profilePhoto: dataUrl });
       const token = getStoredToken();
       if (token) {
-        const response = await fetch(`${API_URL || ""}/api/profile/photo`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ profilePhoto: dataUrl }),
-        });
+        const response = await fetch(`${API_URL || ""}/api/profile/photo`, { method: "PATCH", headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ profilePhoto: dataUrl }) });
         if (!response.ok) throw new Error("Profile photo could not be saved.");
       }
     } catch (error) {
       console.error("PoliSync profile photo update failed:", error);
       setProfilePhoto(user?.profilePhoto || getStoredUser()?.profilePhoto || null);
-    } finally {
-      setUploadingPhoto(false);
-    }
+    } finally { setUploadingPhoto(false); }
   };
 
   return (
     <div className="polisync-dashboard">
       {sidebarOpen && <button type="button" className="dashboard-overlay" aria-label="Close navigation" onClick={closeSidebar} />}
-
       <aside className={`dashboard-sidebar ${sidebarOpen ? "dashboard-sidebar-open" : ""}`} aria-label="Dashboard navigation">
-        <div className="dashboard-brand">
-          <PoliSyncBrand />
-          <button type="button" className="dashboard-sidebar-close" aria-label="Close navigation" onClick={closeSidebar}>×</button>
-        </div>
-
+        <div className="dashboard-brand"><PoliSyncBrand /><button type="button" className="dashboard-sidebar-close" aria-label="Close navigation" onClick={closeSidebar}>×</button></div>
         <nav className="dashboard-navigation">
           {sections.length > 0 ? sections.map((section, sectionIndex) => {
             const sectionKey = section?.section || section?.key || `section-${sectionIndex}`;
             const items = Array.isArray(section?.items) ? section.items : [];
-            return (
-              <div className="dashboard-nav-group" key={sectionKey}>
-                {section?.section && <div className="dashboard-nav-section">{section.section}</div>}
-                {items.map((item, itemIndex) => {
-                  const itemKey = item?.key || item?.href || item?.label || `item-${sectionIndex}-${itemIndex}`;
-                  const isActive = activeSection === itemKey || activeSection === item?.key;
-                  return (
-                    <a key={itemKey} href={item?.href || "#"} className={`dashboard-nav-item ${isActive ? "dashboard-nav-item-active" : ""}`} aria-current={isActive ? "page" : undefined} onClick={(event) => handleNavigation(item, event)}>
-                      <span className="dashboard-nav-icon" aria-hidden="true">{item?.icon || "•"}</span>
-                      <span className="dashboard-nav-label">{item?.label || "Untitled"}</span>
-                      {item?.badge != null && <span className="dashboard-nav-badge">{item.badge === true ? "!" : item.badge}</span>}
-                    </a>
-                  );
-                })}
-              </div>
-            );
+            return <div className="dashboard-nav-group" key={sectionKey}>
+              {section?.section && <div className="dashboard-nav-section">{section.section}</div>}
+              {items.map((item, itemIndex) => {
+                const itemKey = item?.key || item?.href || item?.label || `item-${sectionIndex}-${itemIndex}`;
+                const isActive = activeSection === itemKey || activeSection === item?.key;
+                return <a key={itemKey} href={item?.href || "#"} className={`dashboard-nav-item ${isActive ? "dashboard-nav-item-active" : ""}`} aria-current={isActive ? "page" : undefined} onClick={(event) => handleNavigation(item, event)}><span className="dashboard-nav-icon" aria-hidden="true">{item?.icon || "•"}</span><span className="dashboard-nav-label">{item?.label || "Untitled"}</span>{item?.badge != null && <span className="dashboard-nav-badge">{item.badge === true ? "!" : item.badge}</span>}</a>;
+              })}
+            </div>;
           }) : <FallbackNavigation activeSection={activeSection} onSectionChange={onSectionChange} onNavigate={closeSidebar} />}
         </nav>
-
-        <div className="dashboard-sidebar-footer">
-          <div className="dashboard-role-label">CURRENT ROLE</div>
-          <div className="dashboard-role">{displayRole}</div>
-          <button type="button" className="dashboard-logout" onClick={handleSignOut}>Sign Out</button>
-        </div>
+        <div className="dashboard-sidebar-footer"><div className="dashboard-role-label">CURRENT ROLE</div><div className="dashboard-role">{displayRole}</div><button type="button" className="dashboard-logout" onClick={handleSignOut}>Sign Out</button></div>
       </aside>
 
       <div className="dashboard-main">
         <header className="dashboard-header">
           <button type="button" className="dashboard-menu-button" aria-label="Open navigation" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}>☰</button>
-
           <div className="dashboard-header-brand"><PoliSyncBrand compact /></div>
-
           <div className="dashboard-header-title">
-            <div className="dashboard-country-line">
-              <span className="dashboard-country-flag" aria-label={location.country || "Country"}>{location.flag}</span>
-              <span>{location.loading ? "Locating…" : location.name}</span>
-              {location.country && <span className="dashboard-country-name">{location.country}</span>}
-            </div>
+            <div className="dashboard-country-line"><span className="dashboard-country-flag" aria-label={location.country || "Country"}>{location.flag}</span><span>{location.loading ? "Locating…" : location.name}</span>{location.country && <span className="dashboard-country-name">{location.country}</span>}</div>
             <h1>{title || "Dashboard"}</h1>
             {subtitle ? <p>{subtitle}</p> : null}
           </div>
-
           <div className="dashboard-header-actions">
-            <div className="dashboard-weather" aria-label="Live atmospheric weather">
-              <span className="dashboard-weather-icon" aria-hidden="true">{weatherToIcon(location.condition)}</span>
-              <div>
-                <strong>{location.temperature == null ? "--°C" : `${Math.round(location.temperature)}°C`}</strong>
-                <small>{location.condition || "Atmospheric temperature"}</small>
-              </div>
-            </div>
-
+            <WeatherLocationSelector />
             <button type="button" className="dashboard-header-icon" aria-label="Notifications">🔔</button>
             <button type="button" className="dashboard-header-icon" aria-label="Messages">💬</button>
-
             <div className="dashboard-profile-wrap">
               <button type="button" className="dashboard-profile" title="Open profile menu" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}>
-                <span className="dashboard-profile-avatar">
-                  {profilePhoto ? <img src={profilePhoto} alt="Profile" /> : initials}
-                  <span className="dashboard-camera">{uploadingPhoto ? "…" : "📷"}</span>
-                </span>
-                <span className="dashboard-profile-text"><strong>{displayName}</strong><small>Profile & security</small></span>
-                <span className="dashboard-profile-arrow" aria-hidden="true">▼</span>
+                <span className="dashboard-profile-avatar">{profilePhoto ? <img src={profilePhoto} alt="Profile" /> : initials}<span className="dashboard-camera">{uploadingPhoto ? "…" : "📷"}</span></span>
+                <span className="dashboard-profile-text"><strong>{displayName}</strong><small>Profile & security</small></span><span className="dashboard-profile-arrow" aria-hidden="true">▼</span>
               </button>
-
-              {profileMenuOpen && (
-                <div className="dashboard-profile-menu" role="menu">
-                  <div className="dashboard-profile-menu-name">{displayName}</div>
-                  <label className="dashboard-profile-menu-item" role="menuitem">
-                    <input className="dashboard-photo-input" type="file" accept="image/*" onChange={handleProfilePhoto} />
-                    📷 Update profile photo
-                  </label>
-                  <button type="button" className="dashboard-profile-menu-item" role="menuitem" onClick={handleSignOut}>↪ Sign Out</button>
-                </div>
-              )}
+              {profileMenuOpen && <div className="dashboard-profile-menu" role="menu"><div className="dashboard-profile-menu-name">{displayName}</div><label className="dashboard-profile-menu-item" role="menuitem"><input className="dashboard-photo-input" type="file" accept="image/*" onChange={handleProfilePhoto} />📷 Update profile photo</label><button type="button" className="dashboard-profile-menu-item" role="menuitem" onClick={handleSignOut}>↪ Sign Out</button></div>}
             </div>
           </div>
         </header>
-
         <main className="dashboard-content-wrapper">{children}</main>
       </div>
 
       <style jsx>{`
-        .polisync-dashboard { --green:#075f2b; --gold:#c9a227; --text:#1f2d25; --muted:#66736b; --light:#849088; --border:#dce6df; width:100%; min-height:100vh; display:flex; background:#f4f7f5; color:var(--text); }
-        .dashboard-sidebar { position:fixed; inset:0 auto 0 0; z-index:1200; width:280px; display:flex; flex-direction:column; background:#fff; border-right:1px solid var(--border); box-shadow:8px 0 30px rgba(16,59,34,.06); overflow:hidden; transform:translateX(0); transition:transform 180ms ease; }
-        .dashboard-brand { min-height:106px; display:flex; align-items:center; justify-content:center; padding:10px 16px; border-bottom:1px solid #edf1ee; background:#fff; }
-        .dashboard-brand :global(.polisync-brand-image) { max-width:232px; }
-        .dashboard-sidebar-close { display:none; width:38px; height:38px; margin-left:auto; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--green); font-size:24px; cursor:pointer; }
-        .dashboard-navigation { flex:1; min-height:0; padding:16px 12px; overflow-y:auto; }
-        .dashboard-nav-group + .dashboard-nav-group { margin-top:20px; }
-        .dashboard-nav-section { margin:0 10px 8px; color:var(--light); font-size:11px; font-weight:850; letter-spacing:1px; text-transform:uppercase; }
-        .dashboard-nav-item { position:relative; width:100%; min-height:46px; display:flex; align-items:center; gap:11px; box-sizing:border-box; margin:3px 0; padding:10px 11px; border-radius:10px; color:#56635b; text-decoration:none; font-size:14px; font-weight:650; transition:background 140ms ease,color 140ms ease; }
-        .dashboard-nav-item:hover { background:#eaf5ee; color:var(--green); }
-        .dashboard-nav-item-active { background:var(--green); color:#fff; box-shadow:0 6px 18px rgba(7,95,43,.18); }
-        .dashboard-nav-item-active:hover { background:var(--green); color:#fff; }
-        .dashboard-nav-icon { width:25px; flex:0 0 25px; display:inline-flex; align-items:center; justify-content:center; font-size:18px; }
-        .dashboard-nav-label { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .dashboard-nav-badge { min-width:23px; height:23px; margin-left:auto; padding:0 6px; display:inline-flex; align-items:center; justify-content:center; border-radius:999px; background:var(--gold); color:#fff; font-size:11px; font-weight:900; }
-        .dashboard-sidebar-footer { padding:15px; border-top:1px solid #edf1ee; background:#fbfcfb; }
-        .dashboard-role-label { color:var(--light); font-size:10px; font-weight:850; letter-spacing:1px; }
-        .dashboard-role { margin-top:5px; color:var(--green); font-size:14px; font-weight:850; }
-        .dashboard-logout { width:100%; min-height:42px; margin-top:11px; padding:9px 12px; border:1px solid var(--border); border-radius:9px; background:#fff; color:#59655e; font-size:13px; font-weight:750; cursor:pointer; }
-        .dashboard-main { width:calc(100% - 280px); min-width:0; min-height:100vh; margin-left:280px; }
-        .dashboard-header { position:sticky; top:0; z-index:900; min-height:80px; display:flex; align-items:center; gap:14px; padding:10px 22px; box-sizing:border-box; background:rgba(255,255,255,.97); border-bottom:1px solid #e1e9e3; backdrop-filter:blur(10px); }
-        .dashboard-menu-button { display:none; width:44px; height:44px; flex:0 0 44px; align-items:center; justify-content:center; padding:0; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--green); font-size:21px; cursor:pointer; }
-        .dashboard-header-brand { width:142px; flex:0 0 142px; display:flex; align-items:center; justify-content:center; }
-        .dashboard-header-brand :global(.polisync-brand-image) { max-width:138px; }
-        .dashboard-header-title { min-width:0; flex:1; }
-        .dashboard-country-line { display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-bottom:3px; color:var(--light); font-size:10px; font-weight:750; }
-        .dashboard-country-flag { font-size:17px; line-height:1; }
-        .dashboard-country-name { color:#9a8250; font-weight:850; }
-        .dashboard-header-title h1 { margin:0; color:var(--green); font-size:clamp(21px,2vw,29px); line-height:1.15; font-weight:850; letter-spacing:-.35px; }
-        .dashboard-header-title p { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.4; }
-        .dashboard-header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-        .dashboard-weather { display:flex; align-items:center; gap:8px; min-width:110px; padding-right:12px; border-right:1px solid #e5ece7; }
-        .dashboard-weather-icon { font-size:22px; }
-        .dashboard-weather strong { display:block; color:var(--green); font-size:14px; line-height:1.1; }
-        .dashboard-weather small { display:block; margin-top:3px; color:var(--light); font-size:9px; white-space:nowrap; }
-        .dashboard-header-icon { width:40px; height:40px; display:grid; place-items:center; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--green); font-size:18px; cursor:pointer; }
-        .dashboard-profile-wrap { position:relative; }
-        .dashboard-profile { position:relative; display:flex; align-items:center; gap:8px; min-width:0; padding:0; border:0; background:transparent; cursor:pointer; }
-        .dashboard-photo-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
-        .dashboard-profile-avatar { position:relative; width:42px; height:42px; flex:0 0 42px; display:grid; place-items:center; overflow:hidden; border-radius:50%; background:#eaf5ee; color:var(--green); font-size:14px; font-weight:900; }
-        .dashboard-profile-avatar img { width:100%; height:100%; object-fit:cover; }
-        .dashboard-camera { position:absolute; right:-1px; bottom:-1px; width:17px; height:17px; display:grid; place-items:center; border:2px solid #fff; border-radius:50%; background:var(--green); color:#fff; font-size:8px; }
-        .dashboard-profile-text { min-width:0; display:flex; flex-direction:column; text-align:left; }
-        .dashboard-profile-text strong { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#334139; font-size:11px; }
-        .dashboard-profile-text small { color:var(--light); font-size:8px; margin-top:2px; }
-        .dashboard-profile-arrow { color:var(--light); font-size:9px; }
-        .dashboard-profile-menu { position:absolute; top:calc(100% + 10px); right:0; z-index:1400; width:210px; padding:8px; border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow:0 14px 35px rgba(16,59,34,.16); }
-        .dashboard-profile-menu-name { padding:8px 10px 10px; color:var(--green); font-size:13px; font-weight:850; border-bottom:1px solid #edf1ee; margin-bottom:4px; }
-        .dashboard-profile-menu-item { width:100%; min-height:40px; display:flex; align-items:center; gap:8px; box-sizing:border-box; padding:9px 10px; border:0; border-radius:8px; background:#fff; color:#536159; font-size:12px; font-weight:700; text-align:left; text-decoration:none; cursor:pointer; }
-        .dashboard-profile-menu-item:hover { background:#eaf5ee; color:var(--green); }
-        .dashboard-profile-menu-item:last-child { color:#a32c2c; }
-        .dashboard-profile-menu-item:last-child:hover { background:#fff0f0; color:#a32c2c; }
-        .dashboard-content-wrapper { min-height:calc(100vh - 80px); }
-        .dashboard-overlay { display:none; }
-        @media(max-width:980px){.dashboard-header-brand{display:none}.dashboard-header{padding:10px 16px}.dashboard-weather{min-width:auto}.dashboard-profile-text{display:none}}
-        @media(max-width:760px){.dashboard-sidebar{transform:translateX(-102%)}.dashboard-sidebar-open{transform:translateX(0)}.dashboard-sidebar-close{display:block}.dashboard-main{width:100%;margin-left:0}.dashboard-menu-button{display:inline-flex}.dashboard-overlay{position:fixed;inset:0;z-index:1190;display:block;border:0;background:rgba(0,0,0,.34);cursor:pointer}.dashboard-header{min-height:68px}.dashboard-header-title h1{font-size:20px}.dashboard-header-title p{font-size:11px}.dashboard-weather{display:none}.dashboard-header-icon{width:38px;height:38px}.dashboard-profile-avatar{width:38px;height:38px;flex-basis:38px}.dashboard-content-wrapper{min-height:calc(100vh - 68px)}.dashboard-profile-menu{right:-2px;width:200px}}
+        .polisync-dashboard{--green:#075f2b;--gold:#c9a227;--text:#1f2d25;--muted:#66736b;--light:#849088;--border:#dce6df;width:100%;min-height:100vh;display:flex;background:#f4f7f5;color:var(--text)}
+        .dashboard-sidebar{position:fixed;inset:0 auto 0 0;z-index:1200;width:280px;display:flex;flex-direction:column;background:#fff;border-right:1px solid var(--border);box-shadow:8px 0 30px rgba(16,59,34,.06);overflow:hidden;transform:translateX(0);transition:transform 180ms ease}
+        .dashboard-brand{min-height:106px;display:flex;align-items:center;justify-content:center;padding:10px 16px;border-bottom:1px solid #edf1ee;background:#fff}.dashboard-brand :global(.polisync-brand-image){max-width:232px}.dashboard-sidebar-close{display:none;width:38px;height:38px;margin-left:auto;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--green);font-size:24px;cursor:pointer}
+        .dashboard-navigation{flex:1;min-height:0;padding:16px 12px;overflow-y:auto}.dashboard-nav-group+.dashboard-nav-group{margin-top:20px}.dashboard-nav-section{margin:0 10px 8px;color:var(--light);font-size:11px;font-weight:850;letter-spacing:1px;text-transform:uppercase}.dashboard-nav-item{position:relative;width:100%;min-height:46px;display:flex;align-items:center;gap:11px;box-sizing:border-box;margin:3px 0;padding:10px 11px;border-radius:10px;color:#56635b;text-decoration:none;font-size:14px;font-weight:650;transition:background 140ms ease,color 140ms ease}.dashboard-nav-item:hover{background:#eaf5ee;color:var(--green)}.dashboard-nav-item-active{background:var(--green);color:#fff;box-shadow:0 6px 18px rgba(7,95,43,.18)}.dashboard-nav-item-active:hover{background:var(--green);color:#fff}.dashboard-nav-icon{width:25px;flex:0 0 25px;display:inline-flex;align-items:center;justify-content:center;font-size:18px}.dashboard-nav-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dashboard-nav-badge{min-width:23px;height:23px;margin-left:auto;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:var(--gold);color:#fff;font-size:11px;font-weight:900}
+        .dashboard-sidebar-footer{padding:15px;border-top:1px solid #edf1ee;background:#fbfcfb}.dashboard-role-label{color:var(--light);font-size:10px;font-weight:850;letter-spacing:1px}.dashboard-role{margin-top:5px;color:var(--green);font-size:14px;font-weight:850}.dashboard-logout{width:100%;min-height:42px;margin-top:11px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:#fff;color:#59655e;font-size:13px;font-weight:750;cursor:pointer}
+        .dashboard-main{width:calc(100% - 280px);min-width:0;min-height:100vh;margin-left:280px}.dashboard-header{position:sticky;top:0;z-index:900;min-height:80px;display:flex;align-items:center;gap:14px;padding:10px 22px;box-sizing:border-box;background:rgba(255,255,255,.97);border-bottom:1px solid #e1e9e3;backdrop-filter:blur(10px)}.dashboard-menu-button{display:none;width:44px;height:44px;flex:0 0 44px;align-items:center;justify-content:center;padding:0;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--green);font-size:21px;cursor:pointer}.dashboard-header-brand{width:142px;flex:0 0 142px;display:flex;align-items:center;justify-content:center}.dashboard-header-brand :global(.polisync-brand-image){max-width:138px}.dashboard-header-title{min-width:0;flex:1}.dashboard-country-line{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-bottom:3px;color:var(--light);font-size:10px;font-weight:750}.dashboard-country-flag{font-size:17px;line-height:1}.dashboard-country-name{color:#9a8250;font-weight:850}.dashboard-header-title h1{margin:0;color:var(--green);font-size:clamp(21px,2vw,29px);line-height:1.15;font-weight:850;letter-spacing:-.35px}.dashboard-header-title p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.4}.dashboard-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}.dashboard-header-icon{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--green);font-size:18px;cursor:pointer}
+        .dashboard-profile-wrap{position:relative}.dashboard-profile{position:relative;display:flex;align-items:center;gap:8px;min-width:0;padding:0;border:0;background:transparent;cursor:pointer}.dashboard-photo-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.dashboard-profile-avatar{position:relative;width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:#eaf5ee;color:var(--green);font-size:14px;font-weight:900}.dashboard-profile-avatar img{width:100%;height:100%;object-fit:cover}.dashboard-camera{position:absolute;right:-1px;bottom:-1px;width:17px;height:17px;display:grid;place-items:center;border:2px solid #fff;border-radius:50%;background:var(--green);color:#fff;font-size:8px}.dashboard-profile-text{min-width:0;display:flex;flex-direction:column;text-align:left}.dashboard-profile-text strong{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#334139;font-size:11px}.dashboard-profile-text small{color:var(--light);font-size:8px;margin-top:2px}.dashboard-profile-arrow{color:var(--light);font-size:9px}.dashboard-profile-menu{position:absolute;top:calc(100% + 10px);right:0;z-index:1400;width:210px;padding:8px;border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 14px 35px rgba(16,59,34,.16)}.dashboard-profile-menu-name{padding:8px 10px 10px;color:var(--green);font-size:13px;font-weight:850;border-bottom:1px solid #edf1ee;margin-bottom:4px}.dashboard-profile-menu-item{width:100%;min-height:40px;display:flex;align-items:center;gap:8px;box-sizing:border-box;padding:9px 10px;border:0;border-radius:8px;background:#fff;color:#536159;font-size:12px;font-weight:700;text-align:left;text-decoration:none;cursor:pointer}.dashboard-profile-menu-item:hover{background:#eaf5ee;color:var(--green)}.dashboard-profile-menu-item:last-child{color:#a32c2c}.dashboard-profile-menu-item:last-child:hover{background:#fff0f0;color:#a32c2c}
+        .dashboard-content-wrapper{min-height:calc(100vh - 80px)}.dashboard-overlay{display:none}
+        @media(max-width:980px){.dashboard-header-brand{display:none}.dashboard-header{padding:10px 16px}.dashboard-profile-text{display:none}}
+        @media(max-width:760px){.dashboard-sidebar{transform:translateX(-102%)}.dashboard-sidebar-open{transform:translateX(0)}.dashboard-sidebar-close{display:block}.dashboard-main{width:100%;margin-left:0}.dashboard-menu-button{display:inline-flex}.dashboard-overlay{position:fixed;inset:0;z-index:1190;display:block;border:0;background:rgba(0,0,0,.34);cursor:pointer}.dashboard-header{min-height:68px}.dashboard-header-title h1{font-size:20px}.dashboard-header-title p{font-size:11px}.dashboard-header-icon{width:38px;height:38px}.dashboard-profile-avatar{width:38px;height:38px;flex-basis:38px}.dashboard-content-wrapper{min-height:calc(100vh - 68px)}.dashboard-profile-menu{right:-2px;width:200px}}
         @media(prefers-reduced-motion:reduce){.dashboard-sidebar{transition:none}}
       `}</style>
     </div>
@@ -370,15 +200,8 @@ export default function DashboardShell({
 }
 
 function FallbackNavigation({ activeSection, onSectionChange, onNavigate }) {
-  const items = [
-    { label: "Dashboard", key: "overview", icon: "⌂" },
-    { label: "Profile", key: "profile", icon: "♙" },
-    { label: "Notifications", key: "notifications", icon: "♧" },
-    { label: "Settings", key: "settings", icon: "⚙" },
-  ];
-  return <div className="dashboard-nav-group">
-    {items.map((item) => <a key={item.key} href="#" className={`dashboard-nav-item ${activeSection === item.key ? "dashboard-nav-item-active" : ""}`} onClick={(event) => { event.preventDefault(); onSectionChange?.(item.key); onNavigate?.(); }}><span className="dashboard-nav-icon">{item.icon}</span><span className="dashboard-nav-label">{item.label}</span></a>)}
-  </div>;
+  const items = [{ label: "Dashboard", key: "overview", icon: "⌂" }, { label: "Profile", key: "profile", icon: "♙" }, { label: "Notifications", key: "notifications", icon: "♧" }, { label: "Settings", key: "settings", icon: "⚙" }];
+  return <div className="dashboard-nav-group">{items.map((item) => <a key={item.key} href="#" className={`dashboard-nav-item ${activeSection === item.key ? "dashboard-nav-item-active" : ""}`} onClick={(event) => { event.preventDefault(); onSectionChange?.(item.key); onNavigate?.(); }}><span className="dashboard-nav-icon">{item.icon}</span><span className="dashboard-nav-label">{item.label}</span></a>)}</div>;
 }
 
 function formatRole(role) { return String(role || "user").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()); }
