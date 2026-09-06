@@ -6,6 +6,22 @@ import PoliSyncBrand from "./PoliSyncBrand";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
+const UNIVERSAL_WORKSPACE_ITEMS = [
+  { label: "Dashboard", href: "/dashboard", key: "dashboard", icon: "⌂" },
+  { label: "Campaigns", href: "/campaigns", key: "campaigns", icon: "◉" },
+  { label: "Field Work", href: "/field-work", key: "field-work", icon: "⚑" },
+  { label: "Research & Surveys", href: "/research", key: "research", icon: "⌕" },
+  { label: "Elections", href: "/elections", key: "elections", icon: "•" },
+  { label: "Results", href: "/results", key: "results", icon: "↗" },
+  { label: "Ghana News & Intelligence", href: "/news", key: "news", icon: "◌" },
+  { label: "Calendar", href: "/calendar", key: "calendar", icon: "□" },
+  { label: "Messages", href: "/messages", key: "messages", icon: "◯" },
+  { label: "Notifications", href: "/notifications", key: "notifications", icon: "♧" },
+  { label: "AI Analyzer", href: "/ai-analyzer", key: "ai-analyzer", icon: "✦" },
+  { label: "Profile", href: "/profile", key: "profile", icon: "♙" },
+  { label: "Privacy & Security", href: "/settings/security", key: "privacy-security", icon: "⚿" },
+];
+
 export default function DashboardShell({
   children,
   title = "Dashboard",
@@ -51,8 +67,6 @@ export default function DashboardShell({
     return () => document.removeEventListener("click", close);
   }, [profileMenuOpen]);
 
-  // All dashboard roles use the same live device location and atmospheric-temperature service.
-  // watchPosition keeps the header synchronized when the user moves to a new location.
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocation((current) => ({ ...current, loading: false, name: "Location unavailable" }));
@@ -137,9 +151,23 @@ export default function DashboardShell({
   }, []);
 
   const sections = useMemo(() => {
-    if (Array.isArray(navigation)) return navigation;
-    if (role === "super_admin" && Array.isArray(superAdminNavigation)) return superAdminNavigation;
-    return [];
+    const supplied = Array.isArray(navigation)
+      ? navigation
+      : role === "super_admin" && Array.isArray(superAdminNavigation)
+        ? superAdminNavigation
+        : [];
+
+    const homeSection = {
+      section: "HOME",
+      items: [{ label: "Home", href: "/dashboard", key: "home", icon: "⌂" }],
+    };
+
+    const workspaceSection = {
+      section: "ALL WORKSPACES",
+      items: UNIVERSAL_WORKSPACE_ITEMS,
+    };
+
+    return [homeSection, ...supplied, workspaceSection];
   }, [navigation, role]);
 
   const closeSidebar = () => {
@@ -222,7 +250,7 @@ export default function DashboardShell({
         </div>
 
         <nav className="dashboard-navigation">
-          {sections.length > 0 ? sections.map((section, sectionIndex) => {
+          {sections.map((section, sectionIndex) => {
             const sectionKey = section?.section || section?.key || `section-${sectionIndex}`;
             const items = Array.isArray(section?.items) ? section.items : [];
             return (
@@ -241,7 +269,7 @@ export default function DashboardShell({
                 })}
               </div>
             );
-          }) : <FallbackNavigation activeSection={activeSection} onSectionChange={onSectionChange} onNavigate={closeSidebar} />}
+          })}
         </nav>
 
         <div className="dashboard-sidebar-footer">
@@ -253,7 +281,7 @@ export default function DashboardShell({
 
       <div className="dashboard-main">
         <header className="dashboard-header">
-          <button type="button" className="dashboard-menu-button" aria-label="Open navigation" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}>☰</button>
+          <button type="button" className="dashboard-menu-button" aria-label="Open all workspaces" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}>☰</button>
 
           <div className="dashboard-header-brand"><PoliSyncBrand compact /></div>
 
@@ -276,8 +304,8 @@ export default function DashboardShell({
               </div>
             </div>
 
-            <button type="button" className="dashboard-header-icon" aria-label="Notifications">🔔</button>
-            <button type="button" className="dashboard-header-icon" aria-label="Messages">💬</button>
+            <button type="button" className="dashboard-header-icon" aria-label="Notifications" onClick={() => { if (typeof window !== "undefined") window.location.href = "/notifications"; }}>🔔</button>
+            <button type="button" className="dashboard-header-icon" aria-label="Messages" onClick={() => { if (typeof window !== "undefined") window.location.href = "/messages"; }}>💬</button>
 
             <div className="dashboard-profile-wrap">
               <button type="button" className="dashboard-profile" title="Open profile menu" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}>
@@ -312,10 +340,10 @@ export default function DashboardShell({
         .dashboard-brand { min-height:106px; display:flex; align-items:center; justify-content:center; padding:10px 16px; border-bottom:1px solid #edf1ee; background:#fff; }
         .dashboard-brand :global(.polisync-brand-image) { max-width:232px; }
         .dashboard-sidebar-close { display:none; width:38px; height:38px; margin-left:auto; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--green); font-size:24px; cursor:pointer; }
-        .dashboard-navigation { flex:1; min-height:0; padding:16px 12px; overflow-y:auto; }
+        .dashboard-navigation { flex:1; min-height:0; padding:16px 12px; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
         .dashboard-nav-group + .dashboard-nav-group { margin-top:20px; }
         .dashboard-nav-section { margin:0 10px 8px; color:var(--light); font-size:11px; font-weight:850; letter-spacing:1px; text-transform:uppercase; }
-        .dashboard-nav-item { position:relative; width:100%; min-height:46px; display:flex; align-items:center; gap:11px; box-sizing:border-box; margin:3px 0; padding:10px 11px; border-radius:10px; color:#56635b; text-decoration:none; font-size:14px; font-weight:650; transition:background 140ms ease,color 140ms ease; }
+        .dashboard-nav-item { position:relative; width:100%; min-height:46px; display:flex; align-items:center; gap:11px; box-sizing:border-box; margin:3px 0; padding:10px 11px; border-radius:10px; color:#56635b; text-decoration:none; font-size:14px; font-weight:650; transition:background 140ms ease,color 140ms ease; touch-action:manipulation; -webkit-tap-highlight-color:rgba(7,95,43,.12); }
         .dashboard-nav-item:hover { background:#eaf5ee; color:var(--green); }
         .dashboard-nav-item-active { background:var(--green); color:#fff; box-shadow:0 6px 18px rgba(7,95,43,.18); }
         .dashboard-nav-item-active:hover { background:var(--green); color:#fff; }
@@ -325,10 +353,10 @@ export default function DashboardShell({
         .dashboard-sidebar-footer { padding:15px; border-top:1px solid #edf1ee; background:#fbfcfb; }
         .dashboard-role-label { color:var(--light); font-size:10px; font-weight:850; letter-spacing:1px; }
         .dashboard-role { margin-top:5px; color:var(--green); font-size:14px; font-weight:850; }
-        .dashboard-logout { width:100%; min-height:42px; margin-top:11px; padding:9px 12px; border:1px solid var(--border); border-radius:9px; background:#fff; color:#59655e; font-size:13px; font-weight:750; cursor:pointer; }
+        .dashboard-logout { width:100%; min-height:42px; margin-top:11px; padding:9px 12px; border:1px solid var(--border); border-radius:9px; background:#fff; color:#59655e; font-size:13px; font-weight:750; cursor:pointer; touch-action:manipulation; }
         .dashboard-main { width:calc(100% - 280px); min-width:0; min-height:100vh; margin-left:280px; }
         .dashboard-header { position:sticky; top:0; z-index:900; min-height:80px; display:flex; align-items:center; gap:14px; padding:10px 22px; box-sizing:border-box; background:rgba(255,255,255,.97); border-bottom:1px solid #e1e9e3; backdrop-filter:blur(10px); }
-        .dashboard-menu-button { display:none; width:44px; height:44px; flex:0 0 44px; align-items:center; justify-content:center; padding:0; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--green); font-size:21px; cursor:pointer; }
+        .dashboard-menu-button { display:none; width:44px; height:44px; flex:0 0 44px; align-items:center; justify-content:center; padding:0; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--green); font-size:21px; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:rgba(7,95,43,.12); }
         .dashboard-header-brand { width:142px; flex:0 0 142px; display:flex; align-items:center; justify-content:center; }
         .dashboard-header-brand :global(.polisync-brand-image) { max-width:138px; }
         .dashboard-header-title { min-width:0; flex:1; }
@@ -342,7 +370,7 @@ export default function DashboardShell({
         .dashboard-weather-icon { font-size:22px; }
         .dashboard-weather strong { display:block; color:var(--green); font-size:14px; line-height:1.1; }
         .dashboard-weather small { display:block; margin-top:3px; color:var(--light); font-size:9px; white-space:nowrap; }
-        .dashboard-header-icon { width:40px; height:40px; display:grid; place-items:center; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--green); font-size:18px; cursor:pointer; }
+        .dashboard-header-icon { width:40px; height:40px; display:grid; place-items:center; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--green); font-size:18px; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:rgba(7,95,43,.12); }
         .dashboard-profile-wrap { position:relative; }
         .dashboard-profile { position:relative; display:flex; align-items:center; gap:8px; min-width:0; padding:0; border:0; background:transparent; cursor:pointer; }
         .dashboard-photo-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
@@ -355,30 +383,18 @@ export default function DashboardShell({
         .dashboard-profile-arrow { color:var(--light); font-size:9px; }
         .dashboard-profile-menu { position:absolute; top:calc(100% + 10px); right:0; z-index:1400; width:210px; padding:8px; border:1px solid var(--border); border-radius:12px; background:#fff; box-shadow:0 14px 35px rgba(16,59,34,.16); }
         .dashboard-profile-menu-name { padding:8px 10px 10px; color:var(--green); font-size:13px; font-weight:850; border-bottom:1px solid #edf1ee; margin-bottom:4px; }
-        .dashboard-profile-menu-item { width:100%; min-height:40px; display:flex; align-items:center; gap:8px; box-sizing:border-box; padding:9px 10px; border:0; border-radius:8px; background:#fff; color:#536159; font-size:12px; font-weight:700; text-align:left; text-decoration:none; cursor:pointer; }
+        .dashboard-profile-menu-item { width:100%; min-height:40px; display:flex; align-items:center; gap:8px; box-sizing:border-box; padding:9px 10px; border:0; border-radius:8px; background:#fff; color:#536159; font-size:12px; font-weight:700; text-align:left; text-decoration:none; cursor:pointer; touch-action:manipulation; }
         .dashboard-profile-menu-item:hover { background:#eaf5ee; color:var(--green); }
         .dashboard-profile-menu-item:last-child { color:#a32c2c; }
         .dashboard-profile-menu-item:last-child:hover { background:#fff0f0; color:#a32c2c; }
         .dashboard-content-wrapper { min-height:calc(100vh - 80px); }
         .dashboard-overlay { display:none; }
         @media(max-width:980px){.dashboard-header-brand{display:none}.dashboard-header{padding:10px 16px}.dashboard-weather{min-width:auto}.dashboard-profile-text{display:none}}
-        @media(max-width:760px){.dashboard-sidebar{transform:translateX(-102%)}.dashboard-sidebar-open{transform:translateX(0)}.dashboard-sidebar-close{display:block}.dashboard-main{width:100%;margin-left:0}.dashboard-menu-button{display:inline-flex}.dashboard-overlay{position:fixed;inset:0;z-index:1190;display:block;border:0;background:rgba(0,0,0,.34);cursor:pointer}.dashboard-header{min-height:68px}.dashboard-header-title h1{font-size:20px}.dashboard-header-title p{font-size:11px}.dashboard-weather{display:none}.dashboard-header-icon{width:38px;height:38px}.dashboard-profile-avatar{width:38px;height:38px;flex-basis:38px}.dashboard-content-wrapper{min-height:calc(100vh - 68px)}.dashboard-profile-menu{right:-2px;width:200px}}
+        @media(max-width:760px){.dashboard-sidebar{transform:translateX(-102%)}.dashboard-sidebar-open{transform:translateX(0)}.dashboard-sidebar-close{display:block}.dashboard-main{width:100%;margin-left:0}.dashboard-menu-button{display:inline-flex}.dashboard-overlay{position:fixed;inset:0;z-index:1190;display:block;border:0;background:rgba(0,0,0,.34);cursor:pointer;touch-action:manipulation}.dashboard-header{min-height:68px}.dashboard-header-title h1{font-size:20px}.dashboard-header-title p{font-size:11px}.dashboard-weather{display:none}.dashboard-header-icon{width:38px;height:38px}.dashboard-profile-avatar{width:38px;height:38px;flex-basis:38px}.dashboard-content-wrapper{min-height:calc(100vh - 68px)}.dashboard-profile-menu{right:-2px;width:200px}}
         @media(prefers-reduced-motion:reduce){.dashboard-sidebar{transition:none}}
       `}</style>
     </div>
   );
-}
-
-function FallbackNavigation({ activeSection, onSectionChange, onNavigate }) {
-  const items = [
-    { label: "Dashboard", key: "overview", icon: "⌂" },
-    { label: "Profile", key: "profile", icon: "♙" },
-    { label: "Notifications", key: "notifications", icon: "♧" },
-    { label: "Settings", key: "settings", icon: "⚙" },
-  ];
-  return <div className="dashboard-nav-group">
-    {items.map((item) => <a key={item.key} href="#" className={`dashboard-nav-item ${activeSection === item.key ? "dashboard-nav-item-active" : ""}`} onClick={(event) => { event.preventDefault(); onSectionChange?.(item.key); onNavigate?.(); }}><span className="dashboard-nav-icon">{item.icon}</span><span className="dashboard-nav-label">{item.label}</span></a>)}
-  </div>;
 }
 
 function formatRole(role) { return String(role || "user").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()); }
