@@ -1,0 +1,41 @@
+name: PoliSync Security Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    name: Dependency vulnerability audit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: [backend, frontend]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.directory }}/package.json
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.directory }}
+        run: npm install --ignore-scripts
+
+      - name: Audit high and critical vulnerabilities
+        working-directory: ${{ matrix.directory }}
+        run: npm audit --audit-level=high
