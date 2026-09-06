@@ -1,73 +1,60 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
+const MAX_AUTH_SESSION_MS = 24 * 60 * 60 * 1000;
+
 const protect = async (req, res, next) => {
   try {
-    let token;
-
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer ")
-    ) {
-      token = req.headers.authorization.split(" ")[1];
+    const authorization = String(req.headers.authorization || "");
+    if (!authorization.startsWith("Bearer ")) {
+      return res.status(401).json({ success: false, message: "Access denied. No token provided." });
     }
 
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Access denied. No token provided.",
-      });
+    const token = authorization.substring(7).trim();
+    if (!token) return res.status(401).json({ success: false, message: "Authentication token is missing." });
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+      console.error("JWT_SECRET is missing or too weak.");
+      return res.status(500).json({ success: false, message: "Authentication service is not properly configured." });
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "polisync-secret"
-    );
-
-    // NOTE: login()/verifyLoginOTP() in authController.js sign the JWT
-    // payload with a "userId" field (not "id"). Reading "id" here always
-    // resolved to undefined, so every authenticated request after a
-    // successful login failed with 401. Read "userId" to match the
-    // tokens actually issued by the platform.
-    req.user = await User.findById(decoded.userId).select("-password");
-
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "User not found.",
-      });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+    if (!decoded.userId || typeof decoded.userId !== "string") {
+      return res.status(401).json({ success: false, message: "Invalid authentication token." });
     }
 
-    next();
+    if (!decoded.iat || Date.now() - decoded.iat * 1000 >= MAX_AUTH_SESSION_MS) {
+      return res.status(401).json({ success: false, code: "SESSION_EXPIRED", message: "Your security session has expired. Please log in again." });
+    }
+
+    const user = await User.findById(decoded.userId).select("-password");
+    if (!user) return res.status(401).json({ success: false, message: "User not found." });
+    if (["suspended", "deactivated", "rejected"].includes(user.accountStatus)) {
+      return res.status(403).json({ success: false, message: `This account has been ${user.accountStatus}.` });
+    }
+    if (user.accountStatus !== "approved") {
+      return res.status(403).json({ success: false, message: "This account is not approved for platform access." });
+    }
+    if (!["user", "super_admin"].includes(user.platformRole)) {
+      return res.status(403).json({ success: false, message: "This account has an invalid platform role." });
+    }
+
+    req.user = user;
+    req.auth = {
+      userId: user._id.toString(),
+      platformRole: user.platformRole,
+      isSuperAdmin: user.platformRole === "super_admin",
+    };
+    return next();
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: "Invalid or expired token.",
-    });
+    return res.status(401).json({ success: false, message: "Invalid or expired token." });
   }
 };
 
-const authorize = (...roles) => {
-  return (req, res, next) => {
-    // NOTE: the User model has no "role" field — platform-level access is
-    // "platformRole" ("user" | "super_admin"); organization-level roles
-    // (national_admin, regional_admin, constituency_admin,
-    // polling_station_agent, presidential_candidate,
-    // parliamentary_candidate) live on OrganizationMembership, not on the
-    // user/JWT. Checking req.user.role always evaluated to undefined and
-    // every authorize()-gated route always returned 403.
-    if (!req.user || !roles.includes(req.user.platformRole)) {
-      return res.status(403).json({
-        success: false,
-        message: "You do not have permission to perform this action.",
-      });
-    }
-
-    next();
-  };
+const authorize = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.platformRole)) {
+    return res.status(403).json({ success: false, message: "You do not have permission to perform this action." });
+  }
+  return next();
 };
 
-module.exports = {
-  protect,
-  authorize,
-};
+module.exports = { MAX_AUTH_SESSION_MS, protect, authorize };
