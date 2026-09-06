@@ -1,5 +1,6 @@
 import "./visual-quality.css";
 import "./modern-dashboard.css";
+import LogoutSessionBridge from "../components/security/LogoutSessionBridge";
 
 export const metadata = {
   title: "PoliSync Africa",
@@ -9,7 +10,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <LogoutSessionBridge />
+        {children}
+      </body>
     </html>
   );
 }
