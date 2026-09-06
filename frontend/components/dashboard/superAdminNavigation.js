@@ -12,6 +12,7 @@ const superAdminNavigation = [
       { label: "Workspace Lab", href: "/super-admin/workspaces", icon: "◈", key: "workspace-lab" },
       { label: "Candidates", href: "/super-admin/candidates", icon: "♟", key: "candidates" },
       { label: "Geographic Data", href: "/super-admin/geography", icon: "⌖", key: "geography" },
+      { label: "Electoral Data Health", href: "/super-admin/electoral-data", icon: "♥", key: "electoral-data" },
       { label: "Polling Stations", href: "/super-admin/polling-stations", icon: "⌖", key: "polling-stations" },
       { label: "Weather Intelligence", href: "/weather", icon: "☁", key: "weather" },
       { label: "Elections", href: "/super-admin/elections", icon: "▣", key: "elections" },
