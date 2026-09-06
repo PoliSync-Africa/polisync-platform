@@ -16,7 +16,7 @@ function readSource() {
   const headers=parseCSVLine(lines[0]).map(normalize);
   const required=["polling_station_code","polling_station_name","constituency","district","region"];
   const missing=required.filter(h=>!headers.includes(h));
-  if(missing.length) throw new Error(`Missing EC CSV columns: ${missing.join(", ")}`);
+  if(missing.length) throw new Error(`Missing EC polling-station columns: ${missing.join(", ")}`);
   const rows=lines.slice(1).map(parseCSVLine).map(values=>Object.fromEntries(headers.map((h,i)=>[h,normalize(values[i])] )));
   const records=rows.filter(r=>r.polling_station_code);
   const codes=new Map(); records.forEach(r=>{const c=normalize(r.polling_station_code).toUpperCase(); codes.set(c,(codes.get(c)||0)+1);});
@@ -30,7 +30,7 @@ async function buildReconciliationPlan() {
   const [regions,constituencies,stations]=await Promise.all([
     Region.find({isActive:true}).select("_id name regionNumber").lean(),
     Constituency.find({isActive:true}).select("_id name regionId").lean(),
-    PollingStation.find({}).select("_id pollingStationCode name regionId constituencyId district sourceYear isActive").lean(),
+    PollingStation.find({}).select("_id pollingStationCode name regionId constituencyId district source sourceYear stationType isActive").lean(),
   ]);
   if(regions.length!==16) throw new Error(`Expected 16 active regions; found ${regions.length}.`);
   if(constituencies.length<276) throw new Error(`Expected at least 276 active constituencies; found ${constituencies.length}.`);
@@ -43,7 +43,7 @@ async function buildReconciliationPlan() {
   constituencies.forEach(c=>{const k=key(c.name);const list=constituencyByName.get(k)||[];list.push(c);constituencyByName.set(k,list);});
   const stationByCode=new Map(stations.filter(s=>s.pollingStationCode).map(s=>[normalize(s.pollingStationCode).toUpperCase(),s]));
   const seen=new Set();
-  const plan={newStations:[],changedStations:[],unchangedStations:0,sourceMissingActiveStations:[],unresolvedRows:[],summary:{sourceRows:source.rows.length,existingStations:stations.length,sourceUniqueCodes:source.rows.length,newStations:0,changedStations:0,unchangedStations:0,missingActiveStations:0,unresolvedRows:0}};
+  const plan={source:"Ghana Electoral Commission 2024 Polling Stations",sourceYear:2024,newStations:[],changedStations:[],unchangedStations:0,sourceMissingActiveStations:[],unresolvedRows:[],summary:{sourceRows:source.rows.length,existingStations:stations.length,sourceUniqueCodes:source.rows.length,newStations:0,changedStations:0,unchangedStations:0,missingActiveStations:0,unresolvedRows:0}};
 
   for(const row of source.rows){
     const code=normalize(row.polling_station_code).toUpperCase(); if(seen.has(code)) continue; seen.add(code);
@@ -52,20 +52,34 @@ async function buildReconciliationPlan() {
     const constituency=options.find(c=>regionNameById.get(String(c.regionId))===key(row.region)) || (options.length===1?options[0]:null);
     if(!region||!constituency){plan.unresolvedRows.push({code,name:row.polling_station_name,region:row.region,constituency:row.constituency,reason:!region?"Region not found":options.length>1?"Constituency name is ambiguous":"Constituency not found"});continue;}
     const existing=stationByCode.get(code);
-    if(!existing){plan.newStations.push({code,name:row.polling_station_name,regionId:region._id,constituencyId:constituency._id,district:row.district});continue;}
+    if(!existing){plan.newStations.push({code,name:row.polling_station_name,regionId:String(region._id),constituencyId:String(constituency._id),district:row.district});continue;}
     const changes={};
     if(existing.name!==row.polling_station_name) changes.name={from:existing.name,to:row.polling_station_name};
-    if(String(existing.regionId)!==String(region._id)) changes.regionId={from:existing.regionId,to:region._id};
-    if(String(existing.constituencyId)!==String(constituency._id)) changes.constituencyId={from:existing.constituencyId,to:constituency._id};
+    if(String(existing.regionId)!==String(region._id)) changes.regionId={from:String(existing.regionId),to:String(region._id)};
+    if(String(existing.constituencyId)!==String(constituency._id)) changes.constituencyId={from:String(existing.constituencyId),to:String(constituency._id)};
     if(normalize(existing.district)!==normalize(row.district)) changes.district={from:existing.district,to:row.district};
     if(existing.isActive!==true) changes.isActive={from:existing.isActive,to:true};
     if(Object.keys(changes).length) plan.changedStations.push({id:existing._id,code,changes}); else plan.unchangedStations++;
   }
 
   const sourceCodes=new Set(source.rows.map(r=>normalize(r.polling_station_code).toUpperCase()));
-  for(const station of stations){const code=normalize(station.pollingStationCode).toUpperCase(); if(station.isActive===true && code && !sourceCodes.has(code)) plan.sourceMissingActiveStations.push({id:station._id,code,name:station.name,regionId:station.regionId,constituencyId:station.constituencyId});}
+  for(const station of stations){const code=normalize(station.pollingStationCode).toUpperCase(); if(station.isActive===true && code && !sourceCodes.has(code)) plan.sourceMissingActiveStations.push({id:station._id,code,name:station.name,regionId:String(station.regionId),constituencyId:String(station.constituencyId)});}
   plan.summary.newStations=plan.newStations.length; plan.summary.changedStations=plan.changedStations.length; plan.summary.unchangedStations=plan.unchangedStations; plan.summary.missingActiveStations=plan.sourceMissingActiveStations.length; plan.summary.unresolvedRows=plan.unresolvedRows.length;
   plan.safeToApply=plan.summary.unresolvedRows===0 && plan.summary.missingActiveStations===0;
   return plan;
 }
-module.exports={buildReconciliationPlan,SOURCE_FILE};
+
+async function applyReconciliationPlan(plan, actorId) {
+  if (!plan || !plan.safeToApply) throw new Error("Reconciliation is not safe to apply. Resolve all validation findings first.");
+  // Rebuild immediately before applying so an old preview cannot overwrite newer database changes.
+  const fresh = await buildReconciliationPlan();
+  if (!fresh.safeToApply) throw new Error("The reconciliation changed since review; apply was blocked and a new dry run is required.");
+  const operations = [];
+  for (const item of fresh.newStations) operations.push({ updateOne: { filter: { pollingStationCode: item.code }, update: { $set: { pollingStationCode:item.code,name:item.name,regionId:item.regionId,constituencyId:item.constituencyId,district:item.district,stationType:"ordinary",source:fresh.source,sourceYear:fresh.sourceYear,isActive:true } }, upsert:true } });
+  for (const item of fresh.changedStations) operations.push({ updateOne: { filter: { _id:item.id }, update: { $set: Object.fromEntries(Object.entries(item.changes).map(([field,change])=>[field,change.to])) , source:fresh.source, sourceYear:fresh.sourceYear } } });
+  if (!operations.length) return { matched:0, modified:0, upserted:0, applied:0, sourceMissingActiveStations:0 };
+  const result = await PollingStation.bulkWrite(operations, { ordered:true });
+  return { matched:result.matchedCount||0, modified:result.modifiedCount||0, upserted:result.upsertedCount||0, applied:operations.length, sourceMissingActiveStations:fresh.summary.missingActiveStations };
+}
+
+module.exports={buildReconciliationPlan,applyReconciliationPlan,SOURCE_FILE};
