@@ -1,4 +1,5 @@
 import "./visual-quality.css";
+import "./modern-dashboard.css";
 
 export const metadata = {
   title: "PoliSync Africa",
