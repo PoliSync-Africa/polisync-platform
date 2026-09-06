@@ -9,6 +9,7 @@ const superAdminNavigation = [
       { label: "Dashboard", href: "/super-admin/dashboard", icon: "⌂", key: "overview" },
       { label: "Users & Accounts", href: "/super-admin/users", icon: "♙", key: "users" },
       { label: "Organizations", href: "/super-admin/organizations", icon: "▦", key: "organizations" },
+      { label: "Workspace Lab", href: "/super-admin/workspaces", icon: "◈", key: "workspace-lab" },
       { label: "Candidates", href: "/super-admin/candidates", icon: "♟", key: "candidates" },
       { label: "Geographic Data", href: "/super-admin/geography", icon: "⌖", key: "geography" },
       { label: "Polling Stations", href: "/super-admin/polling-stations", icon: "⌖", key: "polling-stations" },
