@@ -1,0 +1,186 @@
+/* POLISYNC AFRICA — Modern workspace dashboard system
+   Shared visual layer for party, observer, candidate and personal workspaces.
+   Super Admin has its own command-center styling and is intentionally excluded. */
+
+.polisync-dashboard:not(:has(.command-center)) {
+  --modern-green:#064d2b;
+  --modern-green-2:#08713a;
+  --modern-gold:#c9a227;
+  --modern-ink:#17231d;
+  --modern-muted:#69776f;
+  --modern-border:#e2e9e4;
+  --modern-canvas:#f5f8f6;
+  background:var(--modern-canvas);
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-sidebar {
+  width:248px;
+  background:linear-gradient(180deg,#063d24 0%,#052f1d 100%);
+  border-right:0;
+  box-shadow:10px 0 32px rgba(2,42,24,.12);
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-brand {
+  min-height:88px;
+  padding:14px 18px;
+  background:#fff;
+  border-bottom:1px solid #e4ebe6;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-navigation {
+  padding:18px 12px;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-nav-group + .dashboard-nav-group {
+  margin-top:17px;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-nav-section {
+  margin:0 10px 7px;
+  color:rgba(255,255,255,.48);
+  font-size:10px;
+  letter-spacing:1.4px;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-nav-item {
+  min-height:43px;
+  margin:3px 0;
+  padding:9px 11px;
+  border-radius:10px;
+  color:rgba(255,255,255,.76);
+  font-size:13px;
+  font-weight:650;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-nav-item:hover {
+  background:rgba(255,255,255,.09);
+  color:#fff;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-nav-item-active {
+  background:linear-gradient(90deg,#08713a,#0a8245);
+  color:#fff;
+  box-shadow:0 7px 20px rgba(0,0,0,.15),inset 3px 0 0 var(--modern-gold);
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-nav-item-active:hover {
+  background:linear-gradient(90deg,#08713a,#0a8245);
+  color:#fff;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-sidebar-footer {
+  padding:14px;
+  background:rgba(0,0,0,.12);
+  border-top:1px solid rgba(255,255,255,.08);
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-role-label {
+  color:rgba(255,255,255,.45);
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-role {
+  color:#f0cf57;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-logout {
+  background:rgba(255,255,255,.06);
+  border-color:rgba(255,255,255,.14);
+  color:rgba(255,255,255,.78);
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-logout:hover {
+  background:rgba(255,255,255,.11);
+  color:#fff;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-main {
+  width:calc(100% - 248px);
+  margin-left:248px;
+  background:var(--modern-canvas);
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-header {
+  min-height:76px;
+  padding:10px 24px;
+  background:rgba(255,255,255,.94);
+  border-bottom:1px solid var(--modern-border);
+  box-shadow:0 5px 22px rgba(15,55,31,.045);
+  backdrop-filter:blur(14px);
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-header-title h1 {
+  color:var(--modern-green);
+  font-size:clamp(21px,2vw,28px);
+  letter-spacing:-.45px;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-header-title p {
+  color:var(--modern-muted);
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-country-line {
+  color:#7b877f;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-weather {
+  padding:7px 13px 7px 8px;
+  border:1px solid var(--modern-border);
+  border-radius:12px;
+  background:#fbfdfb;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-header-icon {
+  border-color:var(--modern-border);
+  background:#fff;
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-header-icon:hover {
+  transform:translateY(-1px);
+  border-color:#c9d8cd;
+  box-shadow:0 5px 14px rgba(9,71,38,.08);
+}
+
+.polisync-dashboard:not(:has(.command-center)) .dashboard-content-wrapper {
+  min-height:calc(100vh - 76px);
+  background:var(--modern-canvas);
+}
+
+/* Common dashboard surface vocabulary. Existing functional pages keep their
+   data/components; this only gives their repeated cards a consistent system. */
+.polisync-dashboard:not(:has(.command-center)) main {
+  scrollbar-color:#b9c9bf transparent;
+}
+
+.polisync-dashboard:not(:has(.command-center)) .panel,
+.polisync-dashboard:not(:has(.command-center)) .card,
+.polisync-dashboard:not(:has(.command-center)) .dashboard-card,
+.polisync-dashboard:not(:has(.command-center)) .workspace-card,
+.polisync-dashboard:not(:has(.command-center)) .stat-card {
+  border-color:var(--modern-border);
+  border-radius:16px;
+  box-shadow:0 7px 24px rgba(15,55,31,.055);
+}
+
+.polisync-dashboard:not(:has(.command-center)) button,
+.polisync-dashboard:not(:has(.command-center)) a {
+  -webkit-tap-highlight-color:rgba(6,77,43,.12);
+}
+
+@media(max-width:980px){
+  .polisync-dashboard:not(:has(.command-center)) .dashboard-sidebar{width:238px}
+  .polisync-dashboard:not(:has(.command-center)) .dashboard-main{width:calc(100% - 238px);margin-left:238px}
+  .polisync-dashboard:not(:has(.command-center)) .dashboard-header{padding:9px 16px}
+}
+
+@media(max-width:760px){
+  .polisync-dashboard:not(:has(.command-center)) .dashboard-sidebar{width:min(88vw,320px)}
+  .polisync-dashboard:not(:has(.command-center)) .dashboard-main{width:100%;margin-left:0}
+  .polisync-dashboard:not(:has(.command-center)) .dashboard-header{min-height:66px;padding:8px 12px}
+  .polisync-dashboard:not(:has(.command-center)) .dashboard-content-wrapper{min-height:calc(100vh - 66px)}
+}
+
+@media(max-width:430px){
+  .polisync-dashboard:not(:has(.command-center)) .dashboard-header-title h1{font-size:18px}
+  .polisync-dashboard:not(:has(.command-center)) .dashboard-header-title p{display:none}
+}
