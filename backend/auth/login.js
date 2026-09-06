@@ -18,6 +18,7 @@ const User = require("../models/User");
 // ============================================================
 
 const SESSION_TTL = "24h";
+const JWT_ALGORITHM = "HS256";
 
 const login = async (req, res) => {
   try {
@@ -64,14 +65,6 @@ const login = async (req, res) => {
         return res.status(403).json({ success: false, message: "The Super Admin account is not approved." });
       }
 
-      if (!user.emailVerified) {
-        return res.status(403).json({
-          success: false,
-          code: "EMAIL_NOT_VERIFIED",
-          message: "Please verify your email before accessing PoliSync Africa.",
-        });
-      }
-
       user.lastLoginAt = new Date();
       user.isOnline = true;
       await user.save();
@@ -79,7 +72,7 @@ const login = async (req, res) => {
       const token = jwt.sign(
         { userId: user._id.toString(), platformRole: "super_admin" },
         jwtSecret,
-        { expiresIn: SESSION_TTL, algorithm: "HS256" }
+        { expiresIn: SESSION_TTL, algorithm: JWT_ALGORITHM }
       );
 
       return res.status(200).json({
@@ -108,14 +101,6 @@ const login = async (req, res) => {
       return res.status(403).json({ success: false, message: "Your account has not yet been approved." });
     }
 
-    if (!user.emailVerified) {
-      return res.status(403).json({
-        success: false,
-        code: "EMAIL_NOT_VERIFIED",
-        message: "Please verify your email before logging in.",
-      });
-    }
-
     user.lastLoginAt = new Date();
     user.isOnline = true;
     await user.save();
@@ -123,7 +108,7 @@ const login = async (req, res) => {
     const token = jwt.sign(
       { userId: user._id.toString(), platformRole: "user" },
       jwtSecret,
-      { expiresIn: SESSION_TTL, algorithm: "HS256" }
+      { expiresIn: SESSION_TTL, algorithm: JWT_ALGORITHM }
     );
 
     return res.status(200).json({
