@@ -5,6 +5,7 @@ const User = require("../models/User");
 // Email verification is NOT an access requirement.
 // Arkesel SMS OTP is the verification/security mechanism.
 const MAX_AUTH_SESSION_MS = 24 * 60 * 60 * 1000;
+const JWT_ALGORITHMS = ["HS256"];
 
 const authenticate = async (req, res, next) => {
   try {
@@ -12,13 +13,13 @@ const authenticate = async (req, res, next) => {
     if (!authorization.startsWith("Bearer ")) return res.status(401).json({ success: false, message: "Authentication required." });
     const token = authorization.substring(7).trim();
     if (!token) return res.status(401).json({ success: false, message: "Authentication token is missing." });
-    if (!process.env.JWT_SECRET) return res.status(500).json({ success: false, message: "Authentication service is not properly configured." });
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) return res.status(500).json({ success: false, message: "Authentication service is not properly configured." });
 
     let decoded;
-    try { decoded = jwt.verify(token, process.env.JWT_SECRET); }
+    try { decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: JWT_ALGORITHMS }); }
     catch { return res.status(401).json({ success: false, message: "Your authentication session is invalid or expired." }); }
 
-    if (!decoded.userId) return res.status(401).json({ success: false, message: "Invalid authentication token." });
+    if (!decoded.userId || typeof decoded.userId !== "string") return res.status(401).json({ success: false, message: "Invalid authentication token." });
 
     if (!decoded.iat || Date.now() - decoded.iat * 1000 >= MAX_AUTH_SESSION_MS) {
       return res.status(401).json({ success: false, code: "SESSION_EXPIRED", message: "Your 24-hour security session has expired. Please log in again and complete phone verification." });
@@ -59,4 +60,4 @@ const requirePlatformUser = (req, res, next) => {
   return next();
 };
 
-module.exports = { MAX_AUTH_SESSION_MS, authenticate, requireSuperAdmin, requirePlatformUser };
+module.exports = { MAX_AUTH_SESSION_MS, JWT_ALGORITHMS, authenticate, requireSuperAdmin, requirePlatformUser };
