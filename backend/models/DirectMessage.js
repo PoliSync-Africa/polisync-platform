@@ -11,7 +11,16 @@ const directMessageSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
   recipient: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
   body: { type: String, required: false, trim: true, maxlength: 10000, default: "" },
-  attachments: { type: [attachmentSchema], default: [] },
+  attachments: {
+    type: [attachmentSchema],
+    default: [],
+    validate: {
+      validator: function (value) {
+        return value.length <= 5 && (value.length > 0 || Boolean(String(this.body || "").trim()));
+      },
+      message: "A message must contain text or at least one attachment, with a maximum of 5 attachments.",
+    },
+  },
   forwardedFrom: { type: mongoose.Schema.Types.ObjectId, ref: "DirectMessage", default: null, index: true },
   forwardedOriginalCreatedAt: { type: Date, default: null },
   read: { type: Boolean, default: false, index: true },
@@ -19,9 +28,6 @@ const directMessageSchema = new mongoose.Schema({
   deletedBySender: { type: Boolean, default: false },
   deletedByRecipient: { type: Boolean, default: false },
 }, { timestamps: true });
-
-directMessageSchema.path("attachments").validate((value) => value.length <= 5, "A message can contain at most 5 attachments.");
-directMessageSchema.path("attachments").validate((value) => value.length > 0 || Boolean(String(this.body || "").trim()), "A message must contain text or an attachment.");
 
 directMessageSchema.index({ sender: 1, recipient: 1, createdAt: -1 });
 directMessageSchema.index({ recipient: 1, sender: 1, createdAt: -1 });
