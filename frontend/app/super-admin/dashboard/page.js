@@ -1,61 +1,164 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 
-const CARDS = [
-  ["✦", "AI Personal Assistant", "How can I help you today?", "/super-admin/dashboard/intelligence", "ai"],
-  ["✓", "Pending Approvals", "", "/super-admin/dashboard/operations", "approvals"],
-  ["ϟ", "Quick Actions", "", "/super-admin/dashboard/operations", "quick"],
-  ["▥", "Results Overview", "", "/super-admin/results/live", "results"],
-  ["◇", "System Health", "", "/super-admin/dashboard/oversight", "health"],
-  ["◉", "Results History", "All organizational election results history", "/super-admin/results/history", "history"],
-  ["☁", "Weather", "", "/super-admin/dashboard/operations", "weather"],
-];
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+
+function token() {
+  if (typeof window === "undefined") return "";
+  return ["polisync_token", "authToken", "accessToken", "token"].map((key) => localStorage.getItem(key)).find(Boolean) || "";
+}
+
+async function getJson(path) {
+  const currentToken = token();
+  const response = await fetch(`${API_URL}${path}`, {
+    cache: "no-store",
+    headers: { Accept: "application/json", ...(currentToken ? { Authorization: `Bearer ${currentToken}` } : {}) },
+  });
+  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  return response.json();
+}
+
+const fmt = (value) => (Number.isFinite(Number(value)) ? Number(value).toLocaleString() : "—");
+const dateLabel = (value) => {
+  if (!value) return "Date not set";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+};
 
 export default function SuperAdminDashboard() {
+  const [data, setData] = useState({ users: null, organizations: null, elections: [], geography: null, activity: [] });
+  const [loading, setLoading] = useState(true);
+  const [clock, setClock] = useState(new Date());
+
+  const load = async () => {
+    setLoading(true);
+    const results = await Promise.allSettled([
+      getJson("/api/platform-users"),
+      getJson("/api/organizations/admin/all"),
+      getJson("/api/elections"),
+      getJson("/api/electoral-geography/summary"),
+      getJson("/api/audit-logs?limit=6"),
+    ]);
+    setData({
+      users: results[0].status === "fulfilled" ? results[0].value : null,
+      organizations: results[1].status === "fulfilled" ? results[1].value : null,
+      elections: results[2].status === "fulfilled" ? results[2].value?.elections || [] : [],
+      geography: results[3].status === "fulfilled" ? results[3].value?.data || null : null,
+      activity: results[4].status === "fulfilled" ? results[4].value?.logs || [] : [],
+    });
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(() => setClock(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const electionStats = useMemo(() => {
+    const elections = data.elections || [];
+    const status = (item) => String(item.status || "").toLowerCase();
+    return {
+      total: elections.length,
+      active: elections.filter((item) => status(item) === "active").length,
+      planning: elections.filter((item) => ["planning", "upcoming"].includes(status(item))).length,
+      completed: elections.filter((item) => status(item) === "completed").length,
+    };
+  }, [data.elections]);
+
+  const cards = [
+    { icon: "♟", label: "Total Users", value: data.users ? fmt(data.users.total) : "—", meta: "Platform accounts", tone: "green" },
+    { icon: "⌂", label: "Organizations", value: data.organizations ? fmt(data.organizations.totals?.organizations) : "—", meta: "Registered organizations", tone: "purple" },
+    { icon: "▣", label: "Elections", value: fmt(electionStats.total), meta: `${electionStats.active} active`, tone: "blue" },
+    { icon: "●", label: "Polling Stations", value: data.geography ? fmt(data.geography.pollingStations) : "—", meta: "Official geography", tone: "orange" },
+  ];
+
   return (
     <DashboardShell role="super_admin" title="Super Admin Dashboard" subtitle="Platform overview and control center" activeSection="overview">
-      <main className="dashboard-home">
-        <section className="dashboard-grid" aria-label="Super Admin dashboard components">
-          {CARDS.map(([icon, title, description, href, kind]) => (
-            <a href={href} className={`dashboard-card ${kind}`} key={title}>
-              <div className="card-icon" aria-hidden="true">{icon}</div>
-              <div className="card-content">
-                <h2>{title}</h2>
-                {description ? <p>{description}</p> : null}
-              </div>
-              <span className="card-arrow" aria-hidden="true">›</span>
-            </a>
+      <main className="command-center">
+        <section className="welcome-strip">
+          <div className="welcome-copy">
+            <span className="eyebrow">POLISYNC AFRICA · PLATFORM CONTROL</span>
+            <h2>Good morning, <strong>Super Admin</strong> <span aria-hidden="true">♛</span></h2>
+            <p>Manage elections, organizations, users, field operations and platform integrity from one command center.</p>
+          </div>
+          <div className="header-context" aria-label="Current dashboard context">
+            <div className="context-location"><span className="context-icon">📍</span><div><strong>Live location</strong><small>Use the header weather selector</small></div></div>
+            <div className="context-weather"><span className="context-icon">☁️</span><div><strong>Weather</strong><small>Location-aware forecast</small></div></div>
+            <div className="context-time"><strong>{clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</strong><span>{clock.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</span></div>
+          </div>
+        </section>
+
+        <section className="kpi-grid" aria-label="Platform metrics">
+          {cards.map((card) => (
+            <article className="kpi-card" key={card.label}>
+              <div className={`kpi-icon ${card.tone}`}>{card.icon}</div>
+              <div className="kpi-copy"><span>{card.label}</span><strong>{loading ? "…" : card.value}</strong><small>{card.meta}</small></div>
+            </article>
           ))}
         </section>
 
-        <div className="dashboard-search-wrap">
-          <div className="dashboard-search" role="search">
-            <span className="search-icon" aria-hidden="true">⌕</span>
-            <input aria-label="Search PoliSync" placeholder="Search candidates, parties, constituencies, polling stations..." />
-            <button type="button" aria-label="Open search filters">☷</button>
-          </div>
-        </div>
-      </main>
+        <section className="main-grid">
+          <article className="panel status-panel">
+            <PanelTitle icon="⌁" title="Platform Status" href="/super-admin/settings" link="Settings" />
+            <div className="system-banner"><span className="status-dot" /> All core services operational</div>
+            <StatusRow label="API Services" value="Online" /><StatusRow label="Database" value="Online" /><StatusRow label="SMS (Arkesel)" value="Connected" /><StatusRow label="Email Service" value="Connected" /><StatusRow label="Maps & Location" value="Online" />
+          </article>
 
+          <article className="panel election-panel">
+            <PanelTitle icon="▥" title="Elections Overview" href="/super-admin/elections" link="View all" />
+            <div className="election-summary"><div className="donut"><strong>{electionStats.total}</strong><span>Elections</span></div><div className="legend"><Legend color="green" text={`${electionStats.active} Active`} /><Legend color="blue" text={`${electionStats.planning} Planning`} /><Legend color="dark" text={`${electionStats.completed} Completed`} /><Legend color="gray" text={`${Math.max(0, electionStats.total - electionStats.active - electionStats.planning - electionStats.completed)} Other`} /></div></div>
+            <div className="subheading">Election register</div>
+            <div className="election-list">{(data.elections || []).slice(0, 3).map((election) => <div className="election-row" key={election._id || election.id || election.name}><div><strong>{election.name || "Unnamed election"}</strong><small>{dateLabel(election.date || election.startDate || election.createdAt)}</small></div><span className={`pill ${String(election.status || "").toLowerCase()}`}>{election.status || "Recorded"}</span></div>)}{!data.elections.length && <Empty text={loading ? "Loading elections…" : "No elections recorded yet."} />}</div>
+          </article>
+
+          <article className="panel geo-panel">
+            <PanelTitle icon="◇" title="Geographic Overview" href="/super-admin/polling-stations" link="Open map" />
+            <div className="geo-visual"><div className="geo-ring ring-one" /><div className="geo-ring ring-two" /><div className="geo-center">GH</div><span className="geo-pin p1" /><span className="geo-pin p2" /><span className="geo-pin p3" /><span className="geo-pin p4" /><div className="geo-label">Electoral coverage</div></div>
+            <div className="geo-stats"><Stat value={data.geography?.regions} label="Regions" /><Stat value={data.geography?.constituencies} label="Constituencies" /><Stat value={data.geography?.pollingStations} label="Polling Stations" /></div>
+          </article>
+        </section>
+
+        <section className="lower-grid">
+          <article className="panel weather-panel">
+            <PanelTitle icon="☁" title="Weather & Location" href="/super-admin/dashboard/operations" link="Select location" />
+            <p className="panel-note">Select a region, constituency, polling station or any particular location using the weather control in the dashboard header.</p>
+            <div className="weather-callout"><span className="weather-symbol">☀️</span><div><strong>Live forecast</strong><small>Current conditions · hourly details · 7-day forecast</small></div><a href="/super-admin/dashboard/operations">Open →</a></div>
+            <div className="weather-tags"><span>Region</span><span>Constituency</span><span>Polling Station</span><span>Location</span></div>
+          </article>
+
+          <article className="panel activity-panel">
+            <PanelTitle icon="◷" title="Recent Activity" href="/super-admin/audit-logs" link="View all" />
+            <div className="activity-list">{data.activity.map((item, index) => <div className="activity-row" key={item._id || index}><span className={`activity-dot d${index % 4}`} /><div><strong>{item.action || "Platform action"}</strong><small>{item.resource || "Platform"}</small></div><time>{item.createdAt ? new Date(item.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</time></div>)}{!data.activity.length && <Empty text={loading ? "Loading activity…" : "No audit activity recorded yet."} />}</div>
+          </article>
+
+          <article className="panel quick-panel">
+            <PanelTitle icon="ϟ" title="Quick Actions" />
+            <div className="quick-grid"><QuickAction href="/super-admin/users" icon="♟" label="Manage Users" /><QuickAction href="/super-admin/organizations" icon="⌂" label="Organizations" /><QuickAction href="/super-admin/elections" icon="▣" label="Create Election" /><QuickAction href="/super-admin/polling-stations" icon="●" label="Polling Stations" /><QuickAction href="/super-admin/settings" icon="⚙" label="Platform Settings" /><QuickAction href="/super-admin/reports" icon="▥" label="View Reports" /><QuickAction href="/super-admin/audit-logs" icon="▤" label="Audit Logs" /><QuickAction href="/super-admin/announcements" icon="⚑" label="Announcement" /></div>
+          </article>
+        </section>
+
+        <section className="assistant-card"><div className="assistant-orb">✦</div><div><span>AI PERSONAL ASSISTANT</span><strong>Get insights, generate reports, analyze platform data, and manage operations with AI.</strong></div><a href="/super-admin/dashboard/intelligence">Ask AI →</a></section>
+        <footer className="dashboard-footer"><strong>PoliSync <span>Africa</span></strong><span>Building transparent democracies across Africa.</span><span>● System Online · v1.0.0</span></footer>
+      </main>
       <style jsx>{styles}</style>
     </DashboardShell>
   );
 }
 
+function PanelTitle({ icon, title, href, link }) { return <div className="panel-title"><div><span>{icon}</span><h3>{title}</h3></div>{href && <a href={href}>{link} →</a>}</div>; }
+function StatusRow({ label, value }) { return <div className="status-row"><span>{label}</span><strong><i />{value}</strong></div>; }
+function Legend({ color, text }) { return <div><i className={`legend-dot ${color}`} />{text}</div>; }
+function Stat({ value, label }) { return <div><strong>{fmt(value)}</strong><span>{label}</span></div>; }
+function QuickAction({ href, icon, label }) { return <a className="quick-action" href={href}><span>{icon}</span><strong>{label}</strong></a>; }
+function Empty({ text }) { return <div className="empty">{text}</div>; }
+
 const styles = `
-.dashboard-home{min-height:100%;box-sizing:border-box;padding:clamp(18px,3vw,40px);background-color:#002d18;background-image:linear-gradient(rgba(240,201,79,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(240,201,79,.055) 1px,transparent 1px),radial-gradient(circle at 15% 10%,rgba(18,120,65,.3),transparent 28%),radial-gradient(circle at 88% 80%,rgba(240,205,97,.08),transparent 26%);background-size:44px 44px,44px 44px,auto,auto;color:#fff;overflow-x:hidden}
-.dashboard-grid{width:min(100%,1180px);margin:0 auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(18px,2vw,28px)}
-.dashboard-card{position:relative;min-height:238px;box-sizing:border-box;display:flex;align-items:center;gap:clamp(18px,2.2vw,30px);padding:clamp(24px,3vw,42px);border:2px solid #f0c94f;border-radius:27px;background:radial-gradient(circle at 70% 45%,rgba(12,110,57,.26),transparent 45%),linear-gradient(145deg,#063f23 0%,#002d18 100%);color:#fff!important;text-decoration:none!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04),0 10px 26px rgba(0,0,0,.18);overflow:hidden;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
-.dashboard-card::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.035) 50%,transparent 80%);transform:translateX(-100%);transition:transform .5s ease}
-.dashboard-card:hover{transform:translateY(-4px);border-color:#ffe27a;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 18px 38px rgba(0,0,0,.28)}
-.dashboard-card:hover::before{transform:translateX(100%)}
-.card-icon{width:clamp(82px,8vw,112px);height:clamp(82px,8vw,112px);flex:0 0 clamp(82px,8vw,112px);display:grid;place-items:center;box-sizing:border-box;border:3px solid #f0c94f;border-radius:50%;background:rgba(0,43,24,.72);color:#ffd45a;font-size:clamp(38px,4vw,56px);line-height:1;box-shadow:0 7px 18px rgba(0,0,0,.22)}
-.card-content{min-width:0;padding-right:28px}.card-content h2{margin:0;color:#fff;font-size:clamp(25px,2.5vw,39px);line-height:1.12;font-weight:850;letter-spacing:-.7px;text-shadow:0 2px 6px rgba(0,0,0,.24)}
-.card-content p{margin:9px 0 0;max-width:360px;color:#fff;font-size:clamp(15px,1.5vw,20px);line-height:1.45;font-weight:450}
-.card-arrow{position:absolute;right:24px;bottom:22px;width:52px;height:52px;display:grid;place-items:center;border:1px solid rgba(240,201,79,.65);border-radius:50%;background:rgba(0,76,39,.78);color:#fff;font-size:43px;line-height:1;font-weight:300;transition:transform .2s ease,background .2s ease}.dashboard-card:hover .card-arrow{transform:translateX(3px);background:rgba(8,103,52,.95)}
-.dashboard-search-wrap{width:min(100%,1180px);margin:clamp(20px,3vw,34px) auto 0;padding:0 0 4px}.dashboard-search{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:7px 9px 7px 18px;box-sizing:border-box;border:2px solid #d6aa35;border-radius:18px;background:#f0c94f;color:#002d18;box-shadow:0 10px 28px rgba(0,0,0,.22);transition:transform .2s ease,box-shadow .2s ease}.dashboard-search:focus-within{transform:translateY(-2px);box-shadow:0 14px 32px rgba(0,0,0,.28)}.search-icon{font-size:25px;font-weight:900}.dashboard-search input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:#002d18;font:700 14px/1.3 inherit}.dashboard-search input::placeholder{color:#163c29;opacity:.82}.dashboard-search button{width:42px;height:42px;flex:0 0 42px;border:1px solid rgba(0,45,24,.28);border-radius:12px;background:#002d18;color:#f0c94f;font-size:21px;cursor:pointer}
-@media(max-width:760px){.dashboard-home{padding:14px}.dashboard-grid{grid-template-columns:1fr;gap:16px}.dashboard-card{min-height:190px;padding:22px;border-radius:22px}.card-icon{width:76px;height:76px;flex-basis:76px;border-width:2px;font-size:37px}.card-content h2{font-size:26px}.card-content p{font-size:15px}.card-arrow{right:17px;bottom:16px;width:44px;height:44px;font-size:36px}.dashboard-search{min-height:52px;border-radius:15px;padding-left:14px}.dashboard-search input{font-size:12px}.dashboard-search button{width:38px;height:38px;flex-basis:38px}}
-@media(max-width:430px){.dashboard-card{min-height:170px;gap:15px;padding:18px}.card-icon{width:64px;height:64px;flex-basis:64px;font-size:31px}.card-content{padding-right:30px}.card-content h2{font-size:22px;letter-spacing:-.3px}.card-content p{font-size:13px}.dashboard-search input{font-size:11px}.dashboard-search{min-height:50px}}
-@media(prefers-reduced-motion:reduce){.dashboard-card,.dashboard-card::before,.card-arrow,.dashboard-search{transition:none}}
+.command-center{min-height:100%;padding:24px 28px 18px;background:#f4f7f5;color:#14251c;box-sizing:border-box;overflow-x:hidden}.welcome-strip{display:flex;align-items:stretch;justify-content:space-between;gap:24px;min-height:148px;padding:28px 30px;border-radius:22px;background:linear-gradient(110deg,#004e28 0%,#006d38 56%,#013b21 100%);color:#fff;box-shadow:0 12px 30px rgba(4,71,35,.18);position:relative;overflow:hidden}.welcome-strip:after{content:"";position:absolute;right:-90px;top:-130px;width:440px;height:440px;border:1px solid rgba(255,255,255,.12);border-radius:50%;box-shadow:0 0 0 55px rgba(255,255,255,.025),0 0 0 110px rgba(255,255,255,.02)}.welcome-copy{position:relative;z-index:1;max-width:680px}.eyebrow{font-size:11px;font-weight:850;letter-spacing:2px;color:#e7c65c}.welcome-copy h2{margin:10px 0 5px;font-size:34px;line-height:1.05;letter-spacing:-.8px}.welcome-copy h2 span{color:#f4cb3d}.welcome-copy p{margin:0;max-width:650px;color:rgba(255,255,255,.82);font-size:14px;line-height:1.5}.header-context{position:relative;z-index:2;display:grid;grid-template-columns:1fr auto;grid-template-rows:1fr 1fr;gap:8px 18px;min-width:355px;padding:12px 0}.context-location,.context-weather{display:flex;align-items:center;gap:8px;font-size:12px}.context-location strong,.context-weather strong{display:block}.context-location small,.context-weather small{display:block;color:rgba(255,255,255,.67);font-size:9px;margin-top:2px}.context-icon{font-size:18px}.context-time{grid-row:1/3;grid-column:2;display:flex;flex-direction:column;justify-content:center;padding-left:18px;border-left:1px solid rgba(255,255,255,.18)}.context-time strong{font-size:28px}.context-time span{font-size:10px;color:rgba(255,255,255,.72)}.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:18px 0}.kpi-card{display:flex;align-items:center;gap:15px;padding:18px;border:1px solid #dce6df;border-radius:16px;background:#fff;box-shadow:0 5px 16px rgba(20,51,35,.055);min-width:0}.kpi-icon{width:56px;height:56px;flex:0 0 56px;display:grid;place-items:center;border-radius:14px;color:#fff;font-size:28px;font-weight:800}.kpi-icon.green{background:#10a15c}.kpi-icon.purple{background:#7a45d8}.kpi-icon.blue{background:#2779e9}.kpi-icon.orange{background:#ef7c21}.kpi-copy{min-width:0;display:flex;flex-direction:column}.kpi-copy span{font-size:12px;color:#65736b}.kpi-copy strong{font-size:27px;line-height:1.1;margin:3px 0}.kpi-copy small{font-size:10px;color:#819087}.main-grid{display:grid;grid-template-columns:1.02fr 1.05fr 1fr;gap:16px}.panel{background:#fff;border:1px solid #dce6df;border-radius:16px;padding:18px;box-shadow:0 5px 16px rgba(20,51,35,.045);min-width:0}.panel-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}.panel-title>div{display:flex;align-items:center;gap:9px}.panel-title>div>span{color:#08713a;font-size:21px;font-weight:800}.panel-title h3{margin:0;font-size:17px;letter-spacing:-.2px}.panel-title a{color:#08713a;text-decoration:none;font-size:11px;font-weight:800}.system-banner{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:#e6f6ed;color:#08713a;font-size:12px;font-weight:800;margin-bottom:10px}.status-dot,.status-row i{width:9px;height:9px;border-radius:50%;background:#16a765;display:inline-block}.status-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #edf1ee;font-size:12px}.status-row:last-child{border-bottom:0}.status-row>span{color:#3d4e45}.status-row strong{display:flex;align-items:center;gap:7px;color:#08713a;font-size:11px}.election-summary{display:flex;align-items:center;gap:24px;margin:4px 0 14px}.donut{width:104px;height:104px;flex:0 0 104px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:conic-gradient(#16a765 0 25%,#2b79eb 25% 62%,#075f2b 62% 83%,#d8dfe5 83%);position:relative}.donut:after{content:"";position:absolute;inset:18px;border-radius:50%;background:#fff}.donut strong,.donut span{position:relative;z-index:1}.donut strong{font-size:22px}.donut span{font-size:9px;color:#68766e}.legend{display:grid;gap:8px;font-size:11px;color:#526159}.legend>div{display:flex;align-items:center;gap:7px}.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block}.legend-dot.green{background:#16a765}.legend-dot.blue{background:#2b79eb}.legend-dot.dark{background:#075f2b}.legend-dot.gray{background:#cfd7de}.subheading{font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:1px;color:#87938d;margin:8px 0}.election-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #edf1ee}.election-row strong{display:block;font-size:11px}.election-row small{display:block;color:#89948e;font-size:9px;margin-top:2px}.pill{padding:5px 9px;border-radius:999px;font-size:9px;font-weight:800;background:#edf1ee;color:#53625a}.pill.active{background:#dff5e8;color:#08713a}.pill.planning{background:#e6f0ff;color:#246bd0}.pill.completed{background:#e4f2ea;color:#075f2b}.geo-visual{height:185px;border-radius:12px;background:linear-gradient(135deg,#eaf5ef,#d8eee3);position:relative;overflow:hidden;border:1px solid #d8e8de}.geo-visual:before{content:"";position:absolute;inset:18px;background:radial-gradient(circle at 40% 45%,rgba(7,95,43,.28),transparent 16%),radial-gradient(circle at 62% 30%,rgba(7,95,43,.2),transparent 13%),radial-gradient(circle at 72% 65%,rgba(7,95,43,.2),transparent 15%),linear-gradient(35deg,transparent 48%,rgba(7,95,43,.08) 49%,transparent 51%),linear-gradient(145deg,transparent 48%,rgba(7,95,43,.08) 49%,transparent 51%);border:1px solid rgba(7,95,43,.08);clip-path:polygon(44% 2%,62% 7%,72% 20%,84% 31%,77% 47%,88% 62%,72% 72%,67% 91%,49% 84%,36% 94%,29% 75%,16% 65%,23% 48%,13% 33%,28% 23%,32% 8%)}.geo-ring{position:absolute;border:1px solid rgba(7,95,43,.25);border-radius:50%}.ring-one{width:120px;height:120px;left:40%;top:16%}.ring-two{width:180px;height:180px;left:31%;top:0}.geo-center{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:40px;height:40px;display:grid;place-items:center;border-radius:50%;background:#075f2b;color:#fff;font-size:11px;font-weight:900;border:4px solid #fff;box-shadow:0 5px 15px rgba(7,95,43,.25)}.geo-pin{position:absolute;width:10px;height:10px;background:#075f2b;border:2px solid #fff;border-radius:50%}.p1{left:35%;top:35%}.p2{left:66%;top:29%}.p3{left:59%;top:70%}.p4{left:30%;top:62%}.geo-label{position:absolute;right:10px;top:10px;padding:7px 9px;background:#fff;border-radius:8px;font-size:9px;font-weight:800;color:#315244;box-shadow:0 3px 9px rgba(0,0,0,.08)}.geo-stats{display:grid;grid-template-columns:repeat(3,1fr);margin-top:10px;border-top:1px solid #edf1ee}.geo-stats>div{text-align:center;padding:9px 3px;border-right:1px solid #edf1ee}.geo-stats>div:last-child{border-right:0}.geo-stats strong{display:block;font-size:17px}.geo-stats span{display:block;font-size:9px;color:#7b8981}.lower-grid{display:grid;grid-template-columns:1.25fr .9fr .9fr;gap:16px;margin-top:16px}.panel-note{margin:-4px 0 12px;color:#728078;font-size:11px;line-height:1.45}.weather-callout{display:flex;align-items:center;gap:11px;padding:13px;border:1px solid #dce8df;border-radius:12px;background:#f6faf7}.weather-symbol{font-size:29px}.weather-callout div{min-width:0;flex:1}.weather-callout strong{display:block;font-size:13px}.weather-callout small{display:block;color:#7d8b83;font-size:9px;margin-top:2px}.weather-callout a{color:#08713a;text-decoration:none;font-size:10px;font-weight:800}.weather-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.weather-tags span{padding:5px 7px;border-radius:999px;background:#edf6f0;color:#2d6246;font-size:9px;font-weight:700}.activity-list{display:grid}.activity-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #edf1ee}.activity-row:last-child{border-bottom:0}.activity-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#0fa361}.activity-dot.d1{background:#2779e9}.activity-dot.d2{background:#7a45d8}.activity-dot.d3{background:#e5a41a}.activity-row div{min-width:0;flex:1}.activity-row strong,.activity-row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.activity-row strong{font-size:10px}.activity-row small{font-size:9px;color:#89958e;margin-top:2px}.activity-row time{font-size:8px;color:#8b9690;white-space:nowrap}.quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.quick-action{min-height:66px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;border-radius:11px;text-decoration:none;background:#f1f8f3;border:1px solid #e1ece4;color:#0a5f32;transition:transform .15s ease,box-shadow .15s ease}.quick-action:hover{transform:translateY(-2px);box-shadow:0 7px 16px rgba(7,95,43,.1)}.quick-action span{font-size:19px}.quick-action strong{font-size:9px;text-align:center}.empty{padding:15px 5px;color:#8a968f;font-size:10px;text-align:center}.assistant-card{display:flex;align-items:center;gap:14px;margin-top:16px;padding:15px 18px;border:1px solid #cfe2d6;border-radius:15px;background:linear-gradient(100deg,#f5fbf7,#fff);box-shadow:0 5px 16px rgba(20,51,35,.04)}.assistant-orb{width:48px;height:48px;flex:0 0 48px;display:grid;place-items:center;border-radius:50%;background:#dff4e7;color:#08713a;font-size:24px}.assistant-card>div:nth-child(2){min-width:0;flex:1}.assistant-card span{display:block;color:#08713a;font-size:9px;font-weight:900;letter-spacing:1px}.assistant-card strong{display:block;font-size:12px;margin-top:3px}.assistant-card>a{padding:10px 15px;border-radius:10px;background:#075f2b;color:#fff;text-decoration:none;font-size:10px;font-weight:800}.dashboard-footer{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:17px 2px 2px;color:#7b8981;font-size:9px}.dashboard-footer strong{color:#075f2b;font-size:15px}.dashboard-footer strong span{color:#c49b20}.dashboard-footer span:last-child{color:#08713a;font-weight:800}
+@media(max-width:1100px){.main-grid{grid-template-columns:1fr 1fr}.geo-panel{grid-column:1/-1}.lower-grid{grid-template-columns:1fr 1fr}.quick-panel{grid-column:1/-1}.quick-grid{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:760px){.command-center{padding:14px}.welcome-strip{flex-direction:column;padding:21px;min-height:auto}.welcome-copy h2{font-size:28px}.header-context{min-width:0;grid-template-columns:1fr auto}.context-time strong{font-size:22px}.kpi-grid{grid-template-columns:1fr 1fr;gap:10px}.kpi-card{padding:13px;gap:10px}.kpi-icon{width:45px;height:45px;flex-basis:45px;font-size:21px}.kpi-copy strong{font-size:21px}.main-grid,.lower-grid{grid-template-columns:1fr}.geo-panel,.quick-panel{grid-column:auto}.quick-grid{grid-template-columns:repeat(2,1fr)}.assistant-card{align-items:flex-start;flex-wrap:wrap}.assistant-card>a{margin-left:62px}.dashboard-footer{flex-direction:column;align-items:flex-start}}
+@media(max-width:430px){.command-center{padding:10px}.welcome-strip{border-radius:16px;padding:17px}.welcome-copy h2{font-size:24px}.header-context{display:block}.context-location,.context-weather{margin-top:8px}.context-time{margin-top:10px;padding:9px 0 0;border-left:0;border-top:1px solid rgba(255,255,255,.16)}.kpi-grid{grid-template-columns:1fr}.panel{padding:14px}.election-summary{gap:14px}.donut{width:88px;height:88px;flex-basis:88px}.geo-visual{height:155px}}
+@media(prefers-reduced-motion:reduce){.quick-action{transition:none}}
 `;
