@@ -2,7 +2,6 @@ const express = require("express");
 
 const {
   register,
-  logout,
   me,
   forgotPassword,
   verifyEmail,
@@ -14,14 +13,10 @@ const {
   changePassword,
 } = require("../controllers/authController");
 
-const smsLogin = require("../controllers/smsLoginController");
-const { verifyLoginOTP, resendLoginOTP } = require("../controllers/authController");
+const secureSessionAuth = require("../controllers/secureSessionAuthController");
+const { protect } = require("../middleware/auth");
 
 const router = express.Router();
-
-// ============================================================
-// AUTH STATUS
-// ============================================================
 
 router.get("/", (req, res) => {
   res.json({
@@ -32,14 +27,14 @@ router.get("/", (req, res) => {
 
 router.post("/register", register);
 
-// SMS-FIRST LOGIN — email verification is not required.
-router.post("/login", smsLogin);
+// All new interactive login sessions are server-side revocable and expire after 24 hours.
+router.post("/login", secureSessionAuth.startLogin);
+router.post("/verify-login-otp", secureSessionAuth.verifyLogin);
+router.post("/resend-login-otp", secureSessionAuth.resendLogin);
+router.post("/logout", protect, secureSessionAuth.logout);
+router.get("/me", protect, me);
 
-router.post("/logout", logout);
-router.get("/me", me);
-
-// Legacy email endpoints remain available for compatibility,
-// but email verification is not a login requirement.
+// Legacy email endpoints remain available for compatibility.
 router.post("/verify-email", verifyEmail);
 router.post("/resend-email-verification", resendEmailVerification);
 
@@ -47,13 +42,9 @@ router.post("/resend-email-verification", resendEmailVerification);
 router.post("/verify-phone", verifyPhone);
 router.post("/resend-phone-verification", resendPhoneVerification);
 
-// Login SMS OTP challenge completion/resend.
-router.post("/verify-login-otp", verifyLoginOTP);
-router.post("/resend-login-otp", resendLoginOTP);
-
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-password-reset", verifyPasswordReset);
 router.post("/reset-password", resetPassword);
-router.post("/change-password", changePassword);
+router.post("/change-password", protect, changePassword);
 
 module.exports = router;
