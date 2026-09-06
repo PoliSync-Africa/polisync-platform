@@ -18,15 +18,38 @@ router.get("/me", authenticate, async (req, res) => {
     const user = await User.findById(userId).lean();
     if (!user) return res.status(404).json({ success: false, message: "Account not found." });
 
-    const [organizations, assignments, unreadNotifications, results] = await Promise.all([
+    const [organizations, assignments, unreadNotifications, results, memberships] = await Promise.all([
       OrganizationMembership.countDocuments({ userId, status: "approved" }),
       OrganizationMembership.countDocuments({ userId, status: "approved", role: { $nin: ["organization_member", "user"] } }),
       Notification.countDocuments({ recipient: userId, read: false }).catch(() => 0),
       Result.countDocuments({ submittedBy: userId }).catch(() => 0),
+      OrganizationMembership.find({ userId, status: "approved" })
+        .select("organizationId role level regionId constituencyId pollingStationId pollingStationCode")
+        .populate({ path: "organizationId", select: "name organizationType politicalPartyName" })
+        .populate({ path: "regionId", select: "name" })
+        .populate({ path: "constituencyId", select: "name" })
+        .populate({ path: "pollingStationId", select: "name pollingStationCode" })
+        .lean()
+        .catch(() => []),
     ]);
 
     const sourceFields = ["firstName", "lastName", "email", "phone", "dateOfBirth", "profilePhoto"];
     const completed = sourceFields.filter((field) => user[field] != null && String(user[field]).trim() !== "").length;
+    const organizationContexts = memberships
+      .filter((membership) => membership.organizationId)
+      .map((membership) => ({
+        id: membership.organizationId._id,
+        organizationName: membership.organizationId.name,
+        organizationType: membership.organizationId.organizationType || null,
+        politicalPartyName: membership.organizationId.politicalPartyName || null,
+        role: membership.role,
+        level: membership.level,
+        regionName: membership.regionId?.name || null,
+        constituencyName: membership.constituencyId?.name || null,
+        pollingStationName: membership.pollingStationId?.name || null,
+        pollingStationCode: membership.pollingStationId?.pollingStationCode || membership.pollingStationCode || null,
+      }));
+
     const safeUser = {
       id: user._id,
       firstName: user.firstName,
@@ -39,14 +62,13 @@ router.get("/me", authenticate, async (req, res) => {
       profilePhoto: user.profilePhoto || null,
       platformRole: user.platformRole,
       accountStatus: user.accountStatus,
-      // Verification badge/security status is based on phone verification,
-      // never on email verification.
       verified: Boolean(user.phoneVerified),
       emailVerified: true,
       phoneVerified: Boolean(user.phoneVerified),
       dateOfBirth: user.dateOfBirth || null,
       profileCompletion: Math.round((completed / sourceFields.length) * 100),
       privacy: user.privacy || null,
+      organizationContexts,
     };
 
     return res.json({ success: true, user: safeUser, metrics: { organizations, assignments, unreadNotifications, results } });

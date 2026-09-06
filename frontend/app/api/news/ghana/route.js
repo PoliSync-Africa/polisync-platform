@@ -2,6 +2,8 @@ const FEEDS = [
   { category: "politics", label: "Politics", query: "Ghana politics" },
   { category: "governance", label: "Governance", query: "Ghana government governance" },
   { category: "economy", label: "Economy", query: "Ghana economy" },
+  { category: "trending", label: "Trending Ghana", query: "Ghana trending news" },
+  { category: "foreign", label: "Major Foreign News", query: "world international breaking news" },
 ];
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -21,12 +23,13 @@ function tag(xml, name) {
 function items(xml) {
   return Array.from(String(xml || "").matchAll(/<item>([\s\S]*?)<\/item>/gi)).map((match) => {
     const block = match[1];
-    const title = tag(block, "title");
-    const link = tag(block, "link");
-    const published = tag(block, "pubDate");
-    const source = tag(block, "source") || "Google News";
-    const description = tag(block, "description");
-    return { title, link, published, source, description };
+    return {
+      title: tag(block, "title"),
+      link: tag(block, "link"),
+      published: tag(block, "pubDate"),
+      source: tag(block, "source") || "Google News",
+      description: tag(block, "description"),
+    };
   }).filter((item) => item.title && item.link);
 }
 
@@ -37,7 +40,7 @@ export async function GET() {
       const response = await fetch(url, { cache: "no-store", headers: { Accept: "application/rss+xml, application/xml, text/xml" } });
       if (!response.ok) return [];
       const xml = await response.text();
-      return items(xml).slice(0, 12).map((item) => ({ ...item, category: feed.category, categoryLabel: feed.label }));
+      return items(xml).slice(0, 15).map((item) => ({ ...item, category: feed.category, categoryLabel: feed.label }));
     }));
 
     const seen = new Set();
@@ -46,9 +49,9 @@ export async function GET() {
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    }).sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime()).slice(0, 30);
+    }).sort((a, b) => new Date(b.published).getTime() - new Date(a.published).getTime());
 
-    return Response.json({ success: true, data: news, updatedAt: new Date().toISOString(), source: "Google News RSS" });
+    return Response.json({ success: true, data: news.slice(0, 60), updatedAt: new Date().toISOString(), source: "Google News RSS" });
   } catch (error) {
     return Response.json({ success: false, data: [], message: "News feed is temporarily unavailable." }, { status: 200 });
   }
