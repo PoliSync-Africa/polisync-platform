@@ -3,12 +3,10 @@ const { authenticate, requireSuperAdmin } = require("../auth/middleware");
 const controller = require("../controllers/electoralGeographyIntegrityController");
 const regionalController = require("../controllers/electoralGeographyRegionHealthController");
 const reconciliationController = require("../controllers/electoralDataReconciliationController");
-
 const router = express.Router();
-
 router.get("/", authenticate, requireSuperAdmin, controller.report);
 router.get("/regions", authenticate, requireSuperAdmin, regionalController.report);
 router.get("/reconciliation/preview", authenticate, requireSuperAdmin, reconciliationController.preview);
+router.post("/reconciliation/apply", authenticate, requireSuperAdmin, reconciliationController.apply);
 router.post("/sync", authenticate, requireSuperAdmin, controller.sync);
-
 module.exports = router;
