@@ -5,6 +5,7 @@ const app = require("./app");
 const User = require("./models/User");
 const { startBirthdayJob } = require("./jobs/birthdayMessages");
 const { ensureElectoralGeography } = require("./scripts/ensureElectoralGeography");
+const { installCallSignaling } = require("./realtime/callSignaling");
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 5000;
@@ -47,8 +48,9 @@ mongoose
       });
     });
 
-    // Protect the API from slow-header/body connection exhaustion while
-    // leaving enough time for legitimate electoral-data operations.
+    installCallSignaling(server);
+    console.log("📞 Authenticated WebRTC signaling enabled");
+
     server.requestTimeout = 60 * 1000;
     server.headersTimeout = 15 * 1000;
     server.keepAliveTimeout = 5 * 1000;
