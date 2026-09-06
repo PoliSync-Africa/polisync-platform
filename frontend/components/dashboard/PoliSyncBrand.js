@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-const SEARCH_ROUTES=[["Dashboard","/dashboard"],["Campaigns","/campaigns"],["Field Work","/field-work"],["Research & Surveys","/research"],["Elections","/elections"],["Results","/results"],["Ghana News & Intelligence","/news"],["Analytics","/analytics"],["Reports","/reports"],["AI Analyzer","/ai-analyzer"],["AI Personal Assistant","/ai-assistant"],["Messages","/messages"],["Notifications","/notifications"],["Profile","/profile"],["Privacy & Security","/settings/security"],["Calendar","/calendar"],["Organizations","/organizations"],["Candidates","/candidates"],["Polling Stations","/party/polling-stations"],["Live Results","/party/results"]];
+const SEARCH_ROUTES=[["Dashboard","/dashboard"],["Campaigns","/campaigns"],["Field Work","/field-work"],["Research & Surveys","/research"],["Elections","/elections"],["Results","/results"],["Ghana News & Intelligence","/news"],["Weather Intelligence","/weather"],["Analytics","/analytics"],["Reports","/reports"],["AI Analyzer","/ai-analyzer"],["AI Personal Assistant","/ai-assistant"],["Messages","/messages"],["Notifications","/notifications"],["Profile","/profile"],["Privacy & Security","/settings/security"],["Calendar","/calendar"],["Organizations","/organizations"],["Candidates","/candidates"],["Polling Stations","/party/polling-stations"],["Live Results","/party/results"]];
 const OFFICIAL_LOGO="/polisync-brand.svg";
 export default function PoliSyncBrand({compact=false}){
   const[q,setQ]=useState(""),[open,setOpen]=useState(false);
@@ -14,30 +14,12 @@ export default function PoliSyncBrand({compact=false}){
         const label=button.getAttribute('aria-label');
         if((label!=="Notifications"&&label!=="Messages")||button.dataset.polisyncNavigationBound==="true") return;
         const href=label==="Notifications"?"/notifications":"/messages";
-        const navigate=(event)=>{
-          event.preventDefault();
-          event.stopPropagation();
-          if(typeof window!=="undefined") window.location.assign(href);
-        };
-        button.dataset.polisyncNavigationBound="true";
-        button.style.touchAction="manipulation";
-        button.style.cursor="pointer";
-        button.addEventListener("click",navigate);
-        button.addEventListener("touchend",navigate,{passive:false});
-        bound.push({button,navigate});
+        const navigate=(event)=>{event.preventDefault();event.stopPropagation();if(typeof window!=="undefined") window.location.assign(href)};
+        button.dataset.polisyncNavigationBound="true";button.style.touchAction="manipulation";button.style.cursor="pointer";button.addEventListener("click",navigate);button.addEventListener("touchend",navigate,{passive:false});bound.push({button,navigate});
       });
     };
-    bind();
-    const observer=new MutationObserver(bind);
-    observer.observe(document.body,{childList:true,subtree:true});
-    return()=>{
-      observer.disconnect();
-      bound.forEach(({button,navigate})=>{
-        button.removeEventListener("click",navigate);
-        button.removeEventListener("touchend",navigate);
-        delete button.dataset.polisyncNavigationBound;
-      });
-    };
+    bind();const observer=new MutationObserver(bind);observer.observe(document.body,{childList:true,subtree:true});
+    return()=>{observer.disconnect();bound.forEach(({button,navigate})=>{button.removeEventListener("click",navigate);button.removeEventListener("touchend",navigate);delete button.dataset.polisyncNavigationBound})};
   },[compact]);
   const go=href=>{setOpen(false);setQ("");if(typeof window!=="undefined")window.location.href=href};
   if(compact){const search=<div className="search-portal" role="search"><div className="search-row"><img src={OFFICIAL_LOGO} alt="PoliSync Africa" className="corner-logo"/><div className="search-box"><span aria-hidden="true">⌕</span><input value={q} onChange={e=>{setQ(e.target.value);setOpen(true)}} onFocus={()=>setOpen(true)} onKeyDown={e=>{if(e.key==="Escape"){setOpen(false);e.currentTarget.blur()}if(e.key==="Enter"&&matches[0])go(matches[0][1])}} placeholder="Search PoliSync…" aria-label="Search PoliSync"/></div></div>{open&&q.trim()&&<div className="search-results">{matches.length?matches.map(([label,href])=><button key={href} type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>go(href)}><span>⌕</span>{label}</button>):<div className="no-results">No matching destination</div>}</div>}<style jsx>{`.search-portal{position:fixed;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(520px,calc(100vw - 28px));z-index:1100;pointer-events:none}.search-row,.search-results{pointer-events:auto}.search-row{display:flex;align-items:center;gap:9px}.corner-logo{flex:0 0 42px;width:42px;height:42px;object-fit:contain}.search-box{flex:1;min-width:0;height:46px;display:flex;align-items:center;gap:8px;padding:0 13px;background:#fff;border:1.5px solid #0a7135;border-radius:14px;box-shadow:0 9px 26px rgba(7,55,28,.16)}.search-box:focus-within{border-color:#c9a227;box-shadow:0 0 0 3px rgba(201,162,39,.12),0 9px 26px rgba(7,55,28,.16)}.search-box>span{color:#075f2b;font-size:21px}.search-box input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#24352b;font-size:13px;font-weight:650}.search-box input::placeholder{color:#8a958e}.search-results{margin:6px 0 0 51px;padding:7px;background:#fff;border:1px solid #0a7135;border-radius:13px;box-shadow:0 15px 35px rgba(7,45,25,.16);max-height:45vh;overflow:auto}.search-results button{width:100%;display:flex;align-items:center;gap:9px;padding:10px 11px;border:0;border-radius:9px;background:#fff;color:#344139;text-align:left;font-size:12px;font-weight:650;cursor:pointer}.search-results button:hover{background:#edf7f0;color:#075f2b}.search-results button span{color:#c9a227}.no-results{padding:12px;color:#849088;font-size:12px}@media(max-width:760px){.search-portal{left:12px;right:12px;bottom:max(10px,env(safe-area-inset-bottom));transform:none;width:auto}.corner-logo{flex:0 0 36px;width:36px;height:36px}.search-box{height:44px}.search-results{margin-left:45px;max-height:38vh}}@media(max-width:430px){.corner-logo{display:none}.search-results{margin-left:0}.search-box{height:46px;border-radius:13px}}`}</style></div>;return typeof document!=="undefined"?createPortal(search,document.body):null}
