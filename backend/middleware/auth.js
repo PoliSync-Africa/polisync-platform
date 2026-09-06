@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const AuthSession = require("../models/AuthSession");
 
 const MAX_AUTH_SESSION_MS = 24 * 60 * 60 * 1000;
 
@@ -18,12 +19,23 @@ const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
-    if (!decoded.userId || typeof decoded.userId !== "string") {
-      return res.status(401).json({ success: false, message: "Invalid authentication token." });
+    if (!decoded.userId || typeof decoded.userId !== "string" || !decoded.sessionId || typeof decoded.sessionId !== "string") {
+      return res.status(401).json({ success: false, code: "SESSION_INVALID", message: "This security session is no longer valid. Please log in again." });
     }
 
     if (!decoded.iat || Date.now() - decoded.iat * 1000 >= MAX_AUTH_SESSION_MS) {
       return res.status(401).json({ success: false, code: "SESSION_EXPIRED", message: "Your security session has expired. Please log in again." });
+    }
+
+    const session = await AuthSession.findOne({
+      sessionId: decoded.sessionId,
+      userId: decoded.userId,
+      revokedAt: null,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!session) {
+      return res.status(401).json({ success: false, code: "SESSION_REVOKED", message: "This security session has been revoked or expired. Please log in again." });
     }
 
     const user = await User.findById(decoded.userId).select("-password");
@@ -38,11 +50,15 @@ const protect = async (req, res, next) => {
       return res.status(403).json({ success: false, message: "This account has an invalid platform role." });
     }
 
+    session.lastSeenAt = new Date();
+    await session.save();
+
     req.user = user;
     req.auth = {
       userId: user._id.toString(),
       platformRole: user.platformRole,
       isSuperAdmin: user.platformRole === "super_admin",
+      sessionId: session.sessionId,
     };
     return next();
   } catch (error) {
