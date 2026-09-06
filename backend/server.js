@@ -20,20 +20,12 @@ mongoose
   .then(async () => {
     console.log("✅ MongoDB Connected");
 
-    // Personal accounts remain self-approved.
     const approvalMigration = await User.updateMany(
       { platformRole: "user", accountStatus: "pending" },
       { $set: { accountStatus: "approved", approvedAt: new Date(), approvedBy: null } }
     );
     console.log(`👤 Personal accounts auto-approved: ${approvalMigration.modifiedCount || 0}`);
 
-    // ========================================================
-    // EMAIL VERIFICATION RETIRED
-    // ========================================================
-    // Email is contact/login information only. It is no longer
-    // a verification or access requirement for ANY account type.
-    // This migration permanently normalizes existing accounts so
-    // old records cannot trigger the retired email gate.
     const emailVerificationMigration = await User.updateMany(
       { emailVerified: { $ne: true } },
       { $set: { emailVerified: true } }
@@ -45,7 +37,7 @@ mongoose
 
     startBirthdayJob();
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`🚀 PoliSync Africa Backend running on port ${PORT}`);
       console.log("📊 Database: MongoDB + Mongoose");
       console.log(`🔗 API: http://localhost:${PORT}`);
@@ -54,6 +46,13 @@ mongoose
         console.error("⚠️ Electoral geography bootstrap failed:", error.message);
       });
     });
+
+    // Protect the API from slow-header/body connection exhaustion while
+    // leaving enough time for legitimate electoral-data operations.
+    server.requestTimeout = 60 * 1000;
+    server.headersTimeout = 15 * 1000;
+    server.keepAliveTimeout = 5 * 1000;
+    server.maxHeadersCount = 100;
   })
   .catch((err) => {
     console.error("❌ MongoDB Connection Failed:", err.message);
