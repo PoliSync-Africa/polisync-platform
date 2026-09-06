@@ -1,10 +1,15 @@
 const express = require("express");
 const cors = require("cors");
 const User = require("./models/User");
+const { securityHeaders, sanitizeRequest, rateLimit } = require("./middleware/security");
 const app = express();
 
 const configuredFrontendUrl = String(process.env.FRONTEND_URL || "").trim().replace(/\/$/, "");
 const allowedOrigins = ["https://polisync-app.onrender.com", configuredFrontendUrl].filter(Boolean);
+
+app.disable("x-powered-by");
+app.set("trust proxy", 1);
+app.use(securityHeaders);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -12,11 +17,17 @@ app.use(cors({
     return callback(new Error("CORS origin not allowed."));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Setup-Secret"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Setup-Secret", "X-PoliSync-API-Token", "X-Request-ID"],
   credentials: false,
 }));
-app.use(express.json({ limit: "400kb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "400kb", strict: true }));
+app.use(express.urlencoded({ extended: false, limit: "100kb", parameterLimit: 100 }));
+app.use(sanitizeRequest);
+
+const apiRateLimiter = rateLimit({ windowMs: 60 * 1000, max: 300, name: "api" });
+const authRateLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 40, name: "auth" });
+const otpRateLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, name: "otp" });
+const setupRateLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, name: "setup" });
 
 const authRoutes = require("./routes/auth");
 const passwordResetRoutes = require("./routes/passwordResetRoutes");
@@ -49,6 +60,12 @@ const superAdminWorkspaceRoutes = require("./routes/superAdminWorkspace");
 app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backend", status: "running", version: "1.0.0", database: "MongoDB + Mongoose" }));
 app.use("/health", healthRoutes);
 app.use("/api/health", healthRoutes);
+
+// Apply broad API protection before every authenticated/public API route.
+app.use("/api", apiRateLimiter);
+
+// Authentication and password recovery are deliberately much stricter than ordinary API traffic.
+app.use("/api/auth", authRateLimiter);
 app.use("/api/auth", passwordResetRoutes);
 app.use("/api/auth", (req, res, next) => {
   if (req.method !== "POST" || req.path !== "/register") return next();
@@ -72,7 +89,9 @@ app.use("/api/auth", (req, res, next) => {
   };
   next();
 }, authRoutes);
-app.use("/api/phone-otp", phoneOtpRoutes);
+
+// OTP endpoints receive an additional abuse-control layer.
+app.use("/api/phone-otp", otpRateLimiter, phoneOtpRoutes);
 
 // /me must be handled before the secure /:userId profile route.
 app.use("/api/profile", profileRoutes);
@@ -92,7 +111,7 @@ app.use("/api/calendar", calendarRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/geo", geoRoutes);
 app.use("/api/gis", gisRoutes);
-app.use("/api/setup", setupRoutes);
+app.use("/api/setup", setupRateLimiter, setupRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/platform-users", platformUserRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
@@ -100,5 +119,10 @@ app.use("/api/announcements", announcementRoutes);
 app.use("/api/super-admin/workspaces", superAdminWorkspaceRoutes);
 
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found." }));
-app.use((err, req, res, next) => { console.error("PoliSync API error:", err); res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" }); });
+app.use((err, req, res, next) => {
+  console.error("PoliSync API error:", err);
+  const status = Number.isInteger(err.status) ? err.status : 500;
+  const message = status >= 500 ? "Internal Server Error" : (err.message || "Request failed.");
+  res.status(status).json({ success: false, message });
+});
 module.exports = app;
