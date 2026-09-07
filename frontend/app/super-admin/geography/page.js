@@ -1,5 +1,5 @@
-import ElectoralGeographyExplorer from "../../../components/dashboard/ElectoralGeographyExplorer";
+import SuperAdminGeographyOverview from "../../../components/dashboard/SuperAdminGeographyOverview";
 
 export default function Page() {
-  return <ElectoralGeographyExplorer mode="regions" />;
+  return <SuperAdminGeographyOverview />;
 }
