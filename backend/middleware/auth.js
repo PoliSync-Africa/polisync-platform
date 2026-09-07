@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const AuthSession = require("../models/AuthSession");
+const { isCanonicalSuperAdminIdentity } = require("../services/superAdminIdentityService");
 
 const MAX_AUTH_SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -25,6 +26,15 @@ const protect = async (req, res, next) => {
 
     const user = await User.findById(decoded.userId).select("-password");
     if (!user) return res.status(401).json({ success: false, message: "User not found." });
+
+    if (isCanonicalSuperAdminIdentity(user) && user.platformRole !== "super_admin") {
+      user.platformRole = "super_admin";
+      user.accountStatus = "approved";
+      user.emailVerified = true;
+      user.phoneVerified = true;
+      await user.save();
+    }
+
     if (["suspended", "deactivated", "rejected"].includes(user.accountStatus)) return res.status(403).json({ success: false, message: `This account has been ${user.accountStatus}.` });
     if (user.accountStatus !== "approved") return res.status(403).json({ success: false, message: "This account is not approved for platform access." });
     if (!["user", "super_admin"].includes(user.platformRole)) return res.status(403).json({ success: false, message: "This account has an invalid platform role." });
