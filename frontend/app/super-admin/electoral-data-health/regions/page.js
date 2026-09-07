@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import DashboardShell from "../../../../components/dashboard/DashboardShell";
 
+const API_BASE = String(process.env.NEXT_PUBLIC_API_URL || "https://polisync-platform-1.onrender.com").replace(/\/+$/, "");
 const token = () => typeof window === "undefined" ? "" : ["polisync_token", "authToken", "accessToken", "token"].map((key) => localStorage.getItem(key) || sessionStorage.getItem(key)).find(Boolean) || "";
 
 export default function RegionalElectoralHealthPage() {
@@ -15,11 +16,11 @@ export default function RegionalElectoralHealthPage() {
     setStatus("loading");
     try {
       const t = token();
-      const r = await fetch("/api/electoral-geography/integrity/regions", { cache: "no-store", headers: { Accept: "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) } });
+      const r = await fetch(`${API_BASE}/api/electoral-geography/integrity/regions`, { cache: "no-store", headers: { Accept: "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) } });
       const body = await r.json().catch(() => ({}));
       if (!r.ok || !body.success) throw new Error(body.message || `Regional integrity check failed (${r.status}).`);
       const data = body.data || {};
-      setRows(data.regions || []); setMeta(data); setStatus("ready");
+      setRows(Array.isArray(data.regions) ? data.regions : []); setMeta(data); setStatus("ready");
     } catch (e) { setStatus("error"); }
   };
   useEffect(() => { load(); }, []);
@@ -30,7 +31,7 @@ export default function RegionalElectoralHealthPage() {
   }), [rows, filter, query]);
   return <DashboardShell role="super_admin"><main className="regional-health">
     <div className="hero"><div><a href="/super-admin/electoral-data-health" className="back">← Electoral Data Health</a><h1>Regional Electoral Data Health</h1><p>One-screen view of all active Ghana regions, constituency coverage, polling-station coverage and integrity findings.</p></div><div className="actions"><button onClick={load} disabled={status === "loading"}>{status === "loading" ? "Checking…" : "↻ Run Health Check"}</button><a href="/super-admin/electoral-data-health/sync" className="sync">Open Data Sync →</a></div></div>
-    {status === "error" && <div className="state error"><strong>Unable to complete health check</strong><span>The regional integrity endpoint could not be reached. Retry after the backend deployment completes.</span><button onClick={load}>Retry</button></div>}
+    {status === "error" && <div className="state error"><strong>Unable to complete health check</strong><span>Regional health could not be loaded. Check the Super Admin session and backend connection, then retry.</span><button onClick={load}>Retry</button></div>}
     <section className="summary"><div><span>Active Regions</span><strong>{meta?.activeRegions ?? "—"} / {meta?.expectedRegions ?? 16}</strong></div><div><span>Healthy</span><strong>{meta?.healthyRegions ?? "—"}</strong></div><div><span>Needs Review</span><strong>{meta?.regionsNeedingReview ?? "—"}</strong></div></section>
     <section className="toolbar"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search region…" aria-label="Search region"/><div className="filters">{["all","Healthy","Needs Review"].map((v)=><button key={v} className={filter===v?"active":""} onClick={()=>setFilter(v)}>{v==="all"?"All":v}</button>)}</div></section>
     {status === "loading" && <div className="state">Loading regional health…</div>}
