@@ -71,7 +71,7 @@ jobs:
       - name: Require Android application ID
         run: grep -R "applicationId.*africa.polysync.app" android/app/build.gradle* android/app/build.gradle.kts
 
-      - name: Configure Android 16 / API 36 target when supported by generated project
+      - name: Configure Android 16 / API 36 target
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -159,4 +159,3 @@ jobs:
 
 # This workflow deliberately builds unsigned artifacts.
 # Production Android/iOS signing credentials must be supplied later through protected GitHub Secrets.
-# GitHub-hosted runners provide the Linux/macOS build environments needed for these jobs. citeturn0search7
