@@ -3,8 +3,15 @@ const crypto = require("crypto");
 const buckets = new Map();
 
 const getClientKey = (req) => {
+  // Authenticated users should receive an individual bucket. Using only the
+  // proxy IP can make every request from a shared Render/frontend proxy count
+  // against the same limit and causes false 429s in dashboard workspaces.
+  const authorization = String(req.headers.authorization || "");
+  if (authorization) {
+    return `user:${crypto.createHash("sha256").update(authorization).digest("hex").slice(0, 32)}`;
+  }
   const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
-  return forwarded || req.ip || req.socket?.remoteAddress || "unknown";
+  return `ip:${forwarded || req.ip || req.socket?.remoteAddress || "unknown"}`;
 };
 
 const rateLimit = ({ windowMs, max, name }) => (req, res, next) => {
