@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const AuthSession = require("../models/AuthSession");
+const { isCanonicalSuperAdminIdentity } = require("../services/superAdminIdentityService");
 
 const MAX_AUTH_SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 const JWT_ALGORITHMS = ["HS256"];
@@ -27,6 +28,18 @@ const authenticate = async (req, res, next) => {
 
     const user = await User.findById(decoded.userId);
     if (!user) return res.status(401).json({ success: false, message: "User account no longer exists." });
+
+    // The canonical PoliSync Africa identity can never be downgraded by
+    // ordinary account or organization-role management. Repair the stored
+    // platform role before authorization is calculated.
+    if (isCanonicalSuperAdminIdentity(user) && user.platformRole !== "super_admin") {
+      user.platformRole = "super_admin";
+      user.accountStatus = "approved";
+      user.emailVerified = true;
+      user.phoneVerified = true;
+      await user.save();
+    }
+
     if (["suspended", "deactivated", "rejected"].includes(user.accountStatus)) return res.status(403).json({ success: false, message: `This account has been ${user.accountStatus}.` });
     if (user.accountStatus !== "approved") return res.status(403).json({ success: false, message: "This account is not approved for platform access." });
     const isSuperAdmin = user.platformRole === "super_admin";
