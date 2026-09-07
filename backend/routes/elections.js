@@ -10,24 +10,10 @@ router.get("/live", electionController.getLiveElections);
 router.get("/history", electionController.getElectionHistory);
 router.get("/:id", electionController.getElection);
 
-// Super Admin election lifecycle management.
-router.post(
-  "/create",
-  protect,
-  authorize("super_admin"),
-  electionController.createElection
-);
-router.patch(
-  "/:id",
-  protect,
-  authorize("super_admin"),
-  electionController.updateElection
-);
-router.delete(
-  "/:id",
-  protect,
-  authorize("super_admin"),
-  electionController.deleteElection
-);
+// Super Admin and approved national organization administrators may manage
+// elections. The controller scopes organization users to their own organization.
+router.post("/create", protect, electionController.createElection);
+router.patch("/:id", protect, electionController.updateElection);
+router.delete("/:id", protect, electionController.deleteElection);
 
 module.exports = router;
