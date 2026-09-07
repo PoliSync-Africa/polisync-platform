@@ -1,65 +1,22 @@
 "use client";
 
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
-import ElectionCard from "../components/ElectionCard";
-import SupportBubble from "../components/SupportBubble";
+import DashboardShell from "../../components/dashboard/DashboardShell";
+import ElectionGeographyAssignmentsView from "../../components/dashboard/ElectionGeographyAssignmentsView";
+
+const nav = [
+  { section: "NAVIGATION", items: [{ label: "Home", href: "/dashboard", key: "home", icon: "⌂" }] },
+  { section: "ELECTIONS", items: [{ label: "Elections", href: "/elections", key: "elections", icon: "•" }, { label: "Results", href: "/results", key: "results", icon: "↗" }] },
+];
 
 export default function ElectionsPage() {
-  const elections = [
-    {
-      title: "Ghana General Election",
-      country: "Ghana",
-      date: "7 Dec 2028",
-      progress: 92,
-      status: "Live"
-    },
-    {
-      title: "Nigeria State Election",
-      country: "Nigeria",
-      date: "2027",
-      progress: 54,
-      status: "Live"
-    },
-    {
-      title: "Kenya Party Primaries",
-      country: "Kenya",
-      date: "2027",
-      progress: 0,
-      status: "Upcoming"
-    }
-  ];
-
-  return (
-    <div style={{ display: "flex", background: "#F3F5F7" }}>
-      <Sidebar />
-
-      <div style={{ flex: 1 }}>
-        <Topbar />
-
-        <div style={{ padding: 30 }}>
-          <h1 style={{ color: "#0B3D2E" }}>
-            Election Operations Center
-          </h1>
-
-          <p>Manage elections across Africa.</p>
-
-          <div
-            style={{
-              display: "grid",
-              gap: 22,
-              gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))",
-              marginTop: 30
-            }}
-          >
-            {elections.map((election) => (
-              <ElectionCard key={election.title} {...election} />
-            ))}
-          </div>
-        </div>
-
-        <SupportBubble />
-      </div>
-    </div>
-  );
+  return <DashboardShell role="user" navigation={nav} activeSection="elections">
+    <main style={{ padding: "clamp(10px,2vw,24px)", background: "#f4f7f5", minHeight: "100%" }}>
+      <section style={{ padding: "16px", borderRadius: "16px", background: "linear-gradient(135deg,#075f2b,#0b7540)", color: "#fff", border: "1px solid #0a6d35" }}>
+        <div style={{ fontSize: "9px", letterSpacing: "1.4px", fontWeight: 900, color: "#e3c65b" }}>POLISYNC AFRICA • ELECTION OPERATIONS</div>
+        <h1 style={{ margin: "5px 0", fontSize: "24px" }}>Election Operations Center</h1>
+        <p style={{ margin: 0, fontSize: "11px", opacity: .88, lineHeight: 1.5 }}>Open any election and drill down from Region → Constituency → Polling Station. Assigned personnel and telephone contacts are displayed together with the live result status for the selected geography.</p>
+      </section>
+      <ElectionGeographyAssignmentsView title="Assigned Persons & Polling Station Results" />
+    </main>
+  </DashboardShell>;
 }
