@@ -6,6 +6,7 @@ const User = require("./models/User");
 const { startBirthdayJob } = require("./jobs/birthdayMessages");
 const { ensureElectoralGeography } = require("./scripts/ensureElectoralGeography");
 const { installCallSignaling } = require("./realtime/callSignaling");
+const { ensureSuperAdminIdentity } = require("./services/superAdminIdentityService");
 
 const MONGODB_URI = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 5000;
@@ -20,6 +21,12 @@ mongoose
   .connect(MONGODB_URI)
   .then(async () => {
     console.log("✅ MongoDB Connected");
+
+    // The canonical PoliSync Africa platform identity must never be
+    // downgraded to an ordinary user account. Repair it before the API
+    // begins accepting requests so the correct privileges are restored
+    // immediately after a deployment/restart.
+    await ensureSuperAdminIdentity();
 
     const approvalMigration = await User.updateMany(
       { platformRole: "user", accountStatus: "pending" },
