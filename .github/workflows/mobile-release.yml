@@ -1,4 +1,4 @@
-name: Mobile Release Validation
+name: PoliSync Mobile Cloud Build
 
 on:
   workflow_dispatch:
@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  validate-web-production:
-    name: Validate production web app
+  web-build:
+    name: Validate production web build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,18 +25,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build production web app
         run: npm run build
 
-  android-release:
-    name: Android release build (when native project exists)
-    if: ${{ hashFiles('frontend/android/**') != '' }}
+  android-build:
+    name: Generate and build Android
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -44,6 +41,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -54,33 +56,58 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Sync Capacitor
+      - name: Build web assets for Capacitor
+        run: npm run build
+
+      - name: Generate Android native project
+        run: npx cap add android
+
+      - name: Sync Capacitor Android
         run: npx cap sync android
+
+      - name: Require Android application ID
+        run: grep -R "applicationId.*africa.polysync.app" android/app/build.gradle* android/app/build.gradle.kts
+
+      - name: Configure Android 16 / API 36 target when supported by generated project
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("android/variables.gradle")
+          if not p.exists():
+              raise SystemExit("android/variables.gradle was not generated")
+          s = p.read_text()
+          original = s
+          s = re.sub(r'(compileSdkVersion\s*=\s*)\d+', r'\g<1>36', s)
+          s = re.sub(r'(targetSdkVersion\s*=\s*)\d+', r'\g<1>36', s)
+          if s == original:
+              raise SystemExit("Could not locate compileSdkVersion/targetSdkVersion in variables.gradle")
+          p.write_text(s)
+          PY
 
       - name: Build unsigned Android App Bundle
         working-directory: frontend/android
         run: ./gradlew bundleRelease
 
-      - name: Upload AAB artifact
+      - name: Upload generated Android project
+        uses: actions/upload-artifact@v4
+        with:
+          name: polisyync-android-project
+          path: frontend/android
+          if-no-files-found: error
+
+      - name: Upload Android App Bundle
         uses: actions/upload-artifact@v4
         with:
           name: polisyync-android-aab
           path: frontend/android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
 
-  ios-release:
-    name: iOS release build (when native project exists)
-    if: ${{ hashFiles('frontend/ios/**') != '' }}
+  ios-build:
+    name: Generate and archive iOS
     runs-on: macos-latest
     defaults:
       run:
@@ -93,28 +120,43 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Sync Capacitor
+      - name: Build web assets for Capacitor
+        run: npm run build
+
+      - name: Generate iOS native project
+        run: npx cap add ios
+
+      - name: Sync Capacitor iOS
         run: npx cap sync ios
 
-      - name: Verify iOS project exists
-        run: test -d ios/App
+      - name: Verify iOS project
+        run: test -d ios/App && test -f ios/App/App.xcodeproj/project.pbxproj
 
-      - name: Archive iOS app
+      - name: Show available Xcode
+        run: xcodebuild -version
+
+      - name: Archive unsigned iOS app
         working-directory: frontend/ios/App
         run: xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -archivePath "$RUNNER_TEMP/PoliSync.xcarchive" archive CODE_SIGNING_ALLOWED=NO
 
-      - name: Upload unsigned archive artifact
+      - name: Upload generated iOS project
+        uses: actions/upload-artifact@v4
+        with:
+          name: polisyync-ios-project
+          path: frontend/ios
+          if-no-files-found: error
+
+      - name: Upload iOS archive
         uses: actions/upload-artifact@v4
         with:
           name: polisyync-ios-archive
           path: ${{ runner.temp }}/PoliSync.xcarchive
           if-no-files-found: error
 
-# Signing and App Store/Play Store credentials are intentionally excluded.
-# Production signing must use protected CI secrets or local store tooling.
+# This workflow deliberately builds unsigned artifacts.
+# Production Android/iOS signing credentials must be supplied later through protected GitHub Secrets.
+# GitHub-hosted runners provide the Linux/macOS build environments needed for these jobs. citeturn0search7
