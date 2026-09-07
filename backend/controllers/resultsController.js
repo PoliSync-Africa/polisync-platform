@@ -3,6 +3,7 @@ const Election = require("../models/Election");
 const Organization = require("../models/Organization");
 const PollingStation = require("../models/PollingStation");
 const OrganizationMembership = require("../models/OrganizationMembership");
+const { getElectionAccess, canViewOrganizationElection, resultScopeForMemberships } = require("../services/electionAccessService");
 
 function normaliseCandidates(items = []) {
   return items.map((item) => ({
@@ -26,6 +27,9 @@ exports.submitResult = async (req, res) => {
     const station = await PollingStation.findById(pollingStationId).lean();
     if (!station || !station.isActive) return res.status(404).json({ success: false, message: "Polling station not found or inactive." });
     if (String(station.regionId) !== String(membership.regionId) || String(station.constituencyId) !== String(membership.constituencyId)) return res.status(403).json({ success: false, message: "Polling station geography does not match the agent assignment." });
+    const election = await Election.findById(electionId).lean();
+    if (!election) return res.status(404).json({ success: false, message: "Election not found." });
+    if (election.organizationId && String(election.organizationId) !== String(membership.organizationId)) return res.status(403).json({ success: false, message: "This election does not belong to your assigned organization." });
     const candidates = normaliseCandidates(candidateResults);
     if (candidates.some(c => !c.candidateId || !c.candidateName || !Number.isFinite(c.manualVotes) || c.manualVotes < 0)) return res.status(400).json({ success: false, message: "Every candidate must have a valid manual vote count." });
     const manualValid = Number(manualTotals.totalValidVotes);
@@ -88,4 +92,47 @@ exports.dashboard = async (req, res) => {
   } catch (error) { console.error("results dashboard:", error); res.status(500).json({ success: false, message: error.message }); }
 };
 
-exports.getResults = async (req, res) => { try { const filter={};if(req.params.electionId)filter.electionId=req.params.electionId;if(req.query.organizationId)filter.organizationId=req.query.organizationId;const results=await Result.find(filter).populate("submittedBy","fullName role email phoneNumber").populate("organizationId","name organizationType politicalPartyName").populate("electionId","name year type country status").populate("regionId","name regionNumber").populate("constituencyId","name constituencyNumber").sort({createdAt:-1});res.json({success:true,count:results.length,results}); } catch(error){res.status(500).json({success:false,message:error.message});} };
+exports.getResults = async (req, res) => {
+  try {
+    const electionId = String(req.params.electionId || "").trim();
+    if (!electionId) return res.status(400).json({ success: false, message: "Election is required." });
+    const election = await Election.findById(electionId).lean();
+    if (!election) return res.status(404).json({ success: false, message: "Election not found." });
+
+    const access = await getElectionAccess(req.user);
+    if (!canViewOrganizationElection(access, election)) {
+      return res.status(404).json({ success: false, message: "Election not found." });
+    }
+
+    const filter = { electionId };
+    if (election.organizationId) {
+      const organizationId = String(election.organizationId);
+      if (access.isSuperAdmin) {
+        // unrestricted
+      } else {
+        const scope = resultScopeForMemberships(access.memberships, organizationId);
+        if (scope === null) return res.status(403).json({ success: false, message: "You are not assigned an election duty for this organization." });
+        filter.organizationId = organizationId;
+        if (Object.keys(scope).length) Object.assign(filter, scope);
+      }
+    } else if (!access.isSuperAdmin) {
+      // Platform-wide results are public platform data. Organization-submitted
+      // records are still excluded so a personal user cannot use a platform
+      // election to discover private organization results.
+      filter.organizationId = null;
+    }
+
+    if (req.query.organizationId && access.isSuperAdmin) filter.organizationId = String(req.query.organizationId);
+
+    const results = await Result.find(filter)
+      .populate("submittedBy", "fullName role email phoneNumber")
+      .populate("organizationId", "name organizationType politicalPartyName")
+      .populate("electionId", "name year type country status")
+      .populate("regionId", "name regionNumber")
+      .populate("constituencyId", "name constituencyNumber")
+      .sort({ createdAt: -1 });
+    res.json({ success: true, count: results.length, results });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
