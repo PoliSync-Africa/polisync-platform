@@ -16,16 +16,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
         working-directory: backend
-        run: npm ci
+        run: npm install
 
       - name: Validate Ghana data files
         working-directory: backend
-        run: | test -f data/ghana_regions_constituencies.csv test -f data/ghana_polling_stations_2024.csv test -f scripts/seedElectoralGeography.js echo "Ghana electoral data files found." 
+        run: |
+          test -f data/ghana_regions_constituencies.csv
+          test -f data/ghana_polling_stations_2024.csv
+          test -f scripts/seedElectoralGeography.js
+          echo "Ghana electoral data files found."
+
       - name: Seed Ghana electoral geography
         working-directory: backend
         env:
