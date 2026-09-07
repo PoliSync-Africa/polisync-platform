@@ -4,6 +4,7 @@ import LogoutSessionBridge from "../components/security/LogoutSessionBridge";
 import RealtimeCallProvider from "../components/communications/RealtimeCallProvider";
 import MobileCallLauncher from "../components/communications/MobileCallLauncher";
 import TimeGreetingSync from "../components/dashboard/TimeGreetingSync";
+import DashboardEnvironmentInjector from "../components/dashboard/DashboardEnvironmentInjector";
 import PoliSyncWhatsAppButton from "../components/dashboard/PoliSyncWhatsAppButton";
 
 export const metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({ children }) {
       <body>
         <RealtimeCallProvider>
           <TimeGreetingSync />
+          <DashboardEnvironmentInjector />
           <LogoutSessionBridge />
           {children}
           <MobileCallLauncher />
