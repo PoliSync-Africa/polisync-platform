@@ -1,6 +1,12 @@
 const Election = require("../models/Election");
 const OrganizationMembership = require("../models/OrganizationMembership");
 const Organization = require("../models/Organization");
+const {
+  ELECTION_VIEW_ROLES,
+  getElectionAccess,
+  canViewOrganizationElection,
+  electionVisibilityFilter,
+} = require("../services/electionAccessService");
 
 const ALLOWED_TYPES = ["Presidential", "Parliamentary", "Local"];
 const ALLOWED_STATUSES = ["Draft", "Active", "Closed"];
@@ -37,6 +43,23 @@ async function getManagementContext(req) {
   return { isSuperAdmin: false, organizationId: membership.organizationId, membership, organization };
 }
 
+exports.getElectionAccess = async (req, res) => {
+  try {
+    const access = await getElectionAccess(req.user);
+    return res.json({
+      success: true,
+      isSuperAdmin: access.isSuperAdmin,
+      canViewOrganizationElections: access.canViewOrganizationElections,
+      organizationIds: access.organizationIds,
+      roles: access.memberships.map((membership) => membership.role),
+      allowedRoles: ELECTION_VIEW_ROLES,
+    });
+  } catch (error) {
+    console.error("election access:", error);
+    return res.status(500).json({ success: false, message: "Unable to determine election access." });
+  }
+};
+
 exports.createElection = async (req, res) => {
   try {
     const context = await getManagementContext(req);
@@ -52,20 +75,37 @@ exports.createElection = async (req, res) => {
 };
 
 exports.getElections = async (req, res) => {
-  try { const elections = await Election.find().populate("organizationId", "name organizationType").sort({ year: -1, createdAt: -1 }); return res.json({ success: true, elections }); }
-  catch (error) { return res.status(500).json({ success: false, message: error.message }); }
+  try {
+    const access = await getElectionAccess(req.user);
+    const elections = await Election.find(electionVisibilityFilter(access)).populate("organizationId", "name organizationType").sort({ year: -1, createdAt: -1 });
+    return res.json({ success: true, elections });
+  } catch (error) { return res.status(500).json({ success: false, message: error.message }); }
 };
+
 exports.getLiveElections = async (req, res) => {
-  try { const elections = await Election.find({ status: "Active" }).populate("organizationId", "name organizationType").sort({ year: -1, createdAt: -1 }); return res.json({ success: true, elections, count: elections.length }); }
-  catch (error) { return res.status(500).json({ success: false, message: error.message }); }
+  try {
+    const access = await getElectionAccess(req.user);
+    const elections = await Election.find({ ...electionVisibilityFilter(access), status: "Active" }).populate("organizationId", "name organizationType").sort({ year: -1, createdAt: -1 });
+    return res.json({ success: true, elections, count: elections.length });
+  } catch (error) { return res.status(500).json({ success: false, message: error.message }); }
 };
+
 exports.getElectionHistory = async (req, res) => {
-  try { const elections = await Election.find({ status: "Closed" }).populate("organizationId", "name organizationType").sort({ year: -1, createdAt: -1 }); return res.json({ success: true, elections, count: elections.length }); }
-  catch (error) { return res.status(500).json({ success: false, message: error.message }); }
+  try {
+    const access = await getElectionAccess(req.user);
+    const elections = await Election.find({ ...electionVisibilityFilter(access), status: "Closed" }).populate("organizationId", "name organizationType").sort({ year: -1, createdAt: -1 });
+    return res.json({ success: true, elections, count: elections.length });
+  } catch (error) { return res.status(500).json({ success: false, message: error.message }); }
 };
+
 exports.getElection = async (req, res) => {
-  try { const election = await Election.findById(req.params.id).populate("organizationId", "name organizationType"); if (!election) return res.status(404).json({ success: false, message: "Election not found." }); return res.json({ success: true, election }); }
-  catch (error) { return res.status(400).json({ success: false, message: "Invalid election ID." }); }
+  try {
+    const access = await getElectionAccess(req.user);
+    const election = await Election.findById(req.params.id).populate("organizationId", "name organizationType");
+    if (!election) return res.status(404).json({ success: false, message: "Election not found." });
+    if (!canViewOrganizationElection(access, election)) return res.status(404).json({ success: false, message: "Election not found." });
+    return res.json({ success: true, election });
+  } catch (error) { return res.status(400).json({ success: false, message: "Invalid election ID." }); }
 };
 
 exports.updateElection = async (req, res) => {
