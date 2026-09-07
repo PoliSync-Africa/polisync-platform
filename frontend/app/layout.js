@@ -2,6 +2,7 @@ import "./visual-quality.css";
 import "./modern-dashboard.css";
 import LogoutSessionBridge from "../components/security/LogoutSessionBridge";
 import RealtimeCallProvider from "../components/communications/RealtimeCallProvider";
+import MobileCallLauncher from "../components/communications/MobileCallLauncher";
 
 export const metadata = {
   title: "PoliSync Africa",
@@ -15,6 +16,7 @@ export default function RootLayout({ children }) {
         <RealtimeCallProvider>
           <LogoutSessionBridge />
           {children}
+          <MobileCallLauncher />
         </RealtimeCallProvider>
       </body>
     </html>
