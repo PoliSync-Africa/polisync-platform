@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
+import { getTimeGreeting } from "../../../components/dashboard/timeGreeting";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 function token() { if (typeof window === "undefined") return ""; return ["polisync_token", "authToken", "accessToken", "token"].map((key) => localStorage.getItem(key)).find(Boolean) || ""; }
@@ -52,7 +53,7 @@ export default function SuperAdminDashboard() {
   return <DashboardShell role="super_admin" title="Super Admin Dashboard" subtitle="Platform overview and control center" activeSection="overview">
     <main className="command-center">
       <section className="welcome-strip">
-        <div className="welcome-copy"><span className="eyebrow">POLISYNC AFRICA · PLATFORM CONTROL</span><h2>Good morning, <strong>Super Admin</strong> <span>♛</span></h2><p>Manage elections, organizations, users, field operations and platform integrity from one command center.</p></div>
+        <div className="welcome-copy"><span className="eyebrow">POLISYNC AFRICA · PLATFORM CONTROL</span><h2>{getTimeGreeting(clock)}, <strong>Super Admin</strong> <span>♛</span></h2><p>Manage elections, organizations, users, field operations and platform integrity from one command center.</p></div>
         <div className="header-context"><div className="context-location"><span className="context-icon">📍</span><div><strong>{livePlace.name}</strong><small>{livePlace.country} · Live location</small></div></div><div className="context-weather"><span className="context-icon">{weatherIcon(livePlace.condition)}</span><div><strong>{livePlace.temperature == null ? "Live weather" : `${Math.round(livePlace.temperature)}°C`}</strong><small>{livePlace.condition || "Location-aware forecast"}</small></div></div><div className="context-time"><strong>{clock.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</strong><span>{clock.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</span></div></div>
       </section>
       <section className="kpi-grid" aria-label="Platform metrics">{cards.map((card) => <article className="kpi-card" key={card.label}><div className={`kpi-icon ${card.tone}`}>{card.icon}</div><div className="kpi-copy"><span>{card.label}</span><strong>{loading ? "…" : card.value}</strong><small>{card.meta}</small></div></article>)}</section>
