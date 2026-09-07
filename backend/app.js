@@ -10,7 +10,6 @@ const allowedOrigins = ["https://polisync-app.onrender.com", configuredFrontendU
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(securityHeaders);
-
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
@@ -57,15 +56,12 @@ const platformUserRoutes = require("./routes/platformUsers");
 const auditLogRoutes = require("./routes/auditLogs");
 const announcementRoutes = require("./routes/announcements");
 const superAdminWorkspaceRoutes = require("./routes/superAdminWorkspace");
+const platformSettingsRoutes = require("./routes/platformSettings");
 
 app.get("/", (req, res) => res.json({ success: true, app: "POLISYNC AFRICA Backend", status: "running", version: "1.0.0", database: "MongoDB + Mongoose" }));
 app.use("/health", healthRoutes);
 app.use("/api/health", healthRoutes);
-
-// Apply broad API protection before every authenticated/public API route.
 app.use("/api", apiRateLimiter);
-
-// Authentication and password recovery are deliberately much stricter than ordinary API traffic.
 app.use("/api/auth", authRateLimiter);
 app.use("/api/auth", passwordResetRoutes);
 app.use("/api/auth", (req, res, next) => {
@@ -90,11 +86,7 @@ app.use("/api/auth", (req, res, next) => {
   };
   next();
 }, authRoutes);
-
-// OTP endpoints receive an additional abuse-control layer.
 app.use("/api/phone-otp", otpRateLimiter, phoneOtpRoutes);
-
-// /me must be handled before the secure /:userId profile route.
 app.use("/api/profile", profileRoutes);
 app.use("/api/profile", secureProfileRoutes);
 app.use("/api/privacy", privacyRoutes);
@@ -119,6 +111,7 @@ app.use("/api/platform-users", platformUserRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/super-admin/workspaces", superAdminWorkspaceRoutes);
+app.use("/api/platform-settings", platformSettingsRoutes);
 
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found." }));
 app.use((err, req, res, next) => {
