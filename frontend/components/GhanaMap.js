@@ -1,116 +1,189 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+
+const GHANA_CENTER = [7.9465, -1.0232];
+const GHANA_ZOOM = 6;
+
+const REGION_CENTERS = {
+  Ahafo: [7.03, -2.49],
+  Ashanti: [6.75, -1.52],
+  Bono: [7.76, -2.34],
+  "Bono East": [7.78, -1.06],
+  Central: [5.55, -1.08],
+  Eastern: [6.45, -0.45],
+  "Greater Accra": [5.72, -0.18],
+  "North East": [10.55, -0.37],
+  Northern: [9.40, -1.00],
+  Oti: [7.85, 0.35],
+  Savannah: [9.05, -1.82],
+  "Upper East": [10.78, -0.86],
+  "Upper West": [10.25, -2.20],
+  Volta: [7.10, 0.30],
+  Western: [5.65, -2.15],
+  "Western North": [6.35, -2.75],
+};
+
+function getCoords(region) {
+  if (!region) return null;
+  const gps = region.gps || region.location || {};
+  const lat = Number(region.latitude ?? region.lat ?? gps.latitude);
+  const lon = Number(region.longitude ?? region.lon ?? region.lng ?? gps.longitude);
+  if (Number.isFinite(lat) && Number.isFinite(lon)) return [lat, lon];
+  return REGION_CENTERS[region.name] || null;
+}
+
+function MapViewport({ location }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (location?.coords) {
+      map.flyTo(location.coords, location.zoom || 8, { duration: 0.65 });
+    } else {
+      map.setView(GHANA_CENTER, GHANA_ZOOM, { animate: true });
+    }
+  }, [location, map]);
+
+  useEffect(() => {
+    const resize = () => map.invalidateSize({ pan: false, animate: false });
+    const timer = window.setTimeout(resize, 80);
+    window.addEventListener("resize", resize);
+    window.addEventListener("orientationchange", resize);
+    const container = map.getContainer();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
+    observer?.observe(container);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("orientationchange", resize);
+      observer?.disconnect();
+    };
+  }, [map]);
+
+  return null;
+}
 
 export default function GhanaMap() {
   const [regions, setRegions] = useState([]);
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     async function loadRegions() {
       try {
-        const res = await fetch("/api/regions");
-        const json = await res.json();
-
-        if (json.success) {
-          setRegions(json.data);
-          setSelectedRegion(json.data[0]);
+        const response = await fetch("/api/electoral-geography/regions", {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok || json.success !== true) throw new Error(json.message || "Unable to load Ghana regions.");
+        if (!cancelled) {
+          const data = Array.isArray(json.data) ? json.data : [];
+          setRegions(data);
+          setSelectedRegion(data[0] || null);
         }
       } catch (err) {
-        console.error(err);
+        if (!cancelled) setError(err?.message || "Unable to load Ghana regions.");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-
     loadRegions();
+    return () => { cancelled = true; };
   }, []);
 
+  const plottedRegions = useMemo(
+    () => regions.map((region) => ({ region, coords: getCoords(region) })).filter((item) => item.coords),
+    [regions]
+  );
+
+  const selectedLocation = selectedRegion
+    ? { coords: getCoords(selectedRegion), zoom: 8 }
+    : null;
+
   return (
-    <div
-      style={{
-        width: "100%",
-        maxWidth: "900px",
-        background: "#ffffff",
-        borderRadius: "20px",
-        padding: "24px",
-        boxShadow: "0 20px 40px rgba(0,0,0,0.12)"
-      }}
-    >
-      <h2 style={{ color: "#1B365D" }}>
-        🗺 Ghana Political Intelligence Map
-      </h2>
+    <section className="ghana-map-card" aria-label="Ghana political intelligence map">
+      <div className="map-heading">
+        <div>
+          <span className="eyebrow">GHANA ELECTORAL GEOGRAPHY</span>
+          <h2>Ghana Political Intelligence Map</h2>
+          <p>Interactive current-region view. Select a region to focus the map.</p>
+        </div>
+        <span className="region-count">{regions.length || 16} regions</span>
+      </div>
 
-      <p style={{ color: "#666", marginBottom: "20px" }}>
-        Live regions loaded from the POLISYNC Data API.
-      </p>
+      {error && <div className="map-error">{error}</div>}
 
-      {loading ? (
-        <p>Loading regions...</p>
-      ) : (
-        <>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))",
-              gap: "12px"
-            }}
-          >
-            {regions.map((region) => (
-              <button
-                key={region.id}
-                onClick={() => setSelectedRegion(region)}
-                style={{
-                  padding: "14px",
-                  borderRadius: "12px",
-                  border:
-                    selectedRegion?.id === region.id
-                      ? "2px solid #FFD700"
-                      : "1px solid #ddd",
-                  background:
-                    selectedRegion?.id === region.id
-                      ? "#0A2540"
-                      : "#F8FAFC",
-                  color:
-                    selectedRegion?.id === region.id
-                      ? "#fff"
-                      : "#1B365D",
-                  fontWeight: "600",
-                  cursor: "pointer"
-                }}
-              >
-                {region.name}
+      <div className="map-layout">
+        <div className="map-shell">
+          <MapContainer center={GHANA_CENTER} zoom={GHANA_ZOOM} minZoom={5} maxZoom={17} scrollWheelZoom className="ghana-map">
+            <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <MapViewport location={selectedLocation} />
+            {plottedRegions.map(({ region, coords }) => {
+              const selected = selectedRegion?.id === region.id || selectedRegion?._id === region._id;
+              return (
+                <CircleMarker
+                  key={region.id || region._id || region.name}
+                  center={coords}
+                  radius={selected ? 11 : 7}
+                  pathOptions={{
+                    color: selected ? "#c9a227" : "#075f2b",
+                    fillColor: selected ? "#21bb67" : "#ffffff",
+                    fillOpacity: 0.92,
+                    weight: selected ? 4 : 2,
+                  }}
+                  eventHandlers={{ click: () => setSelectedRegion(region) }}
+                >
+                  <Tooltip direction="top" offset={[0, -6]}>{region.name}</Tooltip>
+                  <Popup><strong>{region.name}</strong><br />Click the region card or marker to focus.</Popup>
+                </CircleMarker>
+              );
+            })}
+          </MapContainer>
+          <div className="map-badge">POLISYNC • GHANA</div>
+          <div className="map-hint">Drag • Zoom • Select a region</div>
+        </div>
+
+        <div className="region-list" aria-label="Ghana regions">
+          {loading ? <div className="map-loading">Loading regions…</div> : regions.map((region) => {
+            const selected = selectedRegion?.id === region.id || selectedRegion?._id === region._id;
+            return (
+              <button key={region.id || region._id || region.name} type="button" className={selected ? "region selected" : "region"} onClick={() => setSelectedRegion(region)}>
+                <span>{region.name}</span><small>View on map</small>
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
+      </div>
 
-          {selectedRegion && (
-            <div
-              style={{
-                marginTop: "24px",
-                padding: "20px",
-                borderRadius: "16px",
-                background: "#EEF6FF",
-                border: "1px solid #BFD7EA"
-              }}
-            >
-              <h3 style={{ color: "#0A2540" }}>
-                Selected Region
-              </h3>
-
-              <h2 style={{ color: "#1B365D" }}>
-                {selectedRegion.name}
-              </h2>
-
-              <p style={{ color: "#555" }}>
-                Constituencies and polling stations will load dynamically from
-                the national database.
-              </p>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+      <style jsx>{`
+        .ghana-map-card{width:100%;max-width:1200px;background:#fff;border:1px solid #dbe5df;border-radius:20px;padding:clamp(14px,2.5vw,24px);box-shadow:0 16px 40px rgba(0,0,0,.09);box-sizing:border-box}
+        .map-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}
+        .eyebrow{display:block;color:#075f2b;font-size:10px;font-weight:900;letter-spacing:1.4px;margin-bottom:5px}
+        h2{margin:0;color:#123c29;font-size:clamp(20px,3vw,30px);line-height:1.15}
+        .map-heading p{margin:7px 0 0;color:#64746b;font-size:13px}
+        .region-count{flex:0 0 auto;padding:8px 11px;border-radius:999px;background:#edf7f0;color:#075f2b;font-size:11px;font-weight:900}
+        .map-error{margin-bottom:12px;padding:10px 12px;border-radius:10px;background:#fff4f4;color:#9d2c2c;font-size:12px}
+        .map-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(210px,280px);gap:14px;min-width:0}
+        .map-shell{position:relative;width:100%;height:clamp(360px,48vw,560px);min-height:330px;overflow:hidden;border:1px solid #cfdcd4;border-radius:16px;background:#eaf1ec}
+        .ghana-map{width:100%;height:100%;z-index:1}
+        .map-badge,.map-hint{position:absolute;z-index:500;box-shadow:0 5px 18px rgba(0,0,0,.14)}
+        .map-badge{top:12px;left:12px;padding:8px 10px;border-radius:9px;background:rgba(4,53,26,.92);color:#fff;font-size:9px;font-weight:900;letter-spacing:1px}
+        .map-hint{left:50%;bottom:12px;transform:translateX(-50%);padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.94);color:#244936;font-size:10px;font-weight:800;white-space:nowrap}
+        .region-list{display:grid;grid-template-columns:1fr;gap:7px;max-height:clamp(360px,48vw,560px);overflow:auto;padding-right:2px}
+        .region{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px;border:1px solid #e0e7e2;border-radius:10px;background:#f8faf9;color:#183d2a;text-align:left;cursor:pointer;min-width:0}
+        .region:hover{border-color:#9dc4ad}
+        .region.selected{background:#0a5630;border-color:#c9a227;color:#fff}
+        .region span{font-size:12px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .region small{font-size:9px;opacity:.7;white-space:nowrap}
+        .map-loading{padding:16px;color:#66766d;font-size:12px}
+        @media(max-width:820px){.map-layout{grid-template-columns:1fr}.region-list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:240px}.map-shell{height:clamp(360px,65vw,500px)}}
+        @media(max-width:520px){.ghana-map-card{border-radius:15px;padding:12px}.map-heading{display:block}.region-count{display:inline-block;margin-top:10px}.map-shell{height:390px;min-height:330px}.region-list{grid-template-columns:1fr 1fr;max-height:260px}.region{padding:9px}.region small{display:none}.map-hint{font-size:9px;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}}
+      `}</style>
+    </section>
   );
 }
