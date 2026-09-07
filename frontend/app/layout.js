@@ -6,6 +6,7 @@ import MobileCallLauncher from "../components/communications/MobileCallLauncher"
 import TimeGreetingSync from "../components/dashboard/TimeGreetingSync";
 import DashboardEnvironmentInjector from "../components/dashboard/DashboardEnvironmentInjector";
 import PoliSyncWhatsAppButton from "../components/dashboard/PoliSyncWhatsAppButton";
+import WhatsAppMessagesEnhancer from "../components/dashboard/WhatsAppMessagesEnhancer";
 
 export const metadata = {
   title: "PoliSync Africa",
@@ -26,6 +27,7 @@ export default function RootLayout({ children }) {
           <TimeGreetingSync />
           <DashboardEnvironmentInjector />
           <LogoutSessionBridge />
+          <WhatsAppMessagesEnhancer />
           {children}
           <MobileCallLauncher />
           <PoliSyncWhatsAppButton />
