@@ -9,7 +9,9 @@ import AfricaMap from "../components/AfricaMap";
 import LiveFeed from "../components/LiveFeed";
 import AlertPanel from "../components/AlertPanel";
 
-const GhanaMap = dynamic(() => import("../components/GhanaMap"), {
+// Use the real responsive Leaflet Ghana map from /frontend/components.
+// The /app/components/GhanaMap file is only a legacy static region-card component.
+const GhanaMap = dynamic(() => import("../../components/GhanaMap"), {
   ssr: false,
   loading: () => <div style={{ minHeight: 390, display: "grid", placeItems: "center", borderRadius: 16, background: "#eaf1ec", color: "#315b45", fontWeight: 700 }}>Loading Ghana interactive map…</div>,
 });
