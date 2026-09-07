@@ -1,7 +1,10 @@
 const Election = require("../models/Election");
+const OrganizationMembership = require("../models/OrganizationMembership");
+const Organization = require("../models/Organization");
 
 const ALLOWED_TYPES = ["Presidential", "Parliamentary", "Local"];
 const ALLOWED_STATUSES = ["Draft", "Active", "Closed"];
+const ORG_ELECTION_ROLES = ["national_party_admin", "national_observer_admin"];
 
 function cleanPayload(body = {}) {
   const payload = {};
@@ -25,36 +28,67 @@ function validatePayload(payload, partial = false) {
   return null;
 }
 
+async function getManagementContext(req) {
+  if (req.user?.platformRole === "super_admin") return { isSuperAdmin: true, organizationId: null, membership: null };
+  const membership = await OrganizationMembership.findOne({ userId: req.user._id, role: { $in: ORG_ELECTION_ROLES }, status: "approved" }).lean();
+  if (!membership) return null;
+  const organization = await Organization.findOne({ _id: membership.organizationId, organizationStatus: "approved" }).lean();
+  if (!organization) return null;
+  return { isSuperAdmin: false, organizationId: membership.organizationId, membership, organization };
+}
+
 exports.createElection = async (req, res) => {
   try {
+    const context = await getManagementContext(req);
+    if (!context) return res.status(403).json({ success: false, message: "You are not authorized to manage elections." });
     const payload = cleanPayload(req.body); const validationError = validatePayload(payload);
     if (validationError) return res.status(400).json({ success: false, message: validationError });
+    payload.createdBy = req.user._id;
+    payload.managedBy = context.isSuperAdmin ? "platform" : "organization";
+    if (!context.isSuperAdmin) payload.organizationId = context.organizationId;
     const election = await Election.create(payload);
     return res.status(201).json({ success: true, election });
   } catch (error) { return res.status(500).json({ success: false, message: error.message }); }
 };
 
 exports.getElections = async (req, res) => {
-  try { const elections = await Election.find().sort({ year: -1, createdAt: -1 }); return res.json({ success: true, elections }); }
+  try { const elections = await Election.find().populate("organizationId", "name organizationType").sort({ year: -1, createdAt: -1 }); return res.json({ success: true, elections }); }
   catch (error) { return res.status(500).json({ success: false, message: error.message }); }
 };
 exports.getLiveElections = async (req, res) => {
-  try { const elections = await Election.find({ status: "Active" }).sort({ year: -1, createdAt: -1 }); return res.json({ success: true, elections, count: elections.length }); }
+  try { const elections = await Election.find({ status: "Active" }).populate("organizationId", "name organizationType").sort({ year: -1, createdAt: -1 }); return res.json({ success: true, elections, count: elections.length }); }
   catch (error) { return res.status(500).json({ success: false, message: error.message }); }
 };
 exports.getElectionHistory = async (req, res) => {
-  try { const elections = await Election.find({ status: "Closed" }).sort({ year: -1, createdAt: -1 }); return res.json({ success: true, elections, count: elections.length }); }
+  try { const elections = await Election.find({ status: "Closed" }).populate("organizationId", "name organizationType").sort({ year: -1, createdAt: -1 }); return res.json({ success: true, elections, count: elections.length }); }
   catch (error) { return res.status(500).json({ success: false, message: error.message }); }
 };
 exports.getElection = async (req, res) => {
-  try { const election = await Election.findById(req.params.id); if (!election) return res.status(404).json({ success: false, message: "Election not found." }); return res.json({ success: true, election }); }
+  try { const election = await Election.findById(req.params.id).populate("organizationId", "name organizationType"); if (!election) return res.status(404).json({ success: false, message: "Election not found." }); return res.json({ success: true, election }); }
   catch (error) { return res.status(400).json({ success: false, message: "Invalid election ID." }); }
 };
+
 exports.updateElection = async (req, res) => {
-  try { const payload = cleanPayload(req.body); const validationError = validatePayload(payload, true); if (validationError) return res.status(400).json({ success: false, message: validationError }); const election = await Election.findById(req.params.id); if (!election) return res.status(404).json({ success: false, message: "Election not found." }); Object.assign(election, payload); await election.save(); return res.json({ success: true, election, message: "Election updated successfully." }); }
-  catch (error) { return res.status(400).json({ success: false, message: error.message }); }
+  try {
+    const context = await getManagementContext(req);
+    if (!context) return res.status(403).json({ success: false, message: "You are not authorized to manage elections." });
+    const election = await Election.findById(req.params.id);
+    if (!election) return res.status(404).json({ success: false, message: "Election not found." });
+    if (!context.isSuperAdmin && String(election.organizationId || "") !== String(context.organizationId)) return res.status(403).json({ success: false, message: "You can only manage elections owned by your organization." });
+    const payload = cleanPayload(req.body); const validationError = validatePayload(payload, true);
+    if (validationError) return res.status(400).json({ success: false, message: validationError });
+    Object.assign(election, payload); await election.save(); return res.json({ success: true, election, message: "Election updated successfully." });
+  } catch (error) { return res.status(400).json({ success: false, message: error.message }); }
 };
+
 exports.deleteElection = async (req, res) => {
-  try { const election = await Election.findById(req.params.id); if (!election) return res.status(404).json({ success: false, message: "Election not found." }); if (election.status === "Active") return res.status(409).json({ success: false, message: "Active elections cannot be deleted. Close the election first." }); await election.deleteOne(); return res.json({ success: true, message: "Election deleted successfully." }); }
-  catch (error) { return res.status(400).json({ success: false, message: error.message }); }
+  try {
+    const context = await getManagementContext(req);
+    if (!context) return res.status(403).json({ success: false, message: "You are not authorized to manage elections." });
+    const election = await Election.findById(req.params.id);
+    if (!election) return res.status(404).json({ success: false, message: "Election not found." });
+    if (!context.isSuperAdmin && String(election.organizationId || "") !== String(context.organizationId)) return res.status(403).json({ success: false, message: "You can only manage elections owned by your organization." });
+    if (election.status === "Active") return res.status(409).json({ success: false, message: "Active elections cannot be deleted. Close the election first." });
+    await election.deleteOne(); return res.json({ success: true, message: "Election deleted successfully." });
+  } catch (error) { return res.status(400).json({ success: false, message: error.message }); }
 };
