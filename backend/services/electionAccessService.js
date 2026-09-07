@@ -19,6 +19,7 @@ const ELECTION_VIEW_ROLES = [
 const REGION_ROLES = new Set(["regional_party_admin", "regional_observer_admin"]);
 const CONSTITUENCY_ROLES = new Set(["constituency_admin", "constituency_observer_admin"]);
 const STATION_ROLES = new Set(["polling_station_agent", "observer_polling_station_agent"]);
+const NATIONAL_OR_CANDIDATE_ROLES = new Set(["national_party_admin", "national_observer_admin", "presidential_candidate", "parliamentary_candidate"]);
 
 function isOrganizationElection(election) {
   if (!election) return false;
@@ -27,12 +28,7 @@ function isOrganizationElection(election) {
 
 async function getElectionAccess(user) {
   if (user?.platformRole === "super_admin") {
-    return {
-      isSuperAdmin: true,
-      canViewOrganizationElections: true,
-      memberships: [],
-      organizationIds: [],
-    };
+    return { isSuperAdmin: true, canViewOrganizationElections: true, memberships: [], organizationIds: [] };
   }
 
   const memberships = await OrganizationMembership.find({
@@ -45,12 +41,7 @@ async function getElectionAccess(user) {
     memberships.map((membership) => String(membership.organizationId || "")).filter(Boolean)
   )];
 
-  return {
-    isSuperAdmin: false,
-    canViewOrganizationElections: organizationIds.length > 0,
-    memberships,
-    organizationIds,
-  };
+  return { isSuperAdmin: false, canViewOrganizationElections: organizationIds.length > 0, memberships, organizationIds };
 }
 
 function canViewOrganizationElection(access, election) {
@@ -63,15 +54,16 @@ function canViewOrganizationElection(access, election) {
 function electionVisibilityFilter(access) {
   if (access?.isSuperAdmin) return {};
 
-  const platformElection = { organizationId: null };
+  // A personal account may only see platform-owned elections with no
+  // organizationId, plus organization elections for which an approved
+  // election-duty membership exists.
+  const platformElection = {
+    organizationId: null,
+    $or: [{ managedBy: "platform" }, { managedBy: { $exists: false } }],
+  };
   if (!access?.organizationIds?.length) return platformElection;
 
-  return {
-    $or: [
-      platformElection,
-      { organizationId: { $in: access.organizationIds } },
-    ],
-  };
+  return { $or: [platformElection, { organizationId: { $in: access.organizationIds } }] };
 }
 
 function resultScopeForMemberships(memberships, organizationId) {
@@ -80,21 +72,13 @@ function resultScopeForMemberships(memberships, organizationId) {
   );
 
   if (!matching.length) return null;
-  if (matching.some((membership) => ["national_party_admin", "national_observer_admin", "presidential_candidate", "parliamentary_candidate"].includes(membership.role))) {
-    return {};
-  }
+  if (matching.some((membership) => NATIONAL_OR_CANDIDATE_ROLES.has(membership.role))) return {};
 
   const scope = { $or: [] };
   for (const membership of matching) {
-    if (REGION_ROLES.has(membership.role) && membership.regionId) {
-      scope.$or.push({ regionId: membership.regionId });
-    }
-    if (CONSTITUENCY_ROLES.has(membership.role) && membership.constituencyId) {
-      scope.$or.push({ constituencyId: membership.constituencyId });
-    }
-    if (STATION_ROLES.has(membership.role) && membership.pollingStationId) {
-      scope.$or.push({ pollingStationId: membership.pollingStationId });
-    }
+    if (REGION_ROLES.has(membership.role) && membership.regionId) scope.$or.push({ regionId: membership.regionId });
+    if (CONSTITUENCY_ROLES.has(membership.role) && membership.constituencyId) scope.$or.push({ constituencyId: membership.constituencyId });
+    if (STATION_ROLES.has(membership.role) && membership.pollingStationId) scope.$or.push({ pollingStationId: membership.pollingStationId });
   }
 
   return scope.$or.length ? scope : null;
