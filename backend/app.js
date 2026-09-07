@@ -10,15 +10,7 @@ const allowedOrigins = ["https://polisync-app.onrender.com", configuredFrontendU
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(securityHeaders);
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error("CORS origin not allowed."));
-  },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Setup-Secret", "X-PoliSync-API-Token", "X-Request-ID"],
-  credentials: false,
-}));
+app.use(cors({ origin: (origin, callback) => { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error("CORS origin not allowed.")); }, methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Setup-Secret", "X-PoliSync-API-Token", "X-Request-ID"], credentials: false }));
 app.use(express.json({ limit: "400kb", strict: true }));
 app.use(express.urlencoded({ extended: false, limit: "100kb", parameterLimit: 100 }));
 app.use(sanitizeRequest);
@@ -78,10 +70,7 @@ app.use("/api/auth", (req, res, next) => {
         body.message = "Account created successfully. Use the Arkesel SMS verification code for account security. Your email does not require verification.";
         if (body.notifications) body.notifications.email = false;
       }
-    } catch (error) {
-      console.error("Registration activation error:", error);
-      return originalJson({ success: false, message: "Account was created but could not be activated automatically." });
-    }
+    } catch (error) { console.error("Registration activation error:", error); return originalJson({ success: false, message: "Account was created but could not be activated automatically." }); }
     return originalJson(body);
   };
   next();
@@ -114,10 +103,5 @@ app.use("/api/super-admin/workspaces", superAdminWorkspaceRoutes);
 app.use("/api/platform-settings", platformSettingsRoutes);
 
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found." }));
-app.use((err, req, res, next) => {
-  console.error("PoliSync API error:", err);
-  const status = Number.isInteger(err.status) ? err.status : 500;
-  const message = status >= 500 ? "Internal Server Error" : (err.message || "Request failed.");
-  res.status(status).json({ success: false, message });
-});
+app.use((err, req, res, next) => { console.error("PoliSync API error:", err); const status = Number.isInteger(err.status) ? err.status : 500; const message = status >= 500 ? "Internal Server Error" : (err.message || "Request failed."); res.status(status).json({ success: false, message }); });
 module.exports = app;
