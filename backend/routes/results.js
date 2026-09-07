@@ -2,6 +2,7 @@ const express = require("express");
 const OrganizationMembership = require("../models/OrganizationMembership");
 const { submitResult, getResults } = require("../controllers/resultsController");
 const { dashboard } = require("../controllers/resultsDashboardController");
+const { getGeographicAssignments } = require("../controllers/geographicAssignmentsController");
 const { listVerification, updateVerification, listEc8 } = require("../controllers/resultsAdminController");
 const { protect, authorize } = require("../middleware/auth");
 
@@ -26,6 +27,7 @@ const requirePollingStationAssignment = async (req, res, next) => {
 
 router.post("/submit", protect, requirePollingStationAssignment, submitResult);
 router.get("/election/:electionId", protect, getResults);
+router.get("/geographic-assignments", protect, getGeographicAssignments);
 router.get("/dashboard", protect, authorize("super_admin"), dashboard);
 router.get("/admin/verification", protect, authorize("super_admin"), listVerification);
 router.patch("/admin/verification/:resultId", protect, authorize("super_admin"), updateVerification);
