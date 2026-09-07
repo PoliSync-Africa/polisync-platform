@@ -7,10 +7,11 @@ export async function GET(request, { params }) {
   const upstream = new URL(`${base}/api/super-admin/workspaces/session/${encodeURIComponent(workspaceType)}`);
   const organizationId = incoming.searchParams.get("organizationId");
   if (organizationId) upstream.searchParams.set("organizationId", organizationId);
+  const authorization = request.headers.get("authorization") || "";
 
   try {
     const response = await fetch(upstream, {
-      headers: { Accept: "application/json", Authorization: request.headers.get("authorization") || "" },
+      headers: { Accept: "application/json", ...(authorization ? { Authorization: authorization } : {}) },
       cache: "no-store",
     });
     const data = await response.json().catch(() => ({}));
