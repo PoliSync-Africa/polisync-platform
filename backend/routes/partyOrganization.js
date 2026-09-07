@@ -4,10 +4,22 @@ const {
   createPoliticalParty,
   getMyPartyDashboard,
 } = require("../controllers/partyOrganizationController");
+const {
+  createInvitation,
+  listInvitations,
+  revokeInvitation,
+  getInvitation,
+  acceptInvitation,
+} = require("../controllers/partyDeploymentController");
 
 const router = express.Router();
 
 router.post("/", protect, createPoliticalParty);
 router.get("/me/dashboard", protect, getMyPartyDashboard);
+router.post("/deployments/invitations", protect, createInvitation);
+router.get("/deployments/invitations", protect, listInvitations);
+router.delete("/deployments/invitations/:id", protect, revokeInvitation);
+router.get("/deployments/invitations/public/:token", getInvitation);
+router.post("/deployments/invitations/public/:token/accept", protect, acceptInvitation);
 
 module.exports = router;
