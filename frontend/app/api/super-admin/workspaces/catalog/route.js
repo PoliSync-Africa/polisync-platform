@@ -5,7 +5,7 @@ export async function GET(request) {
   const authorization = request.headers.get("authorization") || "";
   try {
     const response = await fetch(`${base}/api/super-admin/workspaces/catalog`, {
-      headers: { Accept: "application/json", Authorization: authorization },
+      headers: { Accept: "application/json", ...(authorization ? { Authorization: authorization } : {}) },
       cache: "no-store",
     });
     const data = await response.json().catch(() => ({}));
