@@ -10,10 +10,15 @@
     "mobile:add": "npx cap add android && npx cap add ios",
     "mobile:sync": "npx cap sync",
     "mobile:android": "npx cap open android",
-    "mobile:ios": "npx cap open ios"
+    "mobile:ios": "npx cap open ios",
+    "mobile:prepare": "npx cap add android && npx cap add ios && npx cap sync",
+    "mobile:android:build": "cd android && ./gradlew bundleRelease",
+    "mobile:ios:archive": "cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -archivePath ../../PoliSync.xcarchive archive"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.3",
     "@capacitor/core": "^7.4.3",
+    "@capacitor/ios": "^7.4.3",
     "next": "15.5.24",
     "react": "19.1.0",
     "react-dom": "19.1.0",
