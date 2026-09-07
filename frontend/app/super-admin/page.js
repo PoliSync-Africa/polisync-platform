@@ -33,9 +33,9 @@ export default function SuperAdminEntry() {
         return;
       }
 
-      // The backend is authoritative for platform privileges. Do not trust
-      // a stale localStorage role, because an older cached user object may
-      // incorrectly say "user" after the Super Admin identity is repaired.
+      // Backend is the only authority for platform privileges. A cached
+      // ordinary-user object must never redirect a Super Admin away from the
+      // Super Admin workspace.
       try {
         const response = await fetch(`${API_URL}/api/profile/me`, {
           cache: "no-store",
@@ -45,12 +45,19 @@ export default function SuperAdminEntry() {
           },
         });
 
-        if (!response.ok) throw new Error(`Profile verification failed: ${response.status}`);
+        if (cancelled) return;
+
+        if (response.status === 401) {
+          window.location.replace("/login");
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Profile verification failed: ${response.status}`);
+        }
 
         const payload = await response.json();
         const user = payload?.user;
-
-        if (cancelled) return;
 
         if (user?.platformRole === "super_admin") {
           storeUser(user);
@@ -58,26 +65,18 @@ export default function SuperAdminEntry() {
           return;
         }
 
+        // A successful backend response that explicitly says this is an
+        // ordinary user is authoritative. Temporary API failures, however,
+        // must never cause a Super Admin to be downgraded to /dashboard.
         window.location.replace("/dashboard");
       } catch {
         if (cancelled) return;
 
-        // If the profile endpoint is temporarily unavailable, preserve the
-        // previous local Super Admin cache only as a fallback. Never use a
-        // cached ordinary-user role to deny access before the backend has a
-        // chance to confirm the canonical platform identity.
-        try {
-          const rawUser = localStorage.getItem("polisync_user") || sessionStorage.getItem("polisync_user");
-          const cachedUser = rawUser ? JSON.parse(rawUser) : null;
-          if (cachedUser?.platformRole === "super_admin") {
-            window.location.replace("/super-admin/dashboard");
-            return;
-          }
-        } catch {
-          // Fall through to the normal dashboard.
-        }
-
-        window.location.replace("/dashboard");
+        // Never use a cached "user" role to downgrade or redirect during a
+        // temporary API/network failure. Retry the authoritative check instead.
+        window.setTimeout(() => {
+          if (!cancelled) verifyAndOpen();
+        }, 1500);
       }
     };
 
