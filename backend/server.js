@@ -8,8 +8,24 @@ const { ensureElectoralGeography } = require("./scripts/ensureElectoralGeography
 const { installCallSignaling } = require("./realtime/callSignaling");
 const { ensureSuperAdminIdentity } = require("./services/superAdminIdentityService");
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const rawMongoUri = String(process.env.MONGODB_URI || process.env.MONGO_URI || "").trim();
 const PORT = process.env.PORT || 5000;
+
+function normalizeMongoUri(uri) {
+  if (!uri) return "";
+  const value = uri.trim();
+  try {
+    const parsed = new URL(value);
+    if (!/^mongodb(?:\+srv)?:$/i.test(parsed.protocol)) return value;
+    if (!parsed.searchParams.has("retryWrites")) parsed.searchParams.set("retryWrites", "true");
+    if (!parsed.searchParams.has("w")) parsed.searchParams.set("w", "majority");
+    return parsed.toString();
+  } catch {
+    return value;
+  }
+}
+
+const MONGODB_URI = normalizeMongoUri(rawMongoUri);
 
 if (!MONGODB_URI) {
   console.error("❌ MONGODB_URI is not configured.");
@@ -18,7 +34,12 @@ if (!MONGODB_URI) {
 }
 
 mongoose
-  .connect(MONGODB_URI)
+  .connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 15000,
+    connectTimeoutMS: 15000,
+    socketTimeoutMS: 45000,
+    family: 4,
+  })
   .then(async () => {
     console.log("✅ MongoDB Connected");
 
@@ -65,6 +86,7 @@ mongoose
   })
   .catch((err) => {
     console.error("❌ MongoDB Connection Failed:", err.message);
+    console.error("ℹ️ Verify the Render MONGODB_URI value, Atlas database username/password, authSource, and Atlas Network Access allowlist.");
     process.exit(1);
   });
 
