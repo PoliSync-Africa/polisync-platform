@@ -23,8 +23,13 @@ const ElectionSchema = new mongoose.Schema(
     totalPollingStations: { type: Number, default: 0 },
     parties: { type: [partySchema], default: [] },
     candidates: { type: [candidateSchema], default: [] },
+    organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", default: null, index: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null, index: true },
+    managedBy: { type: String, enum: ["platform", "organization"], default: "platform", index: true },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Election", ElectionSchema);
+ElectionSchema.index({ organizationId: 1, year: -1, status: 1 });
+
+module.exports = mongoose.models.Election || mongoose.model("Election", ElectionSchema);
