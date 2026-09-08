@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const partySchema = new mongoose.Schema({
+  partyId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", default: null },
   name: { type: String, required: true, trim: true },
   logoUrl: { type: String, default: "", trim: true },
 }, { _id: false });
