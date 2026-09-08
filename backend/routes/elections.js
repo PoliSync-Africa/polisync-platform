@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const electionController = require("../controllers/electionController");
+const electionCandidateController = require("../controllers/electionCandidateController");
 const { protect } = require("../middleware/auth");
 const { synchronizeAllElectionGeography } = require("../services/electionGeographySyncService");
 
@@ -22,6 +23,7 @@ router.get("/live", protect, syncGeography, electionController.getLiveElections)
 router.get("/history", protect, syncGeography, electionController.getElectionHistory);
 router.get("/:id", protect, syncGeography, electionController.getElection);
 router.post("/create", protect, electionController.createElection);
+router.patch("/:id/candidates", protect, electionCandidateController.updateCandidates);
 router.patch("/:id", protect, electionController.updateElection);
 router.delete("/:id", protect, electionController.deleteElection);
 
