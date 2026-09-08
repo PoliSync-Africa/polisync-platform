@@ -6,25 +6,42 @@ import { usePathname } from "next/navigation";
 
 const DASHBOARD_PATHS = ["/dashboard", "/party", "/observer", "/presidential-candidate", "/parliamentary-candidate", "/command-center", "/war-room", "/super-admin"];
 const isDashboardPath = (pathname = "") => DASHBOARD_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+const CACHE_KEY = "polisync_dashboard_environment";
+const CACHE_TTL = 5 * 60 * 1000;
 
 function flagFor(code) { return code ? code.replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0))) : "🌍"; }
 function weatherText(code) { const map = {0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Rime fog",51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",71:"Light snow",73:"Snow",75:"Heavy snow",80:"Rain showers",81:"Rain showers",82:"Heavy showers",95:"Thunderstorm",96:"Thunderstorm",99:"Thunderstorm"}; return map[code] || "Current conditions"; }
 
+function readCachedEnvironment() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
+    if (cached?.savedAt && Date.now() - cached.savedAt < CACHE_TTL && cached.data) return cached.data;
+  } catch {}
+  return null;
+}
+
+function writeCachedEnvironment(data) {
+  try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data })); } catch {}
+}
+
 export default function DashboardEnvironmentInjector() {
   const pathname = usePathname();
   const [target, setTarget] = useState(null);
-  const [clock, setClock] = useState(new Date());
-  const [data, setData] = useState({loading:true,location:"Locating…",country:"",flag:"🌍",temperature:null,condition:""});
+  const [clock, setClock] = useState(() => new Date());
+  const [data, setData] = useState(() => readCachedEnvironment() || {loading:true,location:"Locating…",country:"",flag:"🌍",temperature:null,condition:""});
 
-  useEffect(() => { const timer=window.setInterval(()=>setClock(new Date()),1000); return()=>window.clearInterval(timer); }, []);
+  useEffect(() => {
+    if (!isDashboardPath(pathname)) return undefined;
+    const timer = window.setInterval(() => setClock(new Date()), 15000);
+    return () => window.clearInterval(timer);
+  }, [pathname]);
 
   useEffect(() => {
     if (!isDashboardPath(pathname)) { setTarget(null); return undefined; }
     let attempts=0; let timer=null;
     const findTarget=()=>{
       const hero=document.querySelector(".polisync-dashboard .hero");
-      if (!hero) { if(attempts++<30) timer=window.setTimeout(findTarget,100); return; }
-      // Personal dashboard already has the live data block; other dashboard heroes receive it here.
+      if (!hero) { if(attempts++<20) timer=window.setTimeout(findTarget,150); return; }
       if (hero.querySelector(".about-data")) { setTarget(null); return; }
       const host=hero.querySelector(".dashboard-environment-host");
       setTarget(host||hero);
@@ -36,21 +53,25 @@ export default function DashboardEnvironmentInjector() {
 
   useEffect(() => {
     if (!isDashboardPath(pathname) || !navigator.geolocation) return undefined;
+    const cached = readCachedEnvironment();
+    if (cached) { setData({ ...cached, loading: false }); return undefined; }
     let cancelled=false;
     const load=({coords})=>{
       const {latitude,longitude}=coords;
       Promise.all([
-        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,{cache:"no-store"}),
-        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`,{cache:"no-store"})
+        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,{cache:"force-cache"}),
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`,{cache:"force-cache"})
       ]).then(async([g,w])=>{
         const geo=g.ok?await g.json():{}; const weather=w.ok?await w.json():{}; if(cancelled)return;
         const code=String(geo.countryCode||geo.countryCodeIso2||"").toUpperCase();
         const locality=geo.locality||geo.city||geo.principalSubdivision||"Current location";
         const region=geo.principalSubdivision&&geo.principalSubdivision!==locality?`, ${geo.principalSubdivision}`:"";
-        setData({loading:false,location:`${locality}${region}`,country:geo.countryName||"",flag:flagFor(code),temperature:weather?.current?.temperature_2m??null,condition:weatherText(weather?.current?.weather_code)});
+        const next={loading:false,location:`${locality}${region}`,country:geo.countryName||"",flag:flagFor(code),temperature:weather?.current?.temperature_2m??null,condition:weatherText(weather?.current?.weather_code)};
+        writeCachedEnvironment(next);
+        setData(next);
       }).catch(()=>{if(!cancelled)setData(x=>({...x,loading:false,location:"Location unavailable"}));});
     };
-    navigator.geolocation.getCurrentPosition(load,()=>setData(x=>({...x,loading:false,location:"Location permission not granted"})),{enableHighAccuracy:true,maximumAge:0,timeout:12000});
+    navigator.geolocation.getCurrentPosition(load,()=>setData(x=>({...x,loading:false,location:"Location permission not granted"})),{enableHighAccuracy:false,maximumAge:CACHE_TTL,timeout:8000});
     return()=>{cancelled=true};
   }, [pathname]);
 
