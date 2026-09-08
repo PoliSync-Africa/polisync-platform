@@ -16,12 +16,10 @@ function partyNameKey(value) {
 }
 
 /**
- * Synchronize the canonical political-party organizations with every election.
- *
- * Existing election records are treated as a migration source: when an
- * organization has no logo, an existing election logo for the same party is
- * copied into the organization first. The organization then becomes the
- * canonical source for all election party logos going forward.
+ * Synchronize canonical political-party organizations with every election.
+ * Existing election party/candidate logos are first imported into the party
+ * organization when that organization does not yet have a logo. The
+ * organization then becomes the canonical source for all election logos.
  */
 async function synchronizeAllElectionParties() {
   const [organizations, elections] = await Promise.all([
@@ -34,16 +32,24 @@ async function synchronizeAllElectionParties() {
     organizations.map((org) => [partyNameKey(org.politicalPartyName || org.name), org])
   );
 
-  // First import any existing election logo into the canonical organization.
   const logoUpdates = new Map();
+  const rememberLogo = (partyId, partyName, logo) => {
+    const normalizedLogo = String(logo || "").trim();
+    if (!normalizedLogo) return;
+    const org =
+      (partyId && organizationById.get(String(partyId))) ||
+      organizationByName.get(partyNameKey(partyName));
+    if (!org || String(org.logo || "").trim()) return;
+    logoUpdates.set(String(org._id), normalizedLogo);
+  };
+
   for (const election of elections) {
     for (const party of Array.isArray(election.parties) ? election.parties : []) {
-      const org =
-        (party.partyId && organizationById.get(String(party.partyId))) ||
-        organizationByName.get(partyNameKey(party.name));
-      const logo = String(party.logoUrl || "").trim();
-      if (!org || !logo || String(org.logo || "").trim()) continue;
-      logoUpdates.set(String(org._id), logo);
+      rememberLogo(party.partyId, party.name, party.logoUrl);
+    }
+    for (const candidate of Array.isArray(election.candidates) ? election.candidates : []) {
+      if (String(candidate.party || "").trim().toLowerCase() === "independent") continue;
+      rememberLogo(candidate.partyId, candidate.party, candidate.partyLogoUrl);
     }
   }
 
@@ -53,7 +59,6 @@ async function synchronizeAllElectionParties() {
         Organization.updateOne({ _id: organizationId }, { $set: { logo } })
       )
     );
-
     logoUpdates.forEach((logo, organizationId) => {
       const org = organizationById.get(organizationId);
       if (org) org.logo = logo;
@@ -66,7 +71,6 @@ async function synchronizeAllElectionParties() {
     logoUrl: String(org.logo || "").trim(),
   }));
 
-  // Make every election use the exact same party organization IDs/names/logos.
   let synchronized = 0;
   for (const election of elections) {
     const oldById = new Map(
@@ -100,10 +104,7 @@ async function synchronizeAllElectionParties() {
       };
     });
 
-    await Election.updateOne(
-      { _id: election._id },
-      { $set: { parties, candidates } }
-    );
+    await Election.updateOne({ _id: election._id }, { $set: { parties, candidates } });
     synchronized += 1;
   }
 
@@ -114,7 +115,6 @@ async function synchronizeAllElectionParties() {
   };
 }
 
-// Kept as a single-election helper for callers that need to synchronize one election.
 async function synchronizeElectionParties(election) {
   const organizations = await getApprovedParties();
   const existing = new Map(
@@ -134,7 +134,7 @@ async function synchronizeElectionParties(election) {
       (item) => String(item.partyId) === String(candidate.partyId || "") || partyNameKey(item.name) === partyNameKey(candidate.party)
     );
     return party
-      ? { ...candidate.toObject?.() || candidate, partyId: party.partyId, party: party.name, partyLogoUrl: party.logoUrl || String(candidate.partyLogoUrl || "").trim() }
+      ? { ...(candidate.toObject?.() || candidate), partyId: party.partyId, party: party.name, partyLogoUrl: party.logoUrl || String(candidate.partyLogoUrl || "").trim() }
       : candidate;
   });
   await election.save();
