@@ -72,7 +72,7 @@ export default function ElectionCandidatesPage() {
   const [error, setError] = useState("");
 
   const election = useMemo(() => elections.find((item) => String(item._id) === String(selectedId)), [elections, selectedId]);
-  const participatingParties = useMemo(() => (election?.parties || []).map((party) => ({ ...party, id: party.partyId || party.id, name: party.name, logoUrl: party.logoUrl || "", isIndependent: false })), [election]);
+  const participatingParties = useMemo(() => (election?.parties || []).filter((party) => party.name?.trim().toLowerCase() !== "independent").map((party) => ({ ...party, id: party.partyId || party.id, name: party.name, logoUrl: party.logoUrl || "", isIndependent: false })), [election]);
   const ballotParticipants = useMemo(() => [...participatingParties, independentParty], [participatingParties]);
   const presidential = useMemo(() => candidates.filter((candidate) => candidate.position !== "parliamentary" && candidate.position !== "local"), [candidates]);
   const parliamentary = useMemo(() => candidates.filter((candidate) => candidate.position === "parliamentary"), [candidates]);
