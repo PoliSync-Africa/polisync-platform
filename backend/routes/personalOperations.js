@@ -9,6 +9,7 @@ router.get("/campaigns", controller.campaigns);
 router.post("/campaigns", controller.createCampaign);
 router.patch("/campaigns/:id", controller.updateCampaign);
 router.delete("/campaigns/:id", controller.deleteCampaign);
+router.get("/people", controller.people);
 router.get("/events", controller.events);
 router.post("/events", controller.createEvent);
 router.patch("/events/:id", controller.updateEvent);
