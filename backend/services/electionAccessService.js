@@ -1,8 +1,12 @@
 const OrganizationMembership = require("../models/OrganizationMembership");
+const PlatformSettings = require("../models/PlatformSettings");
+
+const DEFAULT_PERSONAL_ELECTION_VIEW = true;
+const DEFAULT_ORGANIZATION_ELECTION_CREATION = true;
 
 // Roles that an organization may explicitly assign to someone for election
 // operations. Ordinary organization members and personal users do not receive
-// access merely because they have an account.
+// organization election access merely because they have an account.
 const ELECTION_VIEW_ROLES = [
   "national_party_admin",
   "regional_party_admin",
@@ -21,14 +25,42 @@ const CONSTITUENCY_ROLES = new Set(["constituency_admin", "constituency_observer
 const STATION_ROLES = new Set(["polling_station_agent", "observer_polling_station_agent"]);
 const NATIONAL_OR_CANDIDATE_ROLES = new Set(["national_party_admin", "national_observer_admin", "presidential_candidate", "parliamentary_candidate"]);
 
+async function getPlatformElectionControls() {
+  try {
+    const settings = await PlatformSettings.findOne({ singleton: "platform" })
+      .select("allowOrganizationElectionCreation allowPersonalElectionResultsView")
+      .lean();
+    return {
+      allowOrganizationElectionCreation: settings?.allowOrganizationElectionCreation ?? DEFAULT_ORGANIZATION_ELECTION_CREATION,
+      allowPersonalElectionResultsView: settings?.allowPersonalElectionResultsView ?? DEFAULT_PERSONAL_ELECTION_VIEW,
+    };
+  } catch (error) {
+    // A missing/unavailable settings document must not accidentally lock the
+    // platform out of its election workspace. Defaults are intentionally on.
+    console.error("Election platform controls lookup:", error);
+    return {
+      allowOrganizationElectionCreation: DEFAULT_ORGANIZATION_ELECTION_CREATION,
+      allowPersonalElectionResultsView: DEFAULT_PERSONAL_ELECTION_VIEW,
+    };
+  }
+}
+
 function isOrganizationElection(election) {
   if (!election) return false;
   return Boolean(election.organizationId) || election.managedBy === "organization";
 }
 
 async function getElectionAccess(user) {
+  const controls = await getPlatformElectionControls();
   if (user?.platformRole === "super_admin") {
-    return { isSuperAdmin: true, canViewOrganizationElections: true, memberships: [], organizationIds: [] };
+    return {
+      isSuperAdmin: true,
+      canViewOrganizationElections: true,
+      canViewPersonalElectionsAndResults: true,
+      allowOrganizationElectionCreation: true,
+      organizationIds: [],
+      memberships: [],
+    };
   }
 
   const memberships = await OrganizationMembership.find({
@@ -41,11 +73,21 @@ async function getElectionAccess(user) {
     memberships.map((membership) => String(membership.organizationId || "")).filter(Boolean)
   )];
 
-  return { isSuperAdmin: false, canViewOrganizationElections: organizationIds.length > 0, memberships, organizationIds };
+  // canViewOrganizationElections is retained as the frontend workspace-access
+  // flag for compatibility. Organization access itself remains determined by
+  // organizationIds, while personal access is controlled independently below.
+  return {
+    isSuperAdmin: false,
+    canViewOrganizationElections: organizationIds.length > 0 || controls.allowPersonalElectionResultsView,
+    canViewPersonalElectionsAndResults: controls.allowPersonalElectionResultsView,
+    allowOrganizationElectionCreation: controls.allowOrganizationElectionCreation,
+    memberships,
+    organizationIds,
+  };
 }
 
 function canViewOrganizationElection(access, election) {
-  if (!isOrganizationElection(election)) return true;
+  if (!isOrganizationElection(election)) return Boolean(access?.isSuperAdmin || access?.canViewPersonalElectionsAndResults);
   if (access?.isSuperAdmin) return true;
   const organizationId = String(election.organizationId?._id || election.organizationId || "");
   return Boolean(organizationId && access.organizationIds?.includes(organizationId));
@@ -53,17 +95,19 @@ function canViewOrganizationElection(access, election) {
 
 function electionVisibilityFilter(access) {
   if (access?.isSuperAdmin) return {};
+  const clauses = [];
 
-  // A personal account may only see platform-owned elections with no
-  // organizationId, plus organization elections for which an approved
-  // election-duty membership exists.
-  const platformElection = {
-    organizationId: null,
-    $or: [{ managedBy: "platform" }, { managedBy: { $exists: false } }],
-  };
-  if (!access?.organizationIds?.length) return platformElection;
+  if (access?.canViewPersonalElectionsAndResults) {
+    clauses.push({
+      organizationId: null,
+      $or: [{ managedBy: "platform" }, { managedBy: { $exists: false } }],
+    });
+  }
+  if (access?.organizationIds?.length) clauses.push({ organizationId: { $in: access.organizationIds } });
 
-  return { $or: [platformElection, { organizationId: { $in: access.organizationIds } }] };
+  // No visible election workspace is represented by an impossible _id filter.
+  if (!clauses.length) return { _id: null };
+  return clauses.length === 1 ? clauses[0] : { $or: clauses };
 }
 
 function resultScopeForMemberships(memberships, organizationId) {
@@ -88,7 +132,8 @@ function resultVisibilityFilter(access, organizationIds = null) {
   if (access?.isSuperAdmin) return {};
 
   const ids = organizationIds?.length ? organizationIds : access?.organizationIds || [];
-  const clauses = [{ organizationId: null }];
+  const clauses = [];
+  if (access?.canViewPersonalElectionsAndResults) clauses.push({ organizationId: null });
   for (const organizationId of ids) {
     const scope = resultScopeForMemberships(access.memberships || [], organizationId);
     if (scope === null) continue;
@@ -96,12 +141,13 @@ function resultVisibilityFilter(access, organizationIds = null) {
     else clauses.push({ organizationId, ...scope });
   }
 
-  return clauses.length === 1 ? clauses[0] : { $or: clauses };
+  return clauses.length === 0 ? { _id: null } : clauses.length === 1 ? clauses[0] : { $or: clauses };
 }
 
 module.exports = {
   ELECTION_VIEW_ROLES,
   isOrganizationElection,
+  getPlatformElectionControls,
   getElectionAccess,
   canViewOrganizationElection,
   electionVisibilityFilter,
