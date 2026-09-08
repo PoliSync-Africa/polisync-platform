@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 require("dotenv").config();
 
 const app = require("./app");
-const User = require("./models/User");
 const Organization = require("./models/Organization");
 const { startBirthdayJob } = require("./jobs/birthdayMessages");
 const { ensureElectoralGeography } = require("./scripts/ensureElectoralGeography");
@@ -66,8 +65,6 @@ mongoose
     server.keepAliveTimeout = 10 * 1000;
     server.maxHeadersCount = 100;
 
-    // Non-critical bootstraps intentionally run after the API is ready so a
-    // Render restart can accept traffic as soon as MongoDB is connected.
     Promise.allSettled([
       ensurePoliticalParties(Organization),
       ensureElectoralGeography(),
