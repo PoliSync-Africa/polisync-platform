@@ -6,6 +6,7 @@ const MAX_PHOTO_LENGTH = 3 * 1024 * 1024;
 
 async function canManageElection(req, election) {
   if (req.user?.platformRole === "super_admin") return true;
+  if (!["Active"].includes(election?.status)) return false;
   const membership = await OrganizationMembership.findOne({
     userId: req.user._id,
     organizationId: election.organizationId,
@@ -91,7 +92,7 @@ exports.getMyPartyCandidate = async (req, res) => {
     if (!party) return res.status(403).json({ success: false, message: "Your political party is not a participating party in this election." });
     const candidate = (election.candidates || []).find((item) => item.position === "president" && String(item.partyId || "") === String(membership.organizationId));
     const organization = await Organization.findById(membership.organizationId).select("_id name politicalPartyName logo").lean();
-    return res.json({ success: true, election: { id: election._id, name: election.name, year: election.year, type: election.type }, party: { id: membership.organizationId, name: party.name || organization?.politicalPartyName || organization?.name, logoUrl: party.logoUrl || organization?.logo || "" }, candidate: candidate || null });
+    return res.json({ success: true, readOnly: election.status === "Closed", election: { id: election._id, name: election.name, year: election.year, type: election.type, status: election.status }, party: { id: membership.organizationId, name: party.name || organization?.politicalPartyName || organization?.name, logoUrl: party.logoUrl || organization?.logo || "" }, candidate: candidate || null });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message || "Unable to load your party candidate." });
   }
@@ -102,6 +103,7 @@ exports.submitMyPartyCandidate = async (req, res) => {
     const election = await Election.findById(req.params.id);
     if (!election) return res.status(404).json({ success: false, message: "Election not found." });
     if (election.type !== "Presidential") return res.status(400).json({ success: false, message: "This election does not have a presidential ballot." });
+    if (election.status !== "Active") return res.status(403).json({ success: false, code: "ELECTION_READ_ONLY", message: "This election is closed. Candidate and election information are read-only for political parties." });
     const membership = await getPartyMembership(req);
     if (!membership) return res.status(403).json({ success: false, message: "Only an approved national political party administrator can submit a party presidential candidate." });
     const party = participatingParty(election, membership.organizationId);
@@ -113,11 +115,12 @@ exports.submitMyPartyCandidate = async (req, res) => {
     if (profilePictureUrl.length > MAX_PHOTO_LENGTH) return res.status(400).json({ success: false, message: "Candidate photo is too large. Please use a smaller image." });
 
     const candidates = (election.candidates || []).filter((candidate) => !(candidate.position === "president" && String(candidate.partyId || "") === String(membership.organizationId)));
+    const organization = await Organization.findById(membership.organizationId).select("logo politicalPartyName name").lean();
     const candidate = {
       name,
       partyId: membership.organizationId,
       party: party.name,
-      partyLogoUrl: party.logoUrl || "",
+      partyLogoUrl: organization?.logo || party.logoUrl || "",
       profilePictureUrl,
       constituencyId: null,
       position: "president",
