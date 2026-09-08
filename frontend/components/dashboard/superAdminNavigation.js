@@ -17,20 +17,7 @@ const superAdminNavigation = [
       { label: "Regional Health Matrix", href: "/super-admin/electoral-data-health/regions", icon: "▤", key: "electoral-regions" },
       { label: "Polling Stations", href: "/super-admin/polling-stations", icon: "⌖", key: "polling-stations" },
       { label: "Weather Intelligence", href: "/weather", icon: "☁", key: "weather" },
-      { label: "Elections", href: "/super-admin/elections", icon: "▣", key: "elections" },
-      { label: "Presidential Candidates", href: "/super-admin/elections/candidates", icon: "♔", key: "presidential-candidates" },
       { label: "Approvals", href: "/super-admin/approvals", icon: "✓", key: "approvals" },
-    ],
-  },
-  {
-    section: "FIELD OPERATIONS",
-    items: [
-      { label: "Field Operations", href: "/super-admin/field-operations", icon: "⚑", key: "field-operations" },
-      { label: "Volunteers", href: "/super-admin/field-operations?tab=volunteers", icon: "♙", key: "field-volunteers" },
-      { label: "Polling Agent Deployment", href: "/super-admin/field-operations?tab=agents", icon: "◉", key: "field-agents" },
-      { label: "Attendance & Check-ins", href: "/super-admin/field-operations?tab=attendance", icon: "✓", key: "field-attendance" },
-      { label: "Incidents", href: "/super-admin/field-operations?tab=incidents", icon: "⚠", key: "field-incidents" },
-      { label: "Logistics", href: "/super-admin/field-operations?tab=logistics", icon: "▣", key: "field-logistics" },
     ],
   },
   {
