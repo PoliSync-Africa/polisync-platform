@@ -35,6 +35,13 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
+async function synchronizePoliticalPartySystem() {
+  await ensurePoliticalParties(Organization);
+  const result = await synchronizeAllElectionParties();
+  console.log(`🔄 Political parties synchronized: ${result.parties?.length || 0} parties, ${result.elections || 0} elections, ${result.logosImported || 0} logos imported.`);
+  return result;
+}
+
 mongoose
   .connect(MONGODB_URI, {
     serverSelectionTimeoutMS: 15000,
@@ -66,19 +73,14 @@ mongoose
 
     Promise.allSettled([
       ensureSuperAdminIdentity(),
-      ensurePoliticalParties(Organization),
       ensureElectoralGeography(),
-      synchronizeAllElectionParties(),
+      synchronizePoliticalPartySystem(),
     ]).then((results) => {
       results.forEach((result) => {
         if (result.status === "rejected") {
           console.error("⚠️ Background bootstrap failed:", result.reason?.message || result.reason);
         }
       });
-      const partySync = results[3];
-      if (partySync?.status === "fulfilled") {
-        console.log(`🔄 Political parties synchronized: ${partySync.value.parties?.length || 0} parties, ${partySync.value.elections || 0} elections, ${partySync.value.logosImported || 0} logos imported.`);
-      }
     });
 
     startBirthdayJob();
