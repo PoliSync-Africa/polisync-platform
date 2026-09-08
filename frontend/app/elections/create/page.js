@@ -1,90 +1,228 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import DashboardShell from "../../../components/dashboard/DashboardShell";
+import ElectionAccessGate from "../../../components/dashboard/ElectionAccessGate";
+
+const API_BASE = String(process.env.NEXT_PUBLIC_API_URL || "https://polisync-platform-1.onrender.com").replace(/\/+$/, "");
+
+function getToken() {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("polisync_token") || sessionStorage.getItem("polisync_token") || localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken") || localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+}
 
 export default function CreateElectionPage() {
-  const [form, setForm] = useState({
-    name: "",
-    country: "",
-    type: "General Election",
-    date: ""
-  });
+  const [form, setForm] = useState({ name: "", country: "Ghana", type: "Parliamentary", date: "", status: "Draft" });
+  const [parties, setParties] = useState([]);
+  const [selectedPartyIds, setSelectedPartyIds] = useState([]);
+  const [loadingParties, setLoadingParties] = useState(true);
+  const [partyError, setPartyError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const update = (field, value) =>
-    setForm({ ...form, [field]: value });
+  useEffect(() => {
+    let active = true;
+    const loadParties = async () => {
+      setLoadingParties(true);
+      setPartyError("");
+      try {
+        const token = getToken();
+        const response = await fetch(`${API_BASE}/api/elections/parties`, {
+          cache: "no-store",
+          headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success !== true) throw new Error(data.message || `Unable to load political parties (${response.status}).`);
+        const loaded = Array.isArray(data.parties) ? data.parties : [];
+        if (!active) return;
+        setParties(loaded);
+        setSelectedPartyIds(loaded.map((party) => String(party.id)));
+      } catch (e) {
+        if (!active) return;
+        setPartyError(e.message || "Unable to load political parties.");
+        setParties([]);
+        setSelectedPartyIds([]);
+      } finally {
+        if (active) setLoadingParties(false);
+      }
+    };
+    loadParties();
+    return () => { active = false; };
+  }, []);
+
+  const selectedParties = useMemo(
+    () => parties.filter((party) => selectedPartyIds.includes(String(party.id))),
+    [parties, selectedPartyIds]
+  );
+
+  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+
+  const toggleParty = (id) => {
+    const key = String(id);
+    setSelectedPartyIds((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key]);
+  };
+
+  const selectAll = () => setSelectedPartyIds(parties.map((party) => String(party.id)));
+  const clearAll = () => setSelectedPartyIds([]);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (submitting) return;
+    setError("");
+    setSuccess("");
+    if (!form.name.trim()) return setError("Election name is required.");
+    if (!form.date) return setError("Election date is required.");
+    if (!selectedParties.length) return setError("At least one registered political party must participate in the election.");
+
+    const year = Number(form.date.slice(0, 4));
+    const startDateTime = `${form.date}T00:00:00`;
+    const endDateTime = `${form.date}T23:59:59`;
+    setSubmitting(true);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE}/api/elections/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          country: form.country.trim() || "Ghana",
+          type: form.type,
+          year,
+          startDateTime,
+          endDateTime,
+          status: form.status,
+          parties: selectedParties.map((party) => ({ partyId: party.id, name: party.name, logoUrl: party.logoUrl || "" })),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success !== true) throw new Error(data.message || "Election could not be created.");
+      setSuccess(`Election created successfully with ${selectedParties.length} participating political ${selectedParties.length === 1 ? "party" : "parties"}.`);
+      setForm({ name: "", country: "Ghana", type: form.type, date: "", status: "Draft" });
+    } catch (e) {
+      setError(e.message || "Election could not be created.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <main
-      style={{
-        background: "#F3F5F7",
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        padding: 40
-      }}
-    >
-      <div
-        style={{
-          background: "white",
-          width: "100%",
-          maxWidth: 700,
-          borderRadius: 24,
-          padding: 36
-        }}
-      >
-        <h1 style={{ color: "#0B3D2E" }}>
-          Create New Election
-        </h1>
+    <ElectionAccessGate>
+      <DashboardShell role="user" activeSection="elections" title="Create Election" subtitle="Registered political parties and official electoral geography">
+        <main style={styles.page}>
+          <form onSubmit={submit} style={styles.card}>
+            <div style={styles.eyebrow}>POLISYNC AFRICA • ELECTION SETUP</div>
+            <h2 style={styles.heading}>Create New Election</h2>
+            <p style={styles.subheading}>Political parties are loaded automatically from approved party organizations. All loaded parties participate by default and can be removed before publishing.</p>
 
-        <input
-          placeholder="Election Name"
-          style={input}
-          onChange={(e) => update("name", e.target.value)}
-        />
+            {error && <div style={styles.error}>{error}</div>}
+            {success && <div style={styles.success}>{success}</div>}
 
-        <input
-          placeholder="Country"
-          style={input}
-          onChange={(e) => update("country", e.target.value)}
-        />
+            <div style={styles.grid}>
+              <label style={styles.field}>
+                <span>Election Name</span>
+                <input value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="e.g. Ghana 2028 General Election" style={styles.input} />
+              </label>
+              <label style={styles.field}>
+                <span>Country</span>
+                <input value={form.country} onChange={(e) => update("country", e.target.value)} style={styles.input} />
+              </label>
+              <label style={styles.field}>
+                <span>Election Type</span>
+                <select value={form.type} onChange={(e) => update("type", e.target.value)} style={styles.input}>
+                  <option value="Presidential">Presidential</option>
+                  <option value="Parliamentary">Parliamentary</option>
+                  <option value="Local">Local</option>
+                </select>
+              </label>
+              <label style={styles.field}>
+                <span>Election Date</span>
+                <input type="date" value={form.date} onChange={(e) => update("date", e.target.value)} style={styles.input} />
+              </label>
+              <label style={styles.field}>
+                <span>Status</span>
+                <select value={form.status} onChange={(e) => update("status", e.target.value)} style={styles.input}>
+                  <option value="Draft">Draft</option>
+                  <option value="Active">Active</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </label>
+            </div>
 
-        <select
-          style={input}
-          onChange={(e) => update("type", e.target.value)}
-        >
-          <option>General Election</option>
-          <option>Primary</option>
-          <option>Local Election</option>
-          <option>Party Election</option>
-        </select>
+            <section style={styles.partySection}>
+              <div style={styles.partyHeader}>
+                <div>
+                  <div style={styles.partyLabel}>PARTICIPATING POLITICAL PARTIES</div>
+                  <h3 style={styles.partyTitle}>{loadingParties ? "Loading registered parties…" : `${selectedParties.length} of ${parties.length} selected`}</h3>
+                </div>
+                <div style={styles.actions}>
+                  <button type="button" onClick={selectAll} disabled={loadingParties || !parties.length} style={styles.linkButton}>Select all</button>
+                  <button type="button" onClick={clearAll} disabled={loadingParties || !parties.length} style={styles.linkButton}>Clear</button>
+                </div>
+              </div>
 
-        <input
-          type="date"
-          style={input}
-          onChange={(e) => update("date", e.target.value)}
-        />
+              {partyError ? (
+                <div style={styles.error}>{partyError}<button type="button" onClick={() => window.location.reload()} style={styles.retry}>Retry</button></div>
+              ) : loadingParties ? (
+                <div style={styles.loading}>Loading approved political parties automatically…</div>
+              ) : parties.length === 0 ? (
+                <div style={styles.empty}>No approved political parties are currently registered in PoliSync.</div>
+              ) : (
+                <div style={styles.partyList}>
+                  {parties.map((party) => {
+                    const checked = selectedPartyIds.includes(String(party.id));
+                    return (
+                      <label key={party.id} style={{ ...styles.party, ...(checked ? styles.partySelected : {}) }}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleParty(party.id)} />
+                        {party.logoUrl ? <img src={party.logoUrl} alt="" style={styles.logo} /> : <span style={styles.logoPlaceholder}>{party.name?.slice(0, 1) || "P"}</span>}
+                        <span style={styles.partyName}>{party.name}</span>
+                        <span style={styles.registered}>REGISTERED</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
 
-        <button
-          style={{
-            background: "#D4AF37",
-            color: "#0B3D2E",
-            padding: "16px 28px",
-            borderRadius: 12,
-            border: "none",
-            fontWeight: "bold"
-          }}
-        >
-          Publish Election
-        </button>
-      </div>
-    </main>
+            <div style={styles.footer}>
+              <span style={styles.note}>Geography is synchronized automatically from the official PoliSync electoral geography after creation.</span>
+              <button type="submit" disabled={submitting || loadingParties || !selectedParties.length} style={styles.submit}>{submitting ? "Creating…" : "Create Election"}</button>
+            </div>
+          </form>
+        </main>
+      </DashboardShell>
+    </ElectionAccessGate>
   );
 }
 
-const input = {
-  width: "100%",
-  padding: 14,
-  marginBottom: 18,
-  borderRadius: 12,
-  border: "1px solid #D1D5DB"
+const styles = {
+  page: { minHeight: "100%", padding: "clamp(12px,2.5vw,30px)", background: "#f4f7f5", boxSizing: "border-box" },
+  card: { maxWidth: 980, margin: "0 auto", background: "#fff", border: "1px solid #dce6df", borderRadius: 20, padding: "clamp(18px,3vw,32px)", boxShadow: "0 12px 35px rgba(14,54,32,.06)" },
+  eyebrow: { color: "#b28b19", fontSize: 9, fontWeight: 900, letterSpacing: 1.5 },
+  heading: { margin: "7px 0 5px", color: "#075f2b", fontSize: "clamp(24px,4vw,32px)" },
+  subheading: { margin: "0 0 22px", color: "#6f7c74", fontSize: 12, lineHeight: 1.6 },
+  grid: { display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 14 },
+  field: { display: "flex", flexDirection: "column", gap: 6, color: "#53635a", fontSize: 10, fontWeight: 800 },
+  input: { width: "100%", boxSizing: "border-box", padding: "12px 13px", border: "1px solid #d6e0da", borderRadius: 10, background: "#fbfcfb", color: "#26372e", fontSize: 12, outline: "none" },
+  partySection: { marginTop: 22, padding: 17, border: "1px solid #e0e8e3", borderRadius: 15, background: "#fbfdfc" },
+  partyHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" },
+  partyLabel: { color: "#b28b19", fontSize: 9, fontWeight: 900, letterSpacing: 1.2 },
+  partyTitle: { margin: "5px 0 0", color: "#263a30", fontSize: 16 },
+  actions: { display: "flex", gap: 8 },
+  linkButton: { border: 0, background: "transparent", color: "#075f2b", fontSize: 10, fontWeight: 900, cursor: "pointer" },
+  partyList: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 9, marginTop: 14 },
+  party: { display: "flex", alignItems: "center", gap: 9, minHeight: 58, padding: "9px 10px", border: "1px solid #e0e8e3", borderRadius: 11, background: "#fff", cursor: "pointer", boxSizing: "border-box" },
+  partySelected: { borderColor: "#9bc5aa", background: "#f3faf5" },
+  logo: { width: 30, height: 30, objectFit: "contain", borderRadius: 7, background: "#f2f5f3" },
+  logoPlaceholder: { width: 30, height: 30, display: "grid", placeItems: "center", borderRadius: 7, background: "#e8f3eb", color: "#075f2b", fontWeight: 900, fontSize: 12 },
+  partyName: { flex: 1, color: "#2d4036", fontSize: 11, fontWeight: 800 },
+  registered: { color: "#08713a", fontSize: 7, fontWeight: 900, letterSpacing: .8 },
+  loading: { marginTop: 12, padding: 16, borderRadius: 10, background: "#f1f6f3", color: "#64736a", fontSize: 11 },
+  empty: { marginTop: 12, padding: 16, borderRadius: 10, background: "#fff7e8", color: "#865c10", fontSize: 11 },
+  error: { marginBottom: 14, padding: "11px 13px", borderRadius: 10, border: "1px solid #efc9c4", background: "#fff3f1", color: "#87362e", fontSize: 11 },
+  success: { marginBottom: 14, padding: "11px 13px", borderRadius: 10, border: "1px solid #c7e4d0", background: "#eef9f2", color: "#08713a", fontSize: 11 },
+  retry: { marginLeft: 10, border: 0, borderRadius: 6, padding: "5px 8px", background: "#87362e", color: "#fff", fontWeight: 800 },
+  footer: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginTop: 22, paddingTop: 18, borderTop: "1px solid #edf1ee", flexWrap: "wrap" },
+  note: { flex: 1, color: "#7a8780", fontSize: 9, lineHeight: 1.5 },
+  submit: { border: 0, borderRadius: 10, padding: "12px 18px", background: "#075f2b", color: "#fff", fontWeight: 900, fontSize: 11, cursor: "pointer" },
 };
