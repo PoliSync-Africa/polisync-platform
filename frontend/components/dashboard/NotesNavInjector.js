@@ -10,15 +10,15 @@ export default function NotesNavInjector() {
     let observer;
     let timer;
     const inject = () => {
+      if (document.querySelector('a[href="/notes"]')) return;
       const groups = Array.from(document.querySelectorAll(".dashboard-nav-group"));
       const workspace = groups.find((group) => String(group.querySelector(".dashboard-nav-section")?.textContent || "").trim().toUpperCase() === "ALL WORKSPACES");
-      if (!workspace || workspace.querySelector('a[href="/notes"]')) return;
+      if (!workspace) return;
       const link = document.createElement("a");
       link.href = "/notes";
       link.className = "dashboard-nav-item";
       link.setAttribute("data-notes-nav", "true");
       link.innerHTML = '<span class="dashboard-nav-icon" aria-hidden="true">📝</span><span class="dashboard-nav-label">Notes</span>';
-      link.addEventListener("click", () => { document.querySelector(".dashboard-sidebar")?.classList.remove("mobile-open"); });
       workspace.appendChild(link);
     };
     inject();
