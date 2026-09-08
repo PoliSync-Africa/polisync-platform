@@ -10,6 +10,8 @@ const platformSettingsSchema = new mongoose.Schema(
     requirePhoneVerification: { type: Boolean, default: true },
     maintenanceMode: { type: Boolean, default: false },
     publicResultsEnabled: { type: Boolean, default: true },
+    allowOrganizationElectionCreation: { type: Boolean, default: true },
+    allowPersonalElectionResultsView: { type: Boolean, default: true },
     auditLoggingEnabled: { type: Boolean, default: true },
     emailNotificationsEnabled: { type: Boolean, default: true },
     smsNotificationsEnabled: { type: Boolean, default: true },
