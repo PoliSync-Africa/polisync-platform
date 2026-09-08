@@ -10,6 +10,7 @@ import DashboardBackLink from "../components/dashboard/DashboardBackLink";
 import PoliSyncWhatsAppButton from "../components/dashboard/PoliSyncWhatsAppButton";
 import WhatsAppMessagesEnhancer from "../components/dashboard/WhatsAppMessagesEnhancer";
 import SuperAdminSessionBridge from "../components/security/SuperAdminSessionBridge";
+import OrganizationLogoManagerInjector from "../components/dashboard/OrganizationLogoManagerInjector";
 
 export const metadata = {
   title: "PoliSync Africa",
@@ -34,6 +35,7 @@ export default function RootLayout({ children }) {
           <SuperAdminSessionBridge />
           <DashboardBackLink />
           <WhatsAppMessagesEnhancer />
+          <OrganizationLogoManagerInjector />
           {children}
           <MobileCallLauncher />
           <PoliSyncWhatsAppButton />
