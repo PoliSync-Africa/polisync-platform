@@ -11,6 +11,8 @@ const DEFAULTS = {
   requirePhoneVerification: true,
   maintenanceMode: false,
   publicResultsEnabled: true,
+  allowOrganizationElectionCreation: true,
+  allowPersonalElectionResultsView: true,
   auditLoggingEnabled: true,
   emailNotificationsEnabled: true,
   smsNotificationsEnabled: true,
@@ -41,6 +43,11 @@ router.patch("/", async (req, res) => {
     }
     if (update.defaultElectionStatus !== undefined && !["Draft", "Active", "Closed"].includes(update.defaultElectionStatus)) {
       return res.status(400).json({ success: false, message: "Invalid default election status." });
+    }
+    for (const key of ["allowOrganizationElectionCreation", "allowPersonalElectionResultsView"]) {
+      if (update[key] !== undefined && typeof update[key] !== "boolean") {
+        return res.status(400).json({ success: false, message: `${key} must be true or false.` });
+      }
     }
     update.updatedBy = req.auth.userId;
     const settings = await PlatformSettings.findOneAndUpdate(
