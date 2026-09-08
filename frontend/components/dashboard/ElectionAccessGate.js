@@ -12,16 +12,18 @@ function getToken() {
 export async function fetchElectionAccess() {
   const token = getToken();
   if (!token) return { authenticated: false, allowed: false };
-  const response = await fetch(`${API_BASE}/api/elections/access`, {
-    cache: "no-store",
-    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-  });
+  const response = await fetch(`${API_BASE}/api/elections/access`, { cache: "no-store", headers: { Accept: "application/json", Authorization: `Bearer ${token}` } });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.success !== true) return { authenticated: response.status !== 401, allowed: false };
+  const isSuperAdmin = Boolean(data.isSuperAdmin);
+  const hasOrganizationDuty = Array.isArray(data.organizationIds) && data.organizationIds.length > 0;
+  const personalViewEnabled = Boolean(data.canViewPersonalElectionsAndResults);
   return {
     authenticated: true,
-    allowed: Boolean(data.isSuperAdmin || data.canViewOrganizationElections),
-    isSuperAdmin: Boolean(data.isSuperAdmin),
+    allowed: Boolean(isSuperAdmin || hasOrganizationDuty || personalViewEnabled),
+    isSuperAdmin,
+    hasOrganizationDuty,
+    personalViewEnabled,
     roles: Array.isArray(data.roles) ? data.roles : [],
   };
 }
@@ -35,9 +37,7 @@ export default function ElectionAccessGate({ children }) {
       .then((result) => {
         if (!active) return;
         setState({ loading: false, ...result });
-        if (!result.allowed && typeof window !== "undefined") {
-          window.location.replace(result.authenticated ? "/dashboard" : "/signin");
-        }
+        if (!result.allowed && typeof window !== "undefined") window.location.replace(result.authenticated ? "/dashboard" : "/signin");
       })
       .catch(() => {
         if (!active) return;
@@ -47,9 +47,6 @@ export default function ElectionAccessGate({ children }) {
     return () => { active = false; };
   }, []);
 
-  if (state.loading || !state.allowed) {
-    return <div style={{ minHeight: "50vh", display: "grid", placeItems: "center", padding: 24, color: "#66766d", fontSize: 12 }}>Checking election-duty access…</div>;
-  }
-
+  if (state.loading || !state.allowed) return <div style={{ minHeight: "50vh", display: "grid", placeItems: "center", padding: 24, color: "#66766d", fontSize: 12 }}>Checking election access…</div>;
   return children;
 }
