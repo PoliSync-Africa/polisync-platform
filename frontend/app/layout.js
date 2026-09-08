@@ -5,6 +5,7 @@ import RealtimeCallProvider from "../components/communications/RealtimeCallProvi
 import MobileCallLauncher from "../components/communications/MobileCallLauncher";
 import TimeGreetingSync from "../components/dashboard/TimeGreetingSync";
 import DashboardEnvironmentInjector from "../components/dashboard/DashboardEnvironmentInjector";
+import NotesNavInjector from "../components/dashboard/NotesNavInjector";
 import PoliSyncWhatsAppButton from "../components/dashboard/PoliSyncWhatsAppButton";
 import WhatsAppMessagesEnhancer from "../components/dashboard/WhatsAppMessagesEnhancer";
 
@@ -26,6 +27,7 @@ export default function RootLayout({ children }) {
         <RealtimeCallProvider>
           <TimeGreetingSync />
           <DashboardEnvironmentInjector />
+          <NotesNavInjector />
           <LogoutSessionBridge />
           <WhatsAppMessagesEnhancer />
           {children}
