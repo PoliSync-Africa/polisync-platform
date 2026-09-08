@@ -17,6 +17,8 @@ const ElectionSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     year: { type: Number, required: true },
+    startDateTime: { type: Date, default: null },
+    endDateTime: { type: Date, default: null },
     type: { type: String, enum: ["Presidential", "Parliamentary", "Local"], required: true },
     country: { type: String, default: "Ghana" },
     status: { type: String, enum: ["Draft", "Active", "Closed"], default: "Draft" },
