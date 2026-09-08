@@ -22,14 +22,6 @@ const EXPECTED_CONSTITUENCIES_BY_REGION = {
   "Western North": 9,
 };
 
-function normalizedRegionName(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/\s+/g, " ");
-}
-
 async function checkElectoralGeographyIntegrity() {
   const [regions, constituencies, pollingStations] = await Promise.all([
     Region.find({ isActive: true }).select("_id name slug regionNumber").sort({ regionNumber: 1, name: 1 }).lean(),
@@ -39,7 +31,6 @@ async function checkElectoralGeographyIntegrity() {
 
   const regionIds = new Set(regions.map((r) => r._id.toString()));
   const constituencyIds = new Set(constituencies.map((c) => c._id.toString()));
-
   const constituencyCountsByRegion = new Map();
   for (const constituency of constituencies) {
     const key = constituency.regionId?.toString();
@@ -84,12 +75,7 @@ async function checkElectoralGeographyIntegrity() {
     constituencyNames.get(key).push(constituency);
   }
   for (const [key, items] of constituencyNames) {
-    if (items.length > 1) {
-      duplicateConstituencyGroups.push({
-        key,
-        records: items.map((c) => ({ id: c._id, name: c.name, regionId: c.regionId })),
-      });
-    }
+    if (items.length > 1) duplicateConstituencyGroups.push({ key, records: items.map((c) => ({ id: c._id, name: c.name, regionId: c.regionId })) });
   }
 
   const duplicateStationGroups = [];
@@ -100,12 +86,7 @@ async function checkElectoralGeographyIntegrity() {
     stationCodes.get(code).push(station);
   }
   for (const [code, items] of stationCodes) {
-    if (code && items.length > 1) {
-      duplicateStationGroups.push({
-        code,
-        records: items.map((s) => ({ id: s._id, name: s.name, constituencyId: s.constituencyId, regionId: s.regionId })),
-      });
-    }
+    if (code && items.length > 1) duplicateStationGroups.push({ code, records: items.map((s) => ({ id: s._id, name: s.name, constituencyId: s.constituencyId, regionId: s.regionId })) });
   }
 
   const inconsistentStationParents = [];
@@ -113,26 +94,14 @@ async function checkElectoralGeographyIntegrity() {
   for (const station of pollingStations) {
     const constituency = constituencyMap.get(station.constituencyId?.toString());
     if (!constituency) continue;
-    if (station.regionId?.toString() !== constituency.regionId?.toString()) {
-      inconsistentStationParents.push({
-        id: station._id,
-        code: station.pollingStationCode,
-        constituencyId: station.constituencyId,
-        stationRegionId: station.regionId,
-        constituencyRegionId: constituency.regionId,
-      });
-    }
+    if (station.regionId?.toString() !== constituency.regionId?.toString()) inconsistentStationParents.push({ id: station._id, code: station.pollingStationCode, constituencyId: station.constituencyId, stationRegionId: station.regionId, constituencyRegionId: constituency.regionId });
   }
 
   const expectedGhanaRegions = 16;
   const issues = [];
   if (regions.length !== expectedGhanaRegions) issues.push(`Expected ${expectedGhanaRegions} active Ghana regions, found ${regions.length}.`);
   if (constituencies.length !== EXPECTED_GHANA_CONSTITUENCIES) issues.push(`Expected ${EXPECTED_GHANA_CONSTITUENCIES} active Ghana constituencies, found ${constituencies.length}.`);
-  for (const coverage of regionalCoverage) {
-    if (!coverage.complete) {
-      issues.push(`${coverage.name}: expected ${coverage.expectedConstituencies ?? "a valid"} active constituencies, found ${coverage.actualConstituencies}.`);
-    }
-  }
+  for (const coverage of regionalCoverage) if (!coverage.complete) issues.push(`${coverage.name}: expected ${coverage.expectedConstituencies ?? "a valid"} active constituencies, found ${coverage.actualConstituencies}.`);
   if (orphanConstituencies.length) issues.push(`${orphanConstituencies.length} active constituencies reference a missing/inactive region.`);
   if (orphanPollingStations.length) issues.push(`${orphanPollingStations.length} active polling stations reference a missing/inactive parent.`);
   if (duplicateConstituencyGroups.length) issues.push(`${duplicateConstituencyGroups.length} duplicate constituency-name groups require review.`);
@@ -142,27 +111,10 @@ async function checkElectoralGeographyIntegrity() {
   return {
     healthy: issues.length === 0,
     checkedAt: new Date().toISOString(),
-    counts: {
-      regions: regions.length,
-      constituencies: constituencies.length,
-      pollingStations: pollingStations.length,
-      expectedRegions: expectedGhanaRegions,
-      expectedConstituencies: EXPECTED_GHANA_CONSTITUENCIES,
-    },
-    coverage: {
-      constituencyCountComplete: constituencies.length === EXPECTED_GHANA_CONSTITUENCIES,
-      regionsComplete: regions.length === expectedGhanaRegions,
-      regionalConstituencies: regionalCoverage,
-    },
+    counts: { regions: regions.length, constituencies: constituencies.length, pollingStations: pollingStations.length, expectedRegions: expectedGhanaRegions, expectedConstituencies: EXPECTED_GHANA_CONSTITUENCIES },
+    coverage: { constituencyCountComplete: constituencies.length === EXPECTED_GHANA_CONSTITUENCIES, regionsComplete: regions.length === expectedGhanaRegions, regionalConstituencies: regionalCoverage },
     issues,
-    details: {
-      orphanConstituencies,
-      orphanPollingStations,
-      duplicateConstituencyGroups,
-      duplicateStationGroups,
-      inconsistentStationParents,
-      regionalCoverage,
-    },
+    details: { orphanConstituencies, orphanPollingStations, duplicateConstituencyGroups, duplicateStationGroups, inconsistentStationParents, regionalCoverage },
   };
 }
 
