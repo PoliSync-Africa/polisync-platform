@@ -13,6 +13,8 @@ const candidateSchema = new mongoose.Schema({
   partyLogoUrl: { type: String, default: "", trim: true },
   profilePictureUrl: { type: String, default: "", trim: true },
   constituencyId: { type: mongoose.Schema.Types.ObjectId, ref: "Constituency", default: null },
+  position: { type: String, enum: ["president", "parliamentary", "local"], default: "president" },
+  ballotNumber: { type: Number, default: null, min: 1 },
 }, { _id: false });
 
 const ElectionSchema = new mongoose.Schema({
@@ -23,8 +25,6 @@ const ElectionSchema = new mongoose.Schema({
   type: { type: String, enum: ["Presidential", "Parliamentary", "Local"], required: true },
   country: { type: String, default: "Ghana" },
   status: { type: String, enum: ["Draft", "Active", "Closed"], default: "Draft" },
-  // These values are synchronized from PoliSync's active electoral geography.
-  // They are deliberately not user-entered election configuration.
   totalRegions: { type: Number, default: 0 },
   totalConstituencies: { type: Number, default: 0 },
   totalPollingStations: { type: Number, default: 0 },
