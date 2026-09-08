@@ -4,6 +4,7 @@ const Organization = require("../models/Organization");
 const OrganizationMembership = require("../models/OrganizationMembership");
 const Candidate = require("../models/Candidate");
 const Result = require("../models/Result");
+const { synchronizeAllElectionParties } = require("../services/electionGeographySyncService");
 
 const getAuthenticatedUserId = (req) => req.user?._id || req.user?.id || req.auth?.id || null;
 
@@ -57,6 +58,7 @@ exports.updateMyPartyLogo = async (req, res) => {
     if (logo.length > 2 * 1024 * 1024) return res.status(400).json({ success: false, message: "Party logo is too large. Use an image up to 2 MB." });
     const organization = await Organization.findOneAndUpdate({ _id: context.organization._id, organizationType: "political_party", organizationStatus: "approved" }, { $set: { logo } }, { new: true }).select("_id name politicalPartyName logo").lean();
     if (!organization) return res.status(404).json({ success: false, message: "Political party organization not found." });
-    return res.json({ success: true, organization: { id: organization._id, name: organization.name, politicalPartyName: organization.politicalPartyName || organization.name, logo: organization.logo }, message: "Party logo updated." });
+    await synchronizeAllElectionParties();
+    return res.json({ success: true, organization: { id: organization._id, name: organization.name, politicalPartyName: organization.politicalPartyName || organization.name, logo: organization.logo }, message: "Party logo updated and synchronized across elections." });
   } catch (error) { return res.status(400).json({ success: false, message: error.message || "Unable to update party logo." }); }
 };
