@@ -6,7 +6,12 @@ import DashboardShell from "../../../components/dashboard/DashboardShell";
 
 const GhanaMap = dynamic(() => import("../../../components/GhanaMap"), { ssr: false, loading: () => <div className="map-loading">Loading interactive Ghana map…</div> });
 const API = (process.env.NEXT_PUBLIC_API_URL || "https://polisync-platform-1.onrender.com").replace(/\/+$/, "");
-function token(){ if(typeof window === "undefined") return ""; return ["polisync_token","authToken","accessToken","token"].map(k=>localStorage.getItem(k)).find(Boolean)||""; }
+function token(){
+  if(typeof window === "undefined") return "";
+  return ["polisync_token","authToken","accessToken","token"]
+    .map(k => localStorage.getItem(k) || sessionStorage.getItem(k))
+    .find(Boolean) || "";
+}
 async function get(path){ const t=token(); const r=await fetch(`${API}${path}`,{cache:"no-store",headers:{Accept:"application/json",...(t?{Authorization:`Bearer ${t}`}:{})}}); const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.message||`Request failed (${r.status})`); return j; }
 const fmt=v=>Number.isFinite(Number(v))?Number(v).toLocaleString():"—";
 
