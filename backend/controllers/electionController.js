@@ -1,6 +1,7 @@
 const Election = require("../models/Election");
 const OrganizationMembership = require("../models/OrganizationMembership");
 const Organization = require("../models/Organization");
+const { synchronizeElectionGeography } = require("../services/electionGeographySyncService");
 const {
   ELECTION_VIEW_ROLES,
   getElectionAccess,
@@ -31,24 +32,10 @@ function cleanPayload(body = {}) {
   if (body.status !== undefined) payload.status = String(body.status);
   if (body.totalPollingStations !== undefined) payload.totalPollingStations = Number(body.totalPollingStations);
   if (body.parties !== undefined) {
-    payload.parties = Array.isArray(body.parties)
-      ? body.parties.map((p) => ({
-          partyId: p.partyId || null,
-          name: String(p.name || "").trim(),
-          logoUrl: String(p.logoUrl || "").trim(),
-        })).filter((p) => p.partyId || p.name)
-      : [];
+    payload.parties = Array.isArray(body.parties) ? body.parties.map((p) => ({ partyId: p.partyId || null, name: String(p.name || "").trim(), logoUrl: String(p.logoUrl || "").trim() })).filter((p) => p.partyId || p.name) : [];
   }
   if (body.candidates !== undefined) {
-    payload.candidates = Array.isArray(body.candidates)
-      ? body.candidates.map((c) => ({
-          name: String(c.name || "").trim(),
-          party: String(c.party || "").trim(),
-          partyLogoUrl: String(c.partyLogoUrl || "").trim(),
-          profilePictureUrl: String(c.profilePictureUrl || "").trim(),
-          constituencyId: c.constituencyId || null,
-        })).filter((c) => c.name)
-      : [];
+    payload.candidates = Array.isArray(body.candidates) ? body.candidates.map((c) => ({ name: String(c.name || "").trim(), party: String(c.party || "").trim(), partyLogoUrl: String(c.partyLogoUrl || "").trim(), profilePictureUrl: String(c.profilePictureUrl || "").trim(), constituencyId: c.constituencyId || null })).filter((c) => c.name) : [];
   }
   return payload;
 }
@@ -58,24 +45,14 @@ async function normalizeSystemParties(parties = []) {
   if (!submitted.length) return [];
   const ids = submitted.map((p) => p.partyId).filter(Boolean).filter((id) => /^[a-f\\d]{24}$/i.test(String(id)));
   const names = submitted.map((p) => String(p.name || "").trim()).filter(Boolean);
-  const organizations = await Organization.find({
-    organizationType: "political_party",
-    organizationStatus: "approved",
-    $or: [
-      ...(ids.length ? [{ _id: { $in: ids } }] : []),
-      ...(names.length ? [{ politicalPartyName: { $in: names } }] : []),
-    ],
-  }).select("_id name politicalPartyName logo").lean();
+  const organizations = await Organization.find({ organizationType: "political_party", organizationStatus: "approved", $or: [...(ids.length ? [{ _id: { $in: ids } }] : []), ...(names.length ? [{ politicalPartyName: { $in: names } }] : [])] }).select("_id name politicalPartyName logo").lean();
   const byId = new Map(organizations.map((o) => [String(o._id), o]));
   const byName = new Map(organizations.map((o) => [String(o.politicalPartyName || o.name).trim().toLowerCase(), o]));
-  const seen = new Set();
-  const normalized = [];
+  const seen = new Set(); const normalized = [];
   for (const item of submitted) {
     const org = (item.partyId && byId.get(String(item.partyId))) || byName.get(String(item.name || "").trim().toLowerCase());
     if (!org) throw new Error(`Only approved political parties registered in PoliSync can participate in an election. Invalid party: ${item.name || item.partyId}.`);
-    const key = String(org._id);
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const key = String(org._id); if (seen.has(key)) continue; seen.add(key);
     const logo = String(item.logoUrl || org.logo || "").trim();
     if (logo.length > MAX_PARTY_LOGO_LENGTH) throw new Error("Party logo is too large. Use an image up to 2 MB.");
     normalized.push({ partyId: org._id, name: org.politicalPartyName || org.name, logoUrl: logo });
@@ -107,48 +84,36 @@ async function getManagementContext(req) {
 }
 
 exports.getElectionAccess = async (req, res) => {
-  try {
-    const access = await getElectionAccess(req.user);
-    return res.json({ success: true, isSuperAdmin: access.isSuperAdmin, canViewOrganizationElections: access.canViewOrganizationElections, canViewPersonalElectionsAndResults: access.canViewPersonalElectionsAndResults, allowOrganizationElectionCreation: access.allowOrganizationElectionCreation, organizationIds: access.organizationIds, roles: access.memberships.map((m) => m.role), allowedRoles: ELECTION_VIEW_ROLES });
-  } catch (error) { console.error("election access:", error); return res.status(500).json({ success: false, message: "Unable to determine election access." }); }
+  try { const access = await getElectionAccess(req.user); return res.json({ success: true, isSuperAdmin: access.isSuperAdmin, canViewOrganizationElections: access.canViewOrganizationElections, canViewPersonalElectionsAndResults: access.canViewPersonalElectionsAndResults, allowOrganizationElectionCreation: access.allowOrganizationElectionCreation, organizationIds: access.organizationIds, roles: access.memberships.map((m) => m.role), allowedRoles: ELECTION_VIEW_ROLES }); }
+  catch (error) { console.error("election access:", error); return res.status(500).json({ success: false, message: "Unable to determine election access." }); }
 };
 
 exports.getPoliticalParties = async (req, res) => {
-  try {
-    const organizations = await Organization.find({ organizationType: "political_party", organizationStatus: "approved" }).select("_id name politicalPartyName logo").sort({ politicalPartyName: 1, name: 1 }).lean();
-    return res.json({ success: true, parties: organizations.map((o) => ({ id: o._id, name: o.politicalPartyName || o.name, logoUrl: o.logo || "" })) });
-  } catch (error) { return res.status(500).json({ success: false, message: error.message || "Unable to load system political parties." }); }
+  try { const organizations = await Organization.find({ organizationType: "political_party", organizationStatus: "approved" }).select("_id name politicalPartyName logo").sort({ politicalPartyName: 1, name: 1 }).lean(); return res.json({ success: true, parties: organizations.map((o) => ({ id: o._id, name: o.politicalPartyName || o.name, logoUrl: o.logo || "" })) }); }
+  catch (error) { return res.status(500).json({ success: false, message: error.message || "Unable to load system political parties." }); }
 };
 
 exports.updatePoliticalPartyLogo = async (req, res) => {
   try {
     if (req.user?.platformRole !== "super_admin") return res.status(403).json({ success: false, message: "Only the Super Admin can update system political party logos." });
-    const logoUrl = String(req.body?.logoUrl || "").trim();
-    if (!logoUrl) return res.status(400).json({ success: false, message: "A party logo is required." });
-    if (logoUrl.length > MAX_PARTY_LOGO_LENGTH) return res.status(400).json({ success: false, message: "Party logo is too large. Use an image up to 2 MB." });
+    const logoUrl = String(req.body?.logoUrl || "").trim(); if (!logoUrl) return res.status(400).json({ success: false, message: "A party logo is required." }); if (logoUrl.length > MAX_PARTY_LOGO_LENGTH) return res.status(400).json({ success: false, message: "Party logo is too large. Use an image up to 2 MB." });
     const party = await Organization.findOneAndUpdate({ _id: req.params.partyId, organizationType: "political_party", organizationStatus: "approved" }, { $set: { logo: logoUrl } }, { new: true }).select("_id name politicalPartyName logo").lean();
-    if (!party) return res.status(404).json({ success: false, message: "Approved system political party not found." });
-    return res.json({ success: true, party: { id: party._id, name: party.politicalPartyName || party.name, logoUrl: party.logo || "" }, message: "Political party logo updated." });
+    if (!party) return res.status(404).json({ success: false, message: "Approved system political party not found." }); return res.json({ success: true, party: { id: party._id, name: party.politicalPartyName || party.name, logoUrl: party.logo || "" }, message: "Political party logo updated." });
   } catch (error) { return res.status(400).json({ success: false, message: error.message || "Unable to update party logo." }); }
 };
 
 exports.createElection = async (req, res) => {
   try {
-    const context = await getManagementContext(req);
-    if (!context) return res.status(403).json({ success: false, message: "You are not authorized to manage elections." });
-    if (!context.isSuperAdmin) {
-      const controls = await getPlatformElectionControls();
-      if (!controls.allowOrganizationElectionCreation) return res.status(403).json({ success: false, code: "ORGANIZATION_ELECTION_CREATION_DISABLED", message: "The Super Admin has disabled election creation for organizations." });
-    }
-    const payload = cleanPayload(req.body);
-    const validationError = validatePayload(payload);
-    if (validationError) return res.status(400).json({ success: false, message: validationError });
+    const context = await getManagementContext(req); if (!context) return res.status(403).json({ success: false, message: "You are not authorized to manage elections." });
+    if (!context.isSuperAdmin) { const controls = await getPlatformElectionControls(); if (!controls.allowOrganizationElectionCreation) return res.status(403).json({ success: false, code: "ORGANIZATION_ELECTION_CREATION_DISABLED", message: "The Super Admin has disabled election creation for organizations." }); }
+    const payload = cleanPayload(req.body); const validationError = validatePayload(payload); if (validationError) return res.status(400).json({ success: false, message: validationError });
     try { payload.parties = await normalizeSystemParties(payload.parties); } catch (error) { return res.status(400).json({ success: false, message: error.message }); }
-    payload.createdBy = req.user._id;
-    payload.managedBy = context.isSuperAdmin ? "platform" : "organization";
-    if (!context.isSuperAdmin) payload.organizationId = context.organizationId;
+    payload.createdBy = req.user._id; payload.managedBy = context.isSuperAdmin ? "platform" : "organization"; if (!context.isSuperAdmin) payload.organizationId = context.organizationId;
     const election = await Election.create(payload);
-    return res.status(201).json({ success: true, election });
+    let geographySync;
+    try { geographySync = await synchronizeElectionGeography(election._id); }
+    catch (syncError) { console.error("election geography synchronization:", syncError); return res.status(201).json({ success: true, election, geographySync: { status: "failed", message: "Election was created, but its results geography could not be synchronized. Retry synchronization from the election results workspace." } }); }
+    return res.status(201).json({ success: true, election, geographySync: { status: "synchronized", source: "PoliSync official electoral geography", ...geographySync.counts, expected: geographySync.expected } });
   } catch (error) { return res.status(500).json({ success: false, message: error.message }); }
 };
 
@@ -156,14 +121,5 @@ exports.getElections = async (req, res) => { try { const access = await getElect
 exports.getLiveElections = async (req, res) => { try { const access = await getElectionAccess(req.user); const elections = await Election.find({ ...electionVisibilityFilter(access), status: "Active" }).populate("organizationId", "name organizationType").sort({ startDateTime: -1, year: -1, createdAt: -1 }); return res.json({ success: true, elections, count: elections.length }); } catch (error) { return res.status(500).json({ success: false, message: error.message }); } };
 exports.getElectionHistory = async (req, res) => { try { const access = await getElectionAccess(req.user); const elections = await Election.find({ ...electionVisibilityFilter(access), status: "Closed" }).populate("organizationId", "name organizationType").sort({ endDateTime: -1, year: -1, createdAt: -1 }); return res.json({ success: true, elections, count: elections.length }); } catch (error) { return res.status(500).json({ success: false, message: error.message }); } };
 exports.getElection = async (req, res) => { try { const access = await getElectionAccess(req.user); const election = await Election.findById(req.params.id).populate("organizationId", "name organizationType"); if (!election) return res.status(404).json({ success: false, message: "Election not found." }); if (!canViewOrganizationElection(access, election)) return res.status(404).json({ success: false, message: "Election not found." }); return res.json({ success: true, election }); } catch (error) { return res.status(400).json({ success: false, message: "Invalid election ID." }); } };
-exports.updateElection = async (req, res) => {
-  try {
-    const context = await getManagementContext(req); if (!context) return res.status(403).json({ success: false, message: "You are not authorized to manage elections." });
-    const election = await Election.findById(req.params.id); if (!election) return res.status(404).json({ success: false, message: "Election not found." });
-    if (!context.isSuperAdmin && String(election.organizationId || "") !== String(context.organizationId)) return res.status(403).json({ success: false, message: "You can only manage elections owned by your organization." });
-    const payload = cleanPayload(req.body); const validationError = validatePayload(payload, true); if (validationError) return res.status(400).json({ success: false, message: validationError });
-    if (payload.parties !== undefined) { try { payload.parties = await normalizeSystemParties(payload.parties); } catch (error) { return res.status(400).json({ success: false, message: error.message }); } }
-    Object.assign(election, payload); await election.save(); return res.json({ success: true, election, message: "Election updated successfully." });
-  } catch (error) { return res.status(400).json({ success: false, message: error.message }); }
-};
+exports.updateElection = async (req, res) => { try { const context = await getManagementContext(req); if (!context) return res.status(403).json({ success: false, message: "You are not authorized to manage elections." }); const election = await Election.findById(req.params.id); if (!election) return res.status(404).json({ success: false, message: "Election not found." }); if (!context.isSuperAdmin && String(election.organizationId || "") !== String(context.organizationId)) return res.status(403).json({ success: false, message: "You can only manage elections owned by your organization." }); const payload = cleanPayload(req.body); const validationError = validatePayload(payload, true); if (validationError) return res.status(400).json({ success: false, message: validationError }); if (payload.parties !== undefined) { try { payload.parties = await normalizeSystemParties(payload.parties); } catch (error) { return res.status(400).json({ success: false, message: error.message }); } } Object.assign(election, payload); await election.save(); return res.json({ success: true, election, message: "Election updated successfully." }); } catch (error) { return res.status(400).json({ success: false, message: error.message }); } };
 exports.deleteElection = async (req, res) => { try { const context = await getManagementContext(req); if (!context) return res.status(403).json({ success: false, message: "You are not authorized to manage elections." }); const election = await Election.findById(req.params.id); if (!election) return res.status(404).json({ success: false, message: "Election not found." }); if (!context.isSuperAdmin && String(election.organizationId || "") !== String(context.organizationId)) return res.status(403).json({ success: false, message: "You can only manage elections owned by your organization." }); if (election.status === "Active") return res.status(409).json({ success: false, message: "Active elections cannot be deleted. Close the election first." }); await election.deleteOne(); return res.json({ success: true, message: "Election deleted successfully." }); } catch (error) { return res.status(400).json({ success: false, message: error.message }); } };
