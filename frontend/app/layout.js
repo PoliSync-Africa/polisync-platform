@@ -8,6 +8,7 @@ import DashboardEnvironmentInjector from "../components/dashboard/DashboardEnvir
 import NotesNavInjector from "../components/dashboard/NotesNavInjector";
 import PoliSyncWhatsAppButton from "../components/dashboard/PoliSyncWhatsAppButton";
 import WhatsAppMessagesEnhancer from "../components/dashboard/WhatsAppMessagesEnhancer";
+import SuperAdminSessionBridge from "../components/security/SuperAdminSessionBridge";
 
 export const metadata = {
   title: "PoliSync Africa",
@@ -29,6 +30,7 @@ export default function RootLayout({ children }) {
           <DashboardEnvironmentInjector />
           <NotesNavInjector />
           <LogoutSessionBridge />
+          <SuperAdminSessionBridge />
           <WhatsAppMessagesEnhancer />
           {children}
           <MobileCallLauncher />
