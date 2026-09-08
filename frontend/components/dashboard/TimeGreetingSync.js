@@ -7,7 +7,12 @@ const GREETING_PATTERN = /Good (Morning|Afternoon|Evening|Night)/gi;
 
 export default function TimeGreetingSync() {
   useEffect(() => {
+    let observer;
+    let timer;
+    let scheduled = false;
+
     const update = () => {
+      scheduled = false;
       const greeting = getTimeGreeting(new Date());
       document.querySelectorAll(".polisync-dashboard").forEach((root) => {
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -26,12 +31,21 @@ export default function TimeGreetingSync() {
       });
     };
 
+    const scheduleUpdate = () => {
+      if (scheduled) return;
+      scheduled = true;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(update, 250);
+    };
+
     update();
-    const timer = window.setInterval(update, 1000);
-    const observer = new MutationObserver(update);
+    const interval = window.setInterval(update, 30000);
+    observer = new MutationObserver(scheduleUpdate);
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
     return () => {
-      window.clearInterval(timer);
+      window.clearInterval(interval);
+      window.clearTimeout(timer);
       observer.disconnect();
     };
   }, []);
