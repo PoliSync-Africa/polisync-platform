@@ -41,16 +41,14 @@ mongoose
     socketTimeoutMS: 45000,
     family: 4,
     maxPoolSize: 20,
-    minPoolSize: 2,
-    maxIdleTimeMS: 30000,
+    minPoolSize: 1,
+    maxIdleTimeMS: 60000,
   })
   .then(async () => {
     console.log("✅ MongoDB Connected");
 
-    // Keep the critical startup path short. This identity check is a single
-    // targeted repair; larger maintenance jobs run after the API is listening.
-    await ensureSuperAdminIdentity();
-
+    // Start accepting requests immediately after the database connection is ready.
+    // Non-critical repair/bootstrap jobs run in the background so cold starts are faster.
     const server = app.listen(PORT, () => {
       console.log(`🚀 PoliSync Africa Backend running on port ${PORT}`);
       console.log("📊 Database: MongoDB + Mongoose");
@@ -61,16 +59,19 @@ mongoose
     console.log("📞 Authenticated WebRTC signaling enabled");
 
     server.requestTimeout = 60 * 1000;
-    server.headersTimeout = 15 * 1000;
-    server.keepAliveTimeout = 10 * 1000;
+    server.headersTimeout = 70 * 1000;
+    server.keepAliveTimeout = 65 * 1000;
     server.maxHeadersCount = 100;
 
     Promise.allSettled([
+      ensureSuperAdminIdentity(),
       ensurePoliticalParties(Organization),
       ensureElectoralGeography(),
     ]).then((results) => {
       results.forEach((result) => {
-        if (result.status === "rejected") console.error("⚠️ Background bootstrap failed:", result.reason?.message || result.reason);
+        if (result.status === "rejected") {
+          console.error("⚠️ Background bootstrap failed:", result.reason?.message || result.reason);
+        }
       });
     });
 
