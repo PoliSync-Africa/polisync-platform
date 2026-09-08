@@ -23,6 +23,8 @@ router.get("/live", protect, syncGeography, electionController.getLiveElections)
 router.get("/history", protect, syncGeography, electionController.getElectionHistory);
 router.get("/:id", protect, syncGeography, electionController.getElection);
 router.post("/create", protect, electionController.createElection);
+router.get("/:id/candidates/my-party", protect, electionCandidateController.getMyPartyCandidate);
+router.patch("/:id/candidates/my-party", protect, electionCandidateController.submitMyPartyCandidate);
 router.patch("/:id/candidates", protect, electionCandidateController.updateCandidates);
 router.patch("/:id", protect, electionController.updateElection);
 router.delete("/:id", protect, electionController.deleteElection);
