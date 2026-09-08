@@ -3,8 +3,10 @@ require("dotenv").config();
 
 const app = require("./app");
 const User = require("./models/User");
+const Organization = require("./models/Organization");
 const { startBirthdayJob } = require("./jobs/birthdayMessages");
 const { ensureElectoralGeography } = require("./scripts/ensureElectoralGeography");
+const { ensurePoliticalParties } = require("./scripts/ensurePoliticalParties");
 const { installCallSignaling } = require("./realtime/callSignaling");
 const { ensureSuperAdminIdentity } = require("./services/superAdminIdentityService");
 
@@ -39,41 +41,21 @@ mongoose
     connectTimeoutMS: 15000,
     socketTimeoutMS: 45000,
     family: 4,
+    maxPoolSize: 20,
+    minPoolSize: 2,
+    maxIdleTimeMS: 30000,
   })
   .then(async () => {
     console.log("✅ MongoDB Connected");
 
-    // The canonical PoliSync Africa platform identity must never be
-    // downgraded to an ordinary user account. Repair it before the API
-    // begins accepting requests so the correct privileges are restored
-    // immediately after a deployment/restart.
+    // Keep the critical startup path short. This identity check is a single
+    // targeted repair; larger maintenance jobs run after the API is listening.
     await ensureSuperAdminIdentity();
-
-    const approvalMigration = await User.updateMany(
-      { platformRole: "user", accountStatus: "pending" },
-      { $set: { accountStatus: "approved", approvedAt: new Date(), approvedBy: null } }
-    );
-    console.log(`👤 Personal accounts auto-approved: ${approvalMigration.modifiedCount || 0}`);
-
-    const emailVerificationMigration = await User.updateMany(
-      { emailVerified: { $ne: true } },
-      { $set: { emailVerified: true } }
-    );
-    console.log(`📧 Email verification retired for accounts: ${emailVerificationMigration.modifiedCount || 0}`);
-
-    const arkeselConfigured = Boolean(process.env.ARKESEL_API_KEY || process.env.ARKESEL_MAIN_API_KEY);
-    console.log(`📱 Arkesel OTP/SMS configured: ${arkeselConfigured ? "YES" : "NO"}`);
-
-    startBirthdayJob();
 
     const server = app.listen(PORT, () => {
       console.log(`🚀 PoliSync Africa Backend running on port ${PORT}`);
       console.log("📊 Database: MongoDB + Mongoose");
       console.log(`🔗 API: http://localhost:${PORT}`);
-
-      ensureElectoralGeography().catch((error) => {
-        console.error("⚠️ Electoral geography bootstrap failed:", error.message);
-      });
     });
 
     installCallSignaling(server);
@@ -81,8 +63,22 @@ mongoose
 
     server.requestTimeout = 60 * 1000;
     server.headersTimeout = 15 * 1000;
-    server.keepAliveTimeout = 5 * 1000;
+    server.keepAliveTimeout = 10 * 1000;
     server.maxHeadersCount = 100;
+
+    // Non-critical bootstraps intentionally run after the API is ready so a
+    // Render restart can accept traffic as soon as MongoDB is connected.
+    Promise.allSettled([
+      ensurePoliticalParties(Organization),
+      ensureElectoralGeography(),
+    ]).then((results) => {
+      results.forEach((result) => {
+        if (result.status === "rejected") console.error("⚠️ Background bootstrap failed:", result.reason?.message || result.reason);
+      });
+    });
+
+    startBirthdayJob();
+    console.log(`📱 Arkesel OTP/SMS configured: ${Boolean(process.env.ARKESEL_API_KEY || process.env.ARKESEL_MAIN_API_KEY) ? "YES" : "NO"}`);
   })
   .catch((err) => {
     console.error("❌ MongoDB Connection Failed:", err.message);
