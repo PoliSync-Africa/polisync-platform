@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import superAdminNavigation from "../../../components/dashboard/superAdminNavigation";
+import { getPartyLogo } from "../../../components/party/PartyLogo";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://polisync-platform-1.onrender.com").replace(/\/+$/, "");
 
@@ -73,7 +74,15 @@ export default function PoliticalPartiesPage() {
 
         <section className="registry">
           <div className="registry-head"><div><span className="eyebrow">SYSTEM REGISTRY</span><h2>Registered Political Parties</h2></div><strong>{parties.length}</strong></div>
-          {loading ? <div className="state">Loading registered political parties…</div> : parties.length === 0 ? <div className="state">No approved political parties are currently registered.</div> : <div className="grid">{parties.map((party) => <article className="party" key={party.id}><div className="logo">{party.logoUrl ? <img src={party.logoUrl} alt="" /> : <span>{String(party.name || "P").slice(0, 1)}</span>}</div><div className="info"><h3>{party.name}</h3><p>{String(party.name).toLowerCase() === "independent" ? "Independent election participant" : "Approved system political party"}</p></div><span className="status">APPROVED</span></article>)}</div>}
+          {loading ? <div className="state">Loading registered political parties…</div> : parties.length === 0 ? <div className="state">No approved political parties are currently registered.</div> : <div className="grid">{parties.map((party) => {
+            const fallbackLogo = getPartyLogo(party.name);
+            const logo = party.logoUrl || fallbackLogo;
+            return <article className="party" key={party.id}>
+              <div className="logo">{logo ? <img src={logo} alt={`${party.name} logo`} /> : <span>{String(party.name || "P").slice(0, 1)}</span>}</div>
+              <div className="info"><h3>{party.name}</h3><p>{String(party.name).toLowerCase() === "independent" ? "Independent election participant" : "Approved system political party"}</p></div>
+              <span className="status">APPROVED</span>
+            </article>;
+          })}</div>}
         </section>
       </main>
       <style jsx>{styles}</style>
