@@ -8,6 +8,7 @@ const { ensureElectoralGeography } = require("./scripts/ensureElectoralGeography
 const { ensurePoliticalParties } = require("./scripts/ensurePoliticalParties");
 const { installCallSignaling } = require("./realtime/callSignaling");
 const { ensureSuperAdminIdentity } = require("./services/superAdminIdentityService");
+const { synchronizeAllElectionParties } = require("./services/electionGeographySyncService");
 
 const rawMongoUri = String(process.env.MONGODB_URI || process.env.MONGO_URI || "").trim();
 const PORT = process.env.PORT || 5000;
@@ -67,24 +68,19 @@ mongoose
       ensureSuperAdminIdentity(),
       ensurePoliticalParties(Organization),
       ensureElectoralGeography(),
+      synchronizeAllElectionParties(),
     ]).then((results) => {
       results.forEach((result) => {
         if (result.status === "rejected") {
           console.error("⚠️ Background bootstrap failed:", result.reason?.message || result.reason);
         }
       });
+      const partySync = results[3];
+      if (partySync?.status === "fulfilled") {
+        console.log(`🔄 Political parties synchronized: ${partySync.value.parties?.length || 0} parties, ${partySync.value.elections || 0} elections, ${partySync.value.logosImported || 0} logos imported.`);
+      }
     });
 
     startBirthdayJob();
     console.log(`📱 Arkesel OTP/SMS configured: ${Boolean(process.env.ARKESEL_API_KEY || process.env.ARKESEL_MAIN_API_KEY) ? "YES" : "NO"}`);
   })
-  .catch((err) => {
-    console.error("❌ MongoDB Connection Failed:", err.message);
-    console.error("ℹ️ Verify the Render MONGODB_URI value, Atlas database username/password, authSource, and Atlas Network Access allowlist.");
-    process.exit(1);
-  });
-
-process.on("unhandledRejection", (err) => {
-  console.error("❌ Unhandled Rejection:", err);
-  process.exit(1);
-});
