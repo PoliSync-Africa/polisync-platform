@@ -2,7 +2,6 @@ const express = require("express");
 const mongoose = require("mongoose");
 const Organization = require("../models/Organization");
 const OrganizationMembership = require("../models/OrganizationMembership");
-const User = require("../models/User");
 const { protect, authorize } = require("../middleware/auth");
 
 const router = express.Router();
@@ -14,6 +13,8 @@ const ORGANIZATION_WORKSPACE_TYPES = [
   "presidential_candidate",
   "research",
 ];
+const PERSONAL_WORKSPACE_TYPES = ["personal_use"];
+const WORKSPACE_TYPES = [...ORGANIZATION_WORKSPACE_TYPES, ...PERSONAL_WORKSPACE_TYPES];
 
 function isValidId(value) {
   return mongoose.Types.ObjectId.isValid(String(value || ""));
@@ -21,7 +22,7 @@ function isValidId(value) {
 
 async function requireApprovedSuperAdmin(req, res, next) {
   if (!req.user || req.user.platformRole !== "super_admin") {
-    return res.status(403).json({ success: false, message: "Only the Super Admin can enter organization workspaces." });
+    return res.status(403).json({ success: false, message: "Only the Super Admin can enter Workspace Lab previews." });
   }
   if (req.user.accountStatus && req.user.accountStatus !== "approved") {
     return res.status(403).json({ success: false, message: "Super Admin account approval is required." });
@@ -61,24 +62,53 @@ router.get("/catalog", async (req, res) => {
     res.json({
       success: true,
       catalog,
-      templates: ORGANIZATION_WORKSPACE_TYPES.map((organizationType) => ({
-        organizationType,
-        name: `Super Admin Test ${organizationType.replace(/_/g, " ")}`,
-        canOpenWithoutOrganization: true,
-        mode: "sandbox",
-      })),
+      templates: [
+        { organizationType: "personal_use", name: "Personal / Civic User", canOpenWithoutOrganization: true, mode: "personal" },
+        ...ORGANIZATION_WORKSPACE_TYPES.map((organizationType) => ({
+          organizationType,
+          name: `Super Admin Test ${organizationType.replace(/_/g, " ")}`,
+          canOpenWithoutOrganization: true,
+          mode: "sandbox",
+        })),
+      ],
     });
   } catch (error) {
     console.error("Super Admin workspace catalog error:", error);
-    res.status(500).json({ success: false, message: "Unable to load organization workspace catalog." });
+    res.status(500).json({ success: false, message: "Unable to load workspace catalog." });
   }
 });
 
 router.get("/session/:workspaceType", async (req, res) => {
   try {
     const { workspaceType } = req.params;
-    if (!ORGANIZATION_WORKSPACE_TYPES.includes(workspaceType)) {
-      return res.status(400).json({ success: false, message: "Unsupported organization workspace type." });
+    if (!WORKSPACE_TYPES.includes(workspaceType)) {
+      return res.status(400).json({ success: false, message: "Unsupported workspace type." });
+    }
+
+    // Personal / Civic User is a user workspace, not an Organization document.
+    if (workspaceType === "personal_use") {
+      return res.json({
+        success: true,
+        mode: "personal",
+        workspaceType,
+        organization: {
+          _id: null,
+          name: "Personal / Civic User Workspace",
+          slug: "__super-admin-personal-workspace",
+          organizationType: "personal_use",
+          organizationStatus: "personal",
+        },
+        actor: { id: String(req.user._id), role: "super_admin", isWorkspacePreview: true },
+        permissions: {
+          canView: true,
+          canCreate: false,
+          canEdit: false,
+          canTest: true,
+          canRepair: true,
+          canManageMemberships: false,
+          canSubmitResultsForTesting: false,
+        },
+      });
     }
 
     const requestedOrganizationId = String(req.query.organizationId || "").trim();
@@ -123,7 +153,7 @@ router.get("/session/:workspaceType", async (req, res) => {
     });
   } catch (error) {
     console.error("Super Admin workspace session error:", error);
-    res.status(500).json({ success: false, message: "Unable to open the requested organization workspace." });
+    res.status(500).json({ success: false, message: "Unable to open the requested workspace." });
   }
 });
 
