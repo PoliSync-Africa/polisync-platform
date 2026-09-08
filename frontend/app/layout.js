@@ -6,6 +6,7 @@ import MobileCallLauncher from "../components/communications/MobileCallLauncher"
 import TimeGreetingSync from "../components/dashboard/TimeGreetingSync";
 import DashboardEnvironmentInjector from "../components/dashboard/DashboardEnvironmentInjector";
 import NotesNavInjector from "../components/dashboard/NotesNavInjector";
+import DashboardBackLink from "../components/dashboard/DashboardBackLink";
 import PoliSyncWhatsAppButton from "../components/dashboard/PoliSyncWhatsAppButton";
 import WhatsAppMessagesEnhancer from "../components/dashboard/WhatsAppMessagesEnhancer";
 import SuperAdminSessionBridge from "../components/security/SuperAdminSessionBridge";
@@ -31,6 +32,7 @@ export default function RootLayout({ children }) {
           <NotesNavInjector />
           <LogoutSessionBridge />
           <SuperAdminSessionBridge />
+          <DashboardBackLink />
           <WhatsAppMessagesEnhancer />
           {children}
           <MobileCallLauncher />
