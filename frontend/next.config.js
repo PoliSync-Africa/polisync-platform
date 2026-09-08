@@ -10,11 +10,18 @@ const securityHeaders = [
 
 const nextConfig = {
   poweredByHeader: false,
+  compress: true,
   async headers() {
     return [
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
       },
     ];
   },
