@@ -5,9 +5,6 @@ const PlatformSettings = require("../models/PlatformSettings");
 const DEFAULT_PERSONAL_ELECTION_VIEW = true;
 const DEFAULT_ORGANIZATION_ELECTION_CREATION = true;
 
-// Roles that an organization may explicitly assign to someone for election
-// operations. Ordinary organization members and personal users do not receive
-// organization election access merely because they have an account.
 const ELECTION_VIEW_ROLES = [
   "national_party_admin",
   "regional_party_admin",
@@ -83,9 +80,6 @@ async function getElectionAccess(user) {
     isPoliticalParty = partyCount > 0;
   }
 
-  // Political parties are intentionally limited to elections that the Super
-  // Admin has activated. Draft and Closed elections remain hidden from party
-  // workspaces and cannot be opened through a direct election request.
   return {
     isSuperAdmin: false,
     isPoliticalParty,
@@ -100,11 +94,11 @@ async function getElectionAccess(user) {
 function canViewOrganizationElection(access, election) {
   if (!isOrganizationElection(election)) {
     if (access?.isSuperAdmin) return true;
-    if (access?.isPoliticalParty) return election?.status === "Active";
+    if (access?.isPoliticalParty) return ["Active", "Closed"].includes(election?.status);
     return Boolean(access?.canViewPersonalElectionsAndResults);
   }
   if (access?.isSuperAdmin) return true;
-  if (access?.isPoliticalParty && election?.status !== "Active") return false;
+  if (access?.isPoliticalParty && !["Active", "Closed"].includes(election?.status)) return false;
   const organizationId = String(election.organizationId?._id || election.organizationId || "");
   return Boolean(organizationId && access.organizationIds?.includes(organizationId));
 }
@@ -113,23 +107,22 @@ function electionVisibilityFilter(access) {
   if (access?.isSuperAdmin) return {};
 
   const clauses = [];
-  const activePartyFilter = access?.isPoliticalParty ? { status: "Active" } : {};
+  const partyElectionFilter = access?.isPoliticalParty ? { status: { $in: ["Active", "Closed"] } } : {};
 
   if (access?.canViewPersonalElectionsAndResults) {
     clauses.push({
       organizationId: null,
       $or: [{ managedBy: "platform" }, { managedBy: { $exists: false } }],
-      ...activePartyFilter,
+      ...partyElectionFilter,
     });
   }
   if (access?.organizationIds?.length) {
     clauses.push({
       organizationId: { $in: access.organizationIds },
-      ...activePartyFilter,
+      ...partyElectionFilter,
     });
   }
 
-  // No visible election workspace is represented by an impossible _id filter.
   if (!clauses.length) return { _id: null };
   return clauses.length === 1 ? clauses[0] : { $or: clauses };
 }
@@ -158,13 +151,13 @@ function resultVisibilityFilter(access, organizationIds = null) {
   const ids = organizationIds?.length ? organizationIds : access?.organizationIds || [];
   const clauses = [];
   if (access?.canViewPersonalElectionsAndResults) {
-    clauses.push(access?.isPoliticalParty ? { organizationId: null, status: "Active" } : { organizationId: null });
+    clauses.push(access?.isPoliticalParty ? { organizationId: null } : { organizationId: null });
   }
   for (const organizationId of ids) {
     const scope = resultScopeForMemberships(access.memberships || [], organizationId);
     if (scope === null) continue;
-    if (Object.keys(scope).length === 0) clauses.push(access?.isPoliticalParty ? { organizationId, status: "Active" } : { organizationId });
-    else clauses.push(access?.isPoliticalParty ? { organizationId, status: "Active", ...scope } : { organizationId, ...scope });
+    if (Object.keys(scope).length === 0) clauses.push({ organizationId });
+    else clauses.push({ organizationId, ...scope });
   }
 
   return clauses.length === 0 ? { _id: null } : clauses.length === 1 ? clauses[0] : { $or: clauses };
