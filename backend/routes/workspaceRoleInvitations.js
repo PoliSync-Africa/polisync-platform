@@ -1,0 +1,12 @@
+const express=require("express");
+const {protect}=require("../middleware/auth");
+const c=require("../controllers/workspaceRoleInvitationController");
+const router=express.Router();
+router.get("/public/:token",c.publicGet);
+router.get("/people/search",protect,c.searchPeople);
+router.get("/",protect,c.list);
+router.post("/",protect,c.create);
+router.post("/public/:token/accept",protect,c.accept);
+router.post("/public/:token/decline",protect,c.decline);
+router.delete("/:id",protect,c.revoke);
+module.exports=router;
