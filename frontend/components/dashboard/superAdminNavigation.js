@@ -46,6 +46,7 @@ const superAdminNavigation = [
   {
     section: "SUPER ADMIN OPERATIONS",
     items: [
+      { label: "Notes", href: "/notes", icon: "📝", key: "notes" },
       { label: "Complaints & Reports", href: "/super-admin/complaints", icon: "⚠", key: "complaints", badge: true },
       { label: "Security Center", href: "/super-admin/security", icon: "♢", key: "security" },
       { label: "Audit Logs", href: "/super-admin/audit-logs", icon: "≡", key: "audit-logs" },
