@@ -17,6 +17,7 @@ const superAdminNavigation = [
       { label: "Polling Stations", href: "/super-admin/polling-stations", icon: "⌖", key: "polling-stations" },
       { label: "Weather Intelligence", href: "/weather", icon: "☁", key: "weather" },
       { label: "Elections", href: "/super-admin/elections", icon: "▣", key: "elections" },
+      { label: "Presidential Candidates", href: "/super-admin/elections/candidates", icon: "♔", key: "presidential-candidates" },
       { label: "Approvals", href: "/super-admin/approvals", icon: "✓", key: "approvals" },
     ],
   },
