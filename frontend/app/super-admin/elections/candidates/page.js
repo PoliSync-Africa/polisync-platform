@@ -61,16 +61,8 @@ async function compressPhoto(file) {
   return result;
 }
 
-function makeCandidate(party = independent) {
-  return {
-    name: "",
-    partyId: party.isIndependent ? null : party.id,
-    party: party.name,
-    partyLogoUrl: party.logoUrl || "",
-    profilePictureUrl: "",
-    constituencyId: null,
-    position: "president",
-  };
+function makeCandidate(party = independent, position = "president") {
+  return { name: "", partyId: party.isIndependent ? null : party.id, party: party.name, partyLogoUrl: party.logoUrl || "", profilePictureUrl: "", constituencyId: null, position };
 }
 
 function participantFromElection(party) {
@@ -92,16 +84,13 @@ export default function ElectionCandidatesPage() {
   const election = useMemo(() => elections.find((item) => String(item._id) === String(selectedId)), [elections, selectedId]);
   const parties = useMemo(() => (election?.parties || []).filter((p) => String(p.name || "").trim().toLowerCase() !== "independent").map(participantFromElection), [election]);
   const participants = useMemo(() => [...parties, independent], [parties]);
-  const presidential = useMemo(() => candidates.filter((c) => (c.position || (c.constituencyId ? "parliamentary" : "president")) === "president"), [candidates]);
-  const parliamentary = useMemo(() => candidates.filter((c) => (c.position || (c.constituencyId ? "parliamentary" : "president")) === "parliamentary"), [candidates]);
+  const presidential = useMemo(() => candidates.filter((c) => c.position === "president"), [candidates]);
+  const parliamentary = useMemo(() => candidates.filter((c) => c.position === "parliamentary"), [candidates]);
 
   async function load() {
     setLoading(true); setError("");
     try {
-      const [electionsResult, geographyResult] = await Promise.all([
-        request("/api/elections"),
-        request("/api/electoral-geography/constituencies"),
-      ]);
+      const [electionsResult, geographyResult] = await Promise.all([request("/api/elections"), request("/api/electoral-geography/constituencies")]);
       const list = Array.isArray(electionsResult.elections) ? electionsResult.elections : [];
       const geo = Array.isArray(geographyResult) ? geographyResult : (geographyResult.data || geographyResult.constituencies || []);
       setElections(list);
@@ -118,23 +107,26 @@ export default function ElectionCandidatesPage() {
 
   useEffect(() => {
     if (!election) { setCandidates([]); return; }
+    const electionIsPresidential = String(election.type || "").toLowerCase() === "presidential";
     setCandidates((election.candidates || []).map((candidate) => {
       const party = (election.parties || []).find((p) => String(p.partyId) === String(candidate.partyId)) || (election.parties || []).find((p) => String(p.name || "").trim().toLowerCase() === String(candidate.party || "").trim().toLowerCase());
       const isIndependent = !candidate.partyId || String(candidate.party || "").trim().toLowerCase() === "independent";
-      return {
-        ...candidate,
-        partyId: isIndependent ? null : party?.partyId || candidate.partyId || null,
-        party: isIndependent ? "Independent" : party?.name || candidate.party || "",
-        partyLogoUrl: isIndependent ? "" : party?.logoUrl || candidate.partyLogoUrl || "",
-        position: candidate.position || (candidate.constituencyId ? "parliamentary" : "president"),
-      };
+      const position = candidate.position || (electionIsPresidential ? "president" : candidate.constituencyId ? "parliamentary" : "president");
+      return { ...candidate, partyId: isIndependent ? null : party?.partyId || candidate.partyId || null, party: isIndependent ? "Independent" : party?.name || candidate.party || "", partyLogoUrl: isIndependent ? "" : party?.logoUrl || candidate.partyLogoUrl || "", position };
     }));
     setTab("presidential");
   }, [election]);
 
   function addCandidate() {
-    setCandidates((current) => [...current, makeCandidate(parties[0] || independent)]);
-    setMessage("New candidate added. Select the candidate's political party or Independent.");
+    setCandidates((current) => [...current, makeCandidate(parties[0] || independent, "president")]);
+    setMessage("New presidential candidate added. Select the candidate's political party or Independent.");
+    setError("");
+  }
+
+  function addParliamentaryCandidate() {
+    setCandidates((current) => [...current, makeCandidate(parties[0] || independent, "parliamentary")]);
+    setTab("parliamentary");
+    setMessage("New parliamentary candidate added. Assign a constituency before saving.");
     setError("");
   }
 
@@ -145,12 +137,7 @@ export default function ElectionCandidatesPage() {
   function assignParty(index, value) {
     const party = value === "independent" ? independent : participants.find((item) => String(item.id) === String(value));
     if (!party) return;
-    setCandidates((current) => current.map((candidate, i) => i === index ? {
-      ...candidate,
-      partyId: party.isIndependent ? null : party.id,
-      party: party.name,
-      partyLogoUrl: party.isIndependent ? "" : party.logoUrl || "",
-    } : candidate));
+    setCandidates((current) => current.map((candidate, i) => i === index ? { ...candidate, partyId: party.isIndependent ? null : party.id, party: party.name, partyLogoUrl: party.isIndependent ? "" : party.logoUrl || "" } : candidate));
   }
 
   async function uploadPhoto(index, file) {
@@ -159,7 +146,7 @@ export default function ElectionCandidatesPage() {
     try {
       const photo = await compressPhoto(file);
       setCandidates((current) => current.map((candidate, i) => i === index ? { ...candidate, profilePictureUrl: photo } : candidate));
-      setMessage("Candidate photo added. Save the candidate list to keep it.");
+      setMessage("Candidate photo added. Save the candidate list to keep it permanently.");
     } catch (err) {
       setError(err.message || "Unable to prepare candidate photo.");
     } finally {
@@ -173,11 +160,7 @@ export default function ElectionCandidatesPage() {
     const a = candidates.indexOf(presidential[index]);
     const b = candidates.indexOf(presidential[target]);
     if (a < 0 || b < 0) return;
-    setCandidates((current) => {
-      const next = [...current];
-      [next[a], next[b]] = [next[b], next[a]];
-      return next;
-    });
+    setCandidates((current) => { const next = [...current]; [next[a], next[b]] = [next[b], next[a]]; return next; });
   }
 
   function removeCandidate(candidate) {
@@ -202,12 +185,14 @@ export default function ElectionCandidatesPage() {
         party: candidate.party || "Independent",
         partyLogoUrl: candidate.partyLogoUrl || "",
         profilePictureUrl: candidate.profilePictureUrl || "",
-        constituencyId: candidate.constituencyId || null,
+        constituencyId: candidate.position === "parliamentary" ? (candidate.constituencyId || null) : null,
+        position: candidate.position || "president",
+        ballotNumber: candidate.position === "president" ? presidential.indexOf(candidate) + 1 : null,
       })).filter((candidate) => candidate.name);
 
-      const result = await request(`/api/elections/${election._id}`, { method: "PATCH", body: JSON.stringify({ candidates: payload }) });
+      const result = await request(`/api/elections/${election._id}/candidates`, { method: "PATCH", body: JSON.stringify({ candidates: payload }) });
       setElections((current) => current.map((item) => item._id === result.election._id ? result.election : item));
-      setMessage("Candidates, party assignments, Independent status, photos and ballot order saved successfully.");
+      setMessage("Candidate position, party assignment, photo and ballot order are now permanently saved until you edit them.");
     } catch (err) {
       setError(err.message || "Unable to save candidates.");
     } finally {
@@ -220,53 +205,16 @@ export default function ElectionCandidatesPage() {
     return <span className={!candidate.partyId ? "ind-mark" : "party-mark"}>{candidate.partyId ? String(candidate.party || "").slice(0, 3).toUpperCase() : "IND"}</span>;
   }
 
-  return <DashboardShell role="super_admin" navigation={superAdminNavigation} activeSection="presidential-candidates" title="Presidential Candidates" subtitle="Manage candidate photos, party affiliation and ballot order">
+  return <DashboardShell role="super_admin" navigation={superAdminNavigation} activeSection="presidential-candidates" title="Presidential Candidates" subtitle="Manage candidate photos, party affiliation, position and ballot order">
     <main className="page">
-      <header className="header">
-        <div><span className="eyebrow">POLISYNC AFRICA • ELECTION CONTROL</span><h1>Presidential Candidates</h1><p>{election ? `${election.name} • ${election.year}` : "Select an election to manage its presidential ballot."}</p></div>
-        <button className="refresh" onClick={load}>↻ Refresh</button>
-      </header>
-
-      {message && <div className="notice success">✓ {message}</div>}
-      {error && <div className="notice error">{error}</div>}
-
-      <section className="card selector">
-        <label>Election<select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">Select election</option>{elections.map((item) => <option key={item._id} value={item._id}>{item.name} — {item.year} — {item.type}</option>)}</select></label>
-        {election && <div className="summary"><span><b>{parties.length}</b> participating parties</span><span><b>1</b> Independent slot</span><span><b>{presidential.length}</b> presidential candidates</span></div>}
-      </section>
-
+      <header className="header"><div><span className="eyebrow">POLISYNC AFRICA • ELECTION CONTROL</span><h1>Presidential Candidates</h1><p>{election ? `${election.name} • ${election.year}` : "Select an election to manage its presidential ballot."}</p></div><button className="refresh" onClick={load}>↻ Refresh</button></header>
+      {message && <div className="notice success">✓ {message}</div>}{error && <div className="notice error">{error}</div>}
+      <section className="card selector"><label>Election<select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">Select election</option>{elections.map((item) => <option key={item._id} value={item._id}>{item.name} — {item.year} — {item.type}</option>)}</select></label>{election && <div className="summary"><span><b>{parties.length}</b> participating parties</span><span><b>1</b> Independent slot</span><span><b>{presidential.length}</b> presidential candidates</span></div>}</section>
       {loading ? <section className="card empty">Loading candidates and electoral geography…</section> : !election ? <section className="card empty">Select an election to continue.</section> : <>
-        <section className="card participants">
-          <div className="participant-heading"><div><h2>Ballot Participants</h2><p>Independent is a first-class ballot participant and can be selected exactly like any participating political party.</p></div><button className="primary" onClick={addCandidate}>+ Add Candidate</button></div>
-          <div className="participant-list">{participants.map((participant) => <div className="participant" key={participant.id}><div className="participant-logo">{participant.logoUrl ? <img src={participant.logoUrl} alt="" /> : participant.isIndependent ? "IND." : participant.name.slice(0, 3).toUpperCase()}</div><strong>{participant.name}</strong><small>{participant.isIndependent ? "Independent candidate" : "Participating political party"}</small></div>)}</div>
-        </section>
-
+        <section className="card participants"><div className="participant-heading"><div><h2>Ballot Participants</h2><p>Independent is a first-class ballot participant and can be selected exactly like any participating political party.</p></div><button className="primary" onClick={addCandidate}>+ Add Presidential Candidate</button></div><div className="participant-list">{participants.map((participant) => <div className="participant" key={participant.id}><div className="participant-logo">{participant.logoUrl ? <img src={participant.logoUrl} alt="" /> : participant.isIndependent ? "IND." : participant.name.slice(0, 3).toUpperCase()}</div><strong>{participant.name}</strong><small>{participant.isIndependent ? "Independent candidate" : "Participating political party"}</small></div>)}</div></section>
         <div className="tabs"><button className={tab === "presidential" ? "active" : ""} onClick={() => setTab("presidential")}>Presidential Ballot</button><button className={tab === "parliamentary" ? "active" : ""} onClick={() => setTab("parliamentary")}>Parliamentary Candidates</button><button className={tab === "ballot" ? "active" : ""} onClick={() => setTab("ballot")}>Notice of Poll Preview</button></div>
-
-        {tab === "presidential" && <section className="workspace">
-          <div className="card candidate-card">
-            <div className="section-head"><div><h2>Presidential Candidates ({presidential.length})</h2><p>Arrange candidates in the exact ballot order. Every row has its own photo and participant selector.</p></div><button className="primary" onClick={addCandidate}>+ Add Candidate</button></div>
-            <div className="candidate-list">
-              {presidential.length === 0 && <div className="empty">No presidential candidates added yet.</div>}
-              {presidential.map((candidate, index) => {
-                const realIndex = candidates.indexOf(candidate);
-                return <article className={`candidate-row ${!candidate.partyId ? "independent" : ""}`} key={`${realIndex}-${candidate.name}`}>
-                  <div className="order"><button disabled={index === 0} onClick={() => moveCandidate(index, -1)}>↑</button><b>{index + 1}</b><button disabled={index === presidential.length - 1} onClick={() => moveCandidate(index, 1)}>↓</button></div>
-                  <div className="photo-wrap"><div className="photo">{candidate.profilePictureUrl ? <img src={candidate.profilePictureUrl} alt="Candidate" /> : <span>PHOTO</span>}</div><label className="upload"><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => uploadPhoto(realIndex, event.target.files?.[0])} />{uploading === realIndex ? "Preparing…" : candidate.profilePictureUrl ? "Change photo" : "Upload photo"}</label></div>
-                  <div className="candidate-details"><label>Candidate name<input value={candidate.name} onChange={(event) => updateCandidate(realIndex, "name", event.target.value)} placeholder="Candidate full name" /></label><small>{candidate.party || "Independent"}</small></div>
-                  <div className="participant-field"><label>Political party / participant<select value={candidate.partyId || "independent"} onChange={(event) => assignParty(realIndex, event.target.value)}>{participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.name}</option>)}</select></label><div className="party-badge"><div>{partyLogo(candidate)}</div><span>{candidate.party || "Independent"}</span></div></div>
-                  <div className="row-actions"><span className={candidate.profilePictureUrl ? "ready" : "missing"}>{candidate.profilePictureUrl ? "Photo ready" : "Photo required"}</span><button className="delete" onClick={() => removeCandidate(candidate)}>Delete</button></div>
-                </article>;
-              })}
-            </div>
-            <div className="save-bar"><div><b>Ballot order</b><small>Use the arrows to match the approved Notice of Poll order.</small></div><button className="primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Presidential Ballot"}</button></div>
-          </div>
-
-          <aside className="card preview-card"><div className="section-head"><div><h2>Notice of Poll Preview</h2><p>System preview for ballot configuration. It is not an official EC document.</p></div></div><BallotPreview election={election} candidates={presidential} /></aside>
-        </section>}
-
-        {tab === "parliamentary" && <section className="card candidate-card"><div className="section-head"><div><h2>Parliamentary Candidates</h2><p>Every candidate can use any participating party or Independent and must be assigned to a constituency.</p></div><button className="primary" onClick={() => setCandidates((current) => [...current, { ...makeCandidate(parties[0] || independent), position: "parliamentary" }])}>+ Add Parliamentary Candidate</button></div><div className="parliamentary-list">{parliamentary.map((candidate) => { const realIndex = candidates.indexOf(candidate); return <div className="parliamentary-row" key={realIndex}><input value={candidate.name} onChange={(event) => updateCandidate(realIndex, "name", event.target.value)} placeholder="Candidate full name" /><select value={candidate.partyId || "independent"} onChange={(event) => assignParty(realIndex, event.target.value)}>{participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.name}</option>)}</select><select value={candidate.constituencyId || ""} onChange={(event) => updateCandidate(realIndex, "constituencyId", event.target.value)}><option value="">Select constituency</option>{constituencies.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}</select><button className="delete" onClick={() => removeCandidate(candidate)}>Delete</button></div>; })}</div>{parliamentary.length > 0 && <div className="save-bar"><div><b>Parliamentary registry</b><small>Constituency assignment is required before saving.</small></div><button className="primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Parliamentary Candidates"}</button></div>}</section>}
-
+        {tab === "presidential" && <section className="workspace"><div className="card candidate-card"><div className="section-head"><div><h2>Presidential Candidates ({presidential.length})</h2><p>Each candidate has an explicit presidential position saved in the database. It will not fall back to parliamentary.</p></div><button className="primary" onClick={addCandidate}>+ Add Candidate</button></div><div className="candidate-list">{presidential.length === 0 && <div className="empty">No presidential candidates added yet.</div>}{presidential.map((candidate, index) => { const realIndex = candidates.indexOf(candidate); return <article className={`candidate-row ${!candidate.partyId ? "independent" : ""}`} key={`${realIndex}-${candidate.name}`}><div className="order"><button disabled={index === 0} onClick={() => moveCandidate(index, -1)}>↑</button><b>{index + 1}</b><button disabled={index === presidential.length - 1} onClick={() => moveCandidate(index, 1)}>↓</button></div><div className="photo-wrap"><div className="photo">{candidate.profilePictureUrl ? <img src={candidate.profilePictureUrl} alt="Candidate" /> : <span>PHOTO</span>}</div><label className="upload"><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => uploadPhoto(realIndex, event.target.files?.[0])} />{uploading === realIndex ? "Preparing…" : candidate.profilePictureUrl ? "Change photo" : "Upload photo"}</label></div><div className="candidate-details"><label>Candidate name<input value={candidate.name} onChange={(event) => updateCandidate(realIndex, "name", event.target.value)} placeholder="Candidate full name" /></label><small>{candidate.party || "Independent"}</small></div><div className="participant-field"><label>Political party / participant<select value={candidate.partyId || "independent"} onChange={(event) => assignParty(realIndex, event.target.value)}>{participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.name}</option>)}</select></label><div className="party-badge"><div>{partyLogo(candidate)}</div><span>{candidate.party || "Independent"}</span></div></div><div className="row-actions"><span className={`photo-status ${candidate.profilePictureUrl ? "ready" : "missing"}`}>{candidate.profilePictureUrl ? "Photo ready" : "Photo required"}</span><button className="delete" onClick={() => removeCandidate(candidate)}>Delete</button></div></article>; })}</div><div className="save-bar"><div><b>Permanent ballot configuration</b><small>Position, participant, photo and ballot order remain unchanged until you edit them.</small></div><button className="primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Presidential Ballot"}</button></div></div><aside className="card preview-card"><div className="section-head"><div><h2>Notice of Poll Preview</h2><p>System preview for ballot configuration. It is not an official EC document.</p></div></div><BallotPreview election={election} candidates={presidential} /></aside></section>}
+        {tab === "parliamentary" && <section className="card candidate-card"><div className="section-head"><div><h2>Parliamentary Candidates</h2><p>Every candidate can use any participating party or Independent and must be assigned to a constituency.</p></div><button className="primary" onClick={addParliamentaryCandidate}>+ Add Parliamentary Candidate</button></div><div className="parliamentary-list">{parliamentary.map((candidate) => { const realIndex = candidates.indexOf(candidate); return <div className="parliamentary-row" key={realIndex}><input value={candidate.name} onChange={(event) => updateCandidate(realIndex, "name", event.target.value)} placeholder="Candidate full name" /><select value={candidate.partyId || "independent"} onChange={(event) => assignParty(realIndex, event.target.value)}>{participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.name}</option>)}</select><select value={candidate.constituencyId || ""} onChange={(event) => updateCandidate(realIndex, "constituencyId", event.target.value)}><option value="">Select constituency</option>{constituencies.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}</select><button className="delete" onClick={() => removeCandidate(candidate)}>Delete</button></div>; })}</div>{parliamentary.length > 0 && <div className="save-bar"><div><b>Parliamentary registry</b><small>Candidate position and constituency are saved explicitly.</small></div><button className="primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save Parliamentary Candidates"}</button></div>}</section>}
         {tab === "ballot" && <section className="card preview-full"><div className="section-head"><div><h2>Notice of Poll Preview</h2><p>Candidate photos, participant marks and ballot numbers are aligned systematically for review.</p></div></div><BallotPreview election={election} candidates={presidential} large /></section>}
       </>}
     </main>
@@ -275,11 +223,7 @@ export default function ElectionCandidatesPage() {
 }
 
 function BallotPreview({ election, candidates, large = false }) {
-  return <div className={`notice-poll ${large ? "large" : ""}`}>
-    <div className="poll-head"><div className="crest">★</div><strong>ELECTORAL COMMISSION OF GHANA</strong><b>{election?.name || "GENERAL ELECTION"}</b><span>PRESIDENTIAL BALLOT PAPER</span></div>
-    <div className="poll-rows">{candidates.map((candidate, index) => <div className="poll-row" key={`${candidate.name}-${index}`}><div className="poll-number">{index + 1}</div><div className="poll-photo">{candidate.profilePictureUrl ? <img src={candidate.profilePictureUrl} alt="" /> : <span>PHOTO</span>}</div><div className="poll-name">{candidate.name || "Candidate name"}</div><div className="poll-party">{candidate.partyLogoUrl ? <img src={candidate.partyLogoUrl} alt="" /> : <span>{candidate.partyId ? String(candidate.party || "").slice(0, 3).toUpperCase() : "IND."}</span>}</div><div className="poll-mark">{candidate.partyId ? String(candidate.party || "").slice(0, 3).toUpperCase() : "IND."}</div></div>)}</div>
-    <div className="poll-foot"><span>YOUR VOTE, YOUR FUTURE</span><small>TRANSPARENCY • INTEGRITY • A STRONGER GHANA</small></div>
-  </div>;
+  return <div className={`notice-poll ${large ? "large" : ""}`}><div className="poll-head"><div className="crest">★</div><strong>ELECTORAL COMMISSION OF GHANA</strong><b>{election?.name || "GENERAL ELECTION"}</b><span>PRESIDENTIAL BALLOT PAPER</span></div><div className="poll-rows">{candidates.map((candidate, index) => <div className="poll-row" key={`${candidate.name}-${index}`}><div className="poll-number">{index + 1}</div><div className="poll-photo">{candidate.profilePictureUrl ? <img src={candidate.profilePictureUrl} alt="" /> : <span>PHOTO</span>}</div><div className="poll-name">{candidate.name || "Candidate name"}</div><div className="poll-party">{candidate.partyLogoUrl ? <img src={candidate.partyLogoUrl} alt="" /> : <span>{candidate.partyId ? String(candidate.party || "").slice(0, 3).toUpperCase() : "IND."}</span>}</div><div className="poll-mark">{candidate.partyId ? String(candidate.party || "").slice(0, 3).toUpperCase() : "IND."}</div></div>)}</div><div className="poll-foot"><span>YOUR VOTE, YOUR FUTURE</span><small>TRANSPARENCY • INTEGRITY • A STRONGER GHANA</small></div></div>;
 }
 
 const styles = `
