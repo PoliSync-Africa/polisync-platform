@@ -6,27 +6,139 @@ const Organization = require("../models/Organization");
 const ElectionGeographySnapshot = require("../models/ElectionGeographySnapshot");
 
 async function getApprovedParties() {
-  return Organization.find({ organizationType: "political_party", organizationStatus: "approved" }).select("_id name politicalPartyName logo").lean();
+  return Organization.find({ organizationType: "political_party", organizationStatus: "approved" })
+    .select("_id name politicalPartyName logo")
+    .lean();
 }
 
+function partyNameKey(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+/**
+ * Synchronize the canonical political-party organizations with every election.
+ *
+ * Existing election records are treated as a migration source: when an
+ * organization has no logo, an existing election logo for the same party is
+ * copied into the organization first. The organization then becomes the
+ * canonical source for all election party logos going forward.
+ */
+async function synchronizeAllElectionParties() {
+  const [organizations, elections] = await Promise.all([
+    getApprovedParties(),
+    Election.find({}).select("_id parties candidates").lean(),
+  ]);
+
+  const organizationById = new Map(organizations.map((org) => [String(org._id), org]));
+  const organizationByName = new Map(
+    organizations.map((org) => [partyNameKey(org.politicalPartyName || org.name), org])
+  );
+
+  // First import any existing election logo into the canonical organization.
+  const logoUpdates = new Map();
+  for (const election of elections) {
+    for (const party of Array.isArray(election.parties) ? election.parties : []) {
+      const org =
+        (party.partyId && organizationById.get(String(party.partyId))) ||
+        organizationByName.get(partyNameKey(party.name));
+      const logo = String(party.logoUrl || "").trim();
+      if (!org || !logo || String(org.logo || "").trim()) continue;
+      logoUpdates.set(String(org._id), logo);
+    }
+  }
+
+  if (logoUpdates.size) {
+    await Promise.all(
+      Array.from(logoUpdates.entries()).map(([organizationId, logo]) =>
+        Organization.updateOne({ _id: organizationId }, { $set: { logo } })
+      )
+    );
+
+    logoUpdates.forEach((logo, organizationId) => {
+      const org = organizationById.get(organizationId);
+      if (org) org.logo = logo;
+    });
+  }
+
+  const organizationParties = organizations.map((org) => ({
+    partyId: org._id,
+    name: org.politicalPartyName || org.name,
+    logoUrl: String(org.logo || "").trim(),
+  }));
+
+  // Make every election use the exact same party organization IDs/names/logos.
+  let synchronized = 0;
+  for (const election of elections) {
+    const oldById = new Map(
+      (Array.isArray(election.parties) ? election.parties : []).map((party) => [String(party.partyId || ""), party])
+    );
+    const oldByName = new Map(
+      (Array.isArray(election.parties) ? election.parties : []).map((party) => [partyNameKey(party.name), party])
+    );
+
+    const parties = organizationParties.map((party) => {
+      const old = oldById.get(String(party.partyId)) || oldByName.get(partyNameKey(party.name));
+      return {
+        partyId: party.partyId,
+        name: party.name,
+        logoUrl: party.logoUrl || String(old?.logoUrl || "").trim(),
+      };
+    });
+
+    const candidateByPartyId = new Map(parties.map((party) => [String(party.partyId), party]));
+    const candidateByName = new Map(parties.map((party) => [partyNameKey(party.name), party]));
+    const candidates = (Array.isArray(election.candidates) ? election.candidates : []).map((candidate) => {
+      const party =
+        (candidate.partyId && candidateByPartyId.get(String(candidate.partyId))) ||
+        candidateByName.get(partyNameKey(candidate.party));
+      if (!party) return candidate;
+      return {
+        ...candidate,
+        partyId: party.partyId,
+        party: party.name,
+        partyLogoUrl: party.logoUrl || String(candidate.partyLogoUrl || "").trim(),
+      };
+    });
+
+    await Election.updateOne(
+      { _id: election._id },
+      { $set: { parties, candidates } }
+    );
+    synchronized += 1;
+  }
+
+  return {
+    elections: synchronized,
+    parties: organizationParties.map((party) => party.name),
+    logosImported: logoUpdates.size,
+  };
+}
+
+// Kept as a single-election helper for callers that need to synchronize one election.
 async function synchronizeElectionParties(election) {
   const organizations = await getApprovedParties();
-  const existing = new Map((Array.isArray(election.parties) ? election.parties : []).map((p) => [String(p.partyId || p.name || "").trim().toLowerCase(), p]));
+  const existing = new Map(
+    (Array.isArray(election.parties) ? election.parties : []).map((p) => [partyNameKey(p.partyId || p.name), p])
+  );
   election.parties = organizations.map((org) => {
     const name = org.politicalPartyName || org.name;
-    const old = existing.get(String(org._id).toLowerCase()) || existing.get(String(name).trim().toLowerCase());
-    return { partyId: org._id, name, logoUrl: org.logo || old?.logoUrl || "" };
+    const old = existing.get(String(org._id).toLowerCase()) || existing.get(partyNameKey(name));
+    return {
+      partyId: org._id,
+      name,
+      logoUrl: String(org.logo || old?.logoUrl || "").trim(),
+    };
+  });
+  election.candidates = (Array.isArray(election.candidates) ? election.candidates : []).map((candidate) => {
+    const party = election.parties.find(
+      (item) => String(item.partyId) === String(candidate.partyId || "") || partyNameKey(item.name) === partyNameKey(candidate.party)
+    );
+    return party
+      ? { ...candidate.toObject?.() || candidate, partyId: party.partyId, party: party.name, partyLogoUrl: party.logoUrl || String(candidate.partyLogoUrl || "").trim() }
+      : candidate;
   });
   await election.save();
   return election.parties;
-}
-
-async function synchronizeAllElectionParties() {
-  const elections = await Election.find({}).select("_id parties");
-  let synchronized = 0;
-  for (const election of elections) { await synchronizeElectionParties(election); synchronized += 1; }
-  const organizations = await getApprovedParties();
-  return { elections: synchronized, parties: organizations.map((o) => o.politicalPartyName || o.name) };
 }
 
 async function synchronizeElectionGeography(electionId) {
