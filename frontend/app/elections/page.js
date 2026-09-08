@@ -3,6 +3,7 @@
 import DashboardShell from "../../components/dashboard/DashboardShell";
 import ElectionGeographyAssignmentsView from "../../components/dashboard/ElectionGeographyAssignmentsView";
 import ElectionAccessGate from "../../components/dashboard/ElectionAccessGate";
+import ElectionDeploymentSelector from "../../components/dashboard/ElectionDeploymentSelector";
 
 const nav = [
   { section: "NAVIGATION", items: [{ label: "Home", href: "/dashboard", key: "home", icon: "⌂" }] },
@@ -18,6 +19,7 @@ export default function ElectionsPage() {
           <h1 style={{ margin: "5px 0", fontSize: "24px" }}>Election Operations Center</h1>
           <p style={{ margin: 0, fontSize: "11px", opacity: .88, lineHeight: 1.5 }}>Access is limited to approved organization-assigned election duties. Drill down from Region → Constituency → Polling Station for the scope assigned to your role.</p>
         </section>
+        <ElectionDeploymentSelector />
         <ElectionGeographyAssignmentsView title="Assigned Persons & Polling Station Results" />
       </main>
     </DashboardShell>
