@@ -6,8 +6,8 @@ import { useState } from "react";
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
 export default function ForgotPasswordPage() {
-  const [step, setStep] = useState("email");
-  const [email, setEmail] = useState("");
+  const [step, setStep] = useState("phone");
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,20 +20,22 @@ export default function ForgotPasswordPage() {
     event.preventDefault();
     setError("");
     setMessage("");
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) return setError("Please enter your email address.");
+    const normalizedPhone = phone.trim();
+    if (!/^((\+233|233)\d{9}|0\d{9})$/.test(normalizedPhone.replace(/[\s()-]/g, ""))) {
+      return setError("Please enter a valid Ghana mobile number.");
+    }
 
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email: normalizedEmail }),
+        body: JSON.stringify({ phone: normalizedPhone }),
       });
       const data = await readJson(response);
       if (!response.ok || data?.success === false) throw new Error(data?.message || "Unable to request a password reset.");
-      setEmail(normalizedEmail);
-      setMessage("If an account exists for this email, a 6-digit reset code has been sent to it.");
+      setPhone(normalizedPhone);
+      setMessage("If an account exists for this mobile number, a 6-digit reset code has been sent by SMS.");
       setStep("code");
     } catch (requestError) {
       setError(requestError?.message || "Unable to connect to the server.");
@@ -47,14 +49,14 @@ export default function ForgotPasswordPage() {
     setError("");
     setMessage("");
     const normalizedCode = code.trim();
-    if (!/^\d{6}$/.test(normalizedCode)) return setError("Enter the 6-digit code sent to your email.");
+    if (!/^\d{6}$/.test(normalizedCode)) return setError("Enter the 6-digit code sent to your mobile phone.");
 
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/auth/verify-password-reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email, code: normalizedCode }),
+        body: JSON.stringify({ phone, code: normalizedCode }),
       });
       const data = await readJson(response);
       if (!response.ok || data?.success === false) throw new Error(data?.message || "The reset code is invalid or expired.");
@@ -79,7 +81,7 @@ export default function ForgotPasswordPage() {
       const response = await fetch(`${API_URL}/api/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email, code, newPassword: password }),
+        body: JSON.stringify({ phone, newPassword: password }),
       });
       const data = await readJson(response);
       if (!response.ok || data?.success === false) throw new Error(data?.message || "Password reset failed.");
@@ -100,12 +102,12 @@ export default function ForgotPasswordPage() {
       const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ phone }),
       });
       const data = await readJson(response);
       if (!response.ok || data?.success === false) throw new Error(data?.message || "Unable to resend the code.");
       setCode("");
-      setMessage("A new reset code has been sent to your email.");
+      setMessage("A new reset code has been sent to your mobile phone by SMS.");
     } catch (resendError) {
       setError(resendError?.message || "Unable to resend the reset code.");
     } finally {
@@ -121,13 +123,13 @@ export default function ForgotPasswordPage() {
           <div style={{ marginTop: 5, fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: "#C9A227" }}>POLITICAL OPERATING SYSTEM</div>
         </div>
 
-        {step === "email" && (
+        {step === "phone" && (
           <>
             <h1 style={styles.title}>Forgot Password?</h1>
-            <p style={styles.subtitle}>Enter the email address registered to your PoliSync Africa account.</p>
+            <p style={styles.subtitle}>Enter the mobile phone number registered to your PoliSync Africa account. We&apos;ll send your password reset code by SMS.</p>
             <form onSubmit={requestReset}>
-              <label style={styles.label} htmlFor="email">Email Address</label>
-              <input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email" disabled={loading} style={styles.input} />
+              <label style={styles.label} htmlFor="phone">Registered Mobile Number</label>
+              <input id="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0241234567 or +233241234567" disabled={loading} style={styles.input} />
               <button disabled={loading} style={styles.button}>{loading ? "Sending Code..." : "Send Reset Code"}</button>
             </form>
           </>
@@ -136,14 +138,14 @@ export default function ForgotPasswordPage() {
         {step === "code" && (
           <>
             <h1 style={styles.title}>Enter Reset Code</h1>
-            <p style={styles.subtitle}>Enter the 6-digit code sent to <strong>{email}</strong>. The code expires in 15 minutes.</p>
+            <p style={styles.subtitle}>Enter the 6-digit code sent by SMS to your registered mobile number. The code expires in 5 minutes.</p>
             <form onSubmit={verifyCode}>
               <label style={styles.label} htmlFor="code">6-Digit Reset Code</label>
               <input id="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" disabled={loading} style={{ ...styles.input, letterSpacing: 8, textAlign: "center", fontWeight: 800 }} />
               <button disabled={loading} style={styles.button}>{loading ? "Verifying..." : "Verify Code"}</button>
             </form>
             <button type="button" onClick={resendCode} disabled={loading} style={styles.linkButton}>{loading ? "Please wait..." : "Resend Code"}</button>
-            <button type="button" onClick={() => { setStep("email"); setMessage(""); setError(""); }} style={styles.secondaryButton}>Change Email</button>
+            <button type="button" onClick={() => { setStep("phone"); setMessage(""); setError(""); }} style={styles.secondaryButton}>Change Mobile Number</button>
           </>
         )}
 
@@ -175,7 +177,6 @@ export default function ForgotPasswordPage() {
 
         {message && step !== "done" && <div role="status" style={styles.success}>{message}</div>}
         {error && <div role="alert" style={styles.error}>{error}</div>}
-
         {step !== "done" && <div style={styles.footer}><Link href="/login" style={styles.loginLink}>← Back to Login</Link></div>}
       </div>
     </main>
