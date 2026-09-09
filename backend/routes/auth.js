@@ -17,6 +17,7 @@ const {
 } = require("../controllers/authController");
 
 const smsLogin = require("../controllers/smsLoginController");
+const passwordResetRoutes = require("./passwordResetRoutes");
 
 const router = express.Router();
 
@@ -29,6 +30,7 @@ const router = express.Router();
 // - Password remains the first credential.
 // - Arkesel SMS OTP is the verification/security challenge.
 // - Email verification is NOT required for login.
+// - Password recovery uses the registered mobile number + Arkesel OTP.
 // ============================================================
 
 router.use(express.urlencoded({ extended: false }));
@@ -55,6 +57,13 @@ router.post("/resend-phone-verification", resendPhoneVerification);
 router.post("/verify-login-otp", verifyLoginOTP);
 router.post("/resend-login-otp", resendLoginOTP);
 
+// Password recovery is SMS-first. The dedicated router is mounted before
+// the legacy controller routes so the registered mobile number and Arkesel
+// OTP flow are authoritative.
+router.use(passwordResetRoutes);
+
+// Legacy password reset handlers are retained in the controller for
+// compatibility with older integrations, but are not reached for these paths.
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-password-reset", verifyPasswordReset);
 router.post("/reset-password", resetPassword);
