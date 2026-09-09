@@ -5,11 +5,19 @@ import DashboardShell from "../../../components/dashboard/DashboardShell";
 import ElectionAccessGate from "../../../components/dashboard/ElectionAccessGate";
 
 const API_BASE = String(process.env.NEXT_PUBLIC_API_URL || "https://polisync-platform-1.onrender.com").replace(/\/+$/, "");
+const ELECTION_TYPE_STORAGE_KEY = "polisync_election_type_preference";
+const ELECTION_TYPES = ["Presidential", "Parliamentary", "Local"];
 const PERMANENT_PARTIES = ["NPP", "NDC", "CPP", "LPG", "GUM", "PNC", "PPP", "The Base Party", "UP (Movement for Change)", "The New Force"];
 
 function getToken() {
   if (typeof window === "undefined") return "";
   return localStorage.getItem("polisync_token") || sessionStorage.getItem("polisync_token") || localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken") || localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+}
+
+function getSavedElectionType() {
+  if (typeof window === "undefined") return "Presidential";
+  const saved = localStorage.getItem(ELECTION_TYPE_STORAGE_KEY);
+  return ELECTION_TYPES.includes(saved) ? saved : "Presidential";
 }
 
 function mergeParties(loaded) {
@@ -26,7 +34,7 @@ function mergeParties(loaded) {
 }
 
 export default function CreateElectionPage() {
-  const [form, setForm] = useState({ name: "", country: "Ghana", type: "Parliamentary", date: "", status: "Draft" });
+  const [form, setForm] = useState(() => ({ name: "", country: "Ghana", type: getSavedElectionType(), date: "", status: "Draft" }));
   const [parties, setParties] = useState([]);
   const [selectedPartyIds, setSelectedPartyIds] = useState([]);
   const [loadingParties, setLoadingParties] = useState(true);
@@ -34,6 +42,11 @@ export default function CreateElectionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    const saved = getSavedElectionType();
+    setForm((current) => ({ ...current, type: saved }));
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -67,7 +80,15 @@ export default function CreateElectionPage() {
   }, []);
 
   const selectedParties = useMemo(() => parties.filter((party) => selectedPartyIds.includes(String(party.id))), [parties, selectedPartyIds]);
-  const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const update = (field, value) => {
+    if (field === "type") {
+      const nextType = ELECTION_TYPES.includes(value) ? value : "Presidential";
+      setForm((current) => ({ ...current, type: nextType }));
+      if (typeof window !== "undefined") localStorage.setItem(ELECTION_TYPE_STORAGE_KEY, nextType);
+      return;
+    }
+    setForm((current) => ({ ...current, [field]: value }));
+  };
   const toggleParty = (id) => {
     const key = String(id);
     setSelectedPartyIds((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key]);
@@ -80,6 +101,11 @@ export default function CreateElectionPage() {
     if (submitting) return;
     setError("");
     setSuccess("");
+    const electionType = ELECTION_TYPES.includes(form.type) ? form.type : "Presidential";
+    if (electionType !== form.type) {
+      setForm((current) => ({ ...current, type: electionType }));
+      if (typeof window !== "undefined") localStorage.setItem(ELECTION_TYPE_STORAGE_KEY, electionType);
+    }
     if (!form.name.trim()) return setError("Election name is required.");
     if (!form.date) return setError("Election date is required.");
     if (!selectedParties.length) return setError("At least one political party must participate in the election.");
@@ -93,14 +119,17 @@ export default function CreateElectionPage() {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          name: form.name.trim(), country: form.country.trim() || "Ghana", type: form.type, year, startDateTime, endDateTime, status: form.status,
+          name: form.name.trim(), country: form.country.trim() || "Ghana", type: electionType, electionType, year, startDateTime, endDateTime, status: form.status,
           parties: selectedParties.map((party) => ({ partyId: party.systemParty ? null : party.id, name: party.name, logoUrl: party.logoUrl || "" })),
         }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.success !== true) throw new Error(data.message || "Election could not be created.");
-      setSuccess(`Election created successfully with ${selectedParties.length} participating political ${selectedParties.length === 1 ? "party" : "parties"}.`);
-      setForm({ name: "", country: "Ghana", type: form.type, date: "", status: "Draft" });
+      const savedType = String(data.election?.type || "").trim();
+      if (savedType !== electionType) throw new Error(`Election was not saved with the selected type. Selected: ${electionType}; saved: ${savedType || "unknown"}.`);
+      if (typeof window !== "undefined") localStorage.setItem(ELECTION_TYPE_STORAGE_KEY, electionType);
+      setSuccess(`Election created successfully as a ${electionType} election with ${selectedParties.length} participating political ${selectedParties.length === 1 ? "party" : "parties"}.`);
+      setForm({ name: "", country: "Ghana", type: electionType, date: "", status: "Draft" });
     } catch (e) {
       setError(e.message || "Election could not be created.");
     } finally {
@@ -115,7 +144,7 @@ export default function CreateElectionPage() {
           <form onSubmit={submit} style={styles.card}>
             <div style={styles.eyebrow}>POLISYNC AFRICA • ELECTION SETUP</div>
             <h2 style={styles.heading}>Create New Election</h2>
-            <p style={styles.subheading}>Political parties load automatically from the PoliSync party registry. The permanent system parties are also available so election creation never depends on manually typing party names.</p>
+            <p style={styles.subheading}>Political parties load automatically from the PoliSync party registry. The election type is saved as your preference and is sent explicitly with every election creation request.</p>
             {error && <div style={styles.error}>{error}</div>}
             {success && <div style={styles.success}>{success}</div>}
             {partyError && <div style={styles.notice}>{partyError}</div>}
@@ -136,7 +165,7 @@ export default function CreateElectionPage() {
               {loadingParties ? <div style={styles.loading}>Loading approved political parties automatically…</div> : <div style={styles.partyList}>{parties.map((party) => { const checked = selectedPartyIds.includes(String(party.id)); return <label key={party.id} style={{ ...styles.party, ...(checked ? styles.partySelected : {}) }}><input type="checkbox" checked={checked} onChange={() => toggleParty(party.id)} />{party.logoUrl ? <img src={party.logoUrl} alt="" style={styles.logo} /> : <span style={styles.logoPlaceholder}>{party.name?.slice(0, 1) || "P"}</span>}<span style={styles.partyName}>{party.name}</span><span style={styles.registered}>{party.systemParty ? "SYSTEM PARTY" : "REGISTERED"}</span></label>; })}</div>}
             </section>
 
-            <div style={styles.footer}><span style={styles.note}>Official electoral geography is synchronized automatically after election creation. Political parties are preloaded and selected by default.</span><button type="submit" disabled={submitting || loadingParties || !selectedParties.length} style={styles.submit}>{submitting ? "Creating…" : "Create Election"}</button></div>
+            <div style={styles.footer}><span style={styles.note}>Your selected election type is remembered for the next election you create. The saved server response is also checked before the UI reports success.</span><button type="submit" disabled={submitting || loadingParties || !selectedParties.length} style={styles.submit}>{submitting ? "Creating…" : "Create Election"}</button></div>
           </form>
         </main>
       </DashboardShell>
