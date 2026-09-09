@@ -68,6 +68,57 @@ exports.submitMyPartyCandidate = async (req, res) => {
   } catch (error) { return res.status(400).json({ success: false, message: error.message || "Unable to save your party presidential candidate." }); }
 };
 
+exports.addCandidate = async (req, res) => {
+  try {
+    const election = await Election.findById(req.params.id); if (!election) return res.status(404).json({ success: false, message: "Election not found." });
+    const isSuperAdmin = req.user?.platformRole === "super_admin";
+    const membership = isSuperAdmin ? null : await getPartyMembership(req);
+    if (!isSuperAdmin && !membership) return res.status(403).json({ success: false, code: "CANDIDATE_ENTRY_FORBIDDEN", message: "Only an approved National Party Admin or the Super Admin can add candidates to an election." });
+    if (election.status === "Closed") return res.status(403).json({ success: false, code: "ELECTION_READ_ONLY", message: "Closed elections are read-only." });
+    if (!isSuperAdmin && election.status !== "Active") return res.status(403).json({ success: false, code: "ELECTION_NOT_ACTIVE", message: "Political parties can add candidates only while the election is active." });
+
+    const firstName = String(req.body?.firstName || "").trim();
+    const surname = String(req.body?.surname || "").trim();
+    const name = candidateName(firstName, surname, req.body?.name);
+    const profilePictureUrl = String(req.body?.profilePictureUrl || "").trim();
+    if (!firstName || !surname) return res.status(400).json({ success: false, message: "Candidate first name and surname are required." });
+    if (profilePictureUrl.length > MAX_PHOTO_LENGTH) return res.status(400).json({ success: false, message: "Candidate photo is too large. Use an image up to 3 MB." });
+
+    let party;
+    if (membership) {
+      party = participatingParty(election, membership.organizationId);
+      if (!party) return res.status(403).json({ success: false, message: "Your political party is not a participating participant in this election." });
+    } else {
+      const requestedPartyId = req.body?.partyId;
+      const requestedParty = String(req.body?.party || "").trim().toLowerCase();
+      party = (requestedPartyId && participatingParty(election, requestedPartyId)) || (election.parties || []).find(p => String(p.name || "").trim().toLowerCase() === requestedParty);
+      if (!party) return res.status(400).json({ success: false, message: "Select a participating political party or Independent participant." });
+    }
+
+    const position = election.type === "Presidential" ? "president" : election.type === "Parliamentary" ? "parliamentary" : "local";
+    let constituencyId = req.body?.constituencyId || null;
+    if (position !== "president" && constituencyId && !require("mongoose").Types.ObjectId.isValid(constituencyId)) return res.status(400).json({ success: false, message: "Invalid constituency ID." });
+    if (position !== "president" && !constituencyId) return res.status(400).json({ success: false, message: `A constituency is required for ${election.type.toLowerCase()} candidates.` });
+
+    const candidates = Array.isArray(election.candidates) ? [...election.candidates] : [];
+    const partyId = party.partyId || null;
+    const sameSlot = candidates.findIndex(c => c.position === position && String(c.partyId || "") === String(partyId || "") && (position === "president" || String(c.constituencyId || "") === String(constituencyId || "")));
+    const candidate = { firstName, surname, name, partyId, party: party.name, partyLogoUrl: String(req.body?.partyLogoUrl || party.logoUrl || "").trim(), profilePictureUrl, constituencyId, position, ballotNumber: null };
+    if (candidate.partyLogoUrl.length > MAX_LOGO_LENGTH) return res.status(400).json({ success: false, message: "Participant logo is too large. Use an image up to 2 MB." });
+    if (sameSlot >= 0) candidates[sameSlot] = candidate; else candidates.push(candidate);
+
+    if (position === "president") {
+      const duplicate = candidates.filter(c => c.position === "president" && String(c.partyId || "") === String(partyId || ""));
+      if (duplicate.length > 1) return res.status(409).json({ success: false, message: `${party.name} already has a presidential candidate in this election.` });
+    }
+    const ballotCandidates = candidates.filter(c => c.position === position);
+    ballotCandidates.forEach((c, index) => { c.ballotNumber = index + 1; });
+    election.candidates = candidates;
+    await election.save();
+    return res.status(201).json({ success: true, candidate, electionId: election._id, message: `${name} added to the ${election.name} ${election.type.toLowerCase()} candidate list.` });
+  } catch (error) { return res.status(400).json({ success: false, message: error.message || "Unable to add candidate to the election." }); }
+};
+
 exports.updateCandidates = async (req, res) => {
   try {
     const election = await Election.findById(req.params.id); if (!election) return res.status(404).json({ success: false, message: "Election not found." });
