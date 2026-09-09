@@ -1,7 +1,7 @@
 "use client";
 
 import DashboardShell from "../../components/dashboard/DashboardShell";
-import WeatherIntelligence from "../../components/dashboard/WeatherIntelligence";
+import WeatherIntelligence from "../../components/dashboard/WeatherIntelligenceV2";
 
 export default function WeatherPage() {
   return (
