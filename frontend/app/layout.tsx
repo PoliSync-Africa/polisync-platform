@@ -1,4 +1,5 @@
 import "./globals.css";
+import OfficialBrandRepair from "../components/branding/OfficialBrandRepair";
 
 export const metadata = {
   title: "POLISYNC AFRICA",
@@ -8,7 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <OfficialBrandRepair />
+        {children}
+      </body>
     </html>
   );
 }
