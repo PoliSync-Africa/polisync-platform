@@ -34,8 +34,8 @@ export default function OfficialBrandRepair() {
         img.loading = "eager";
 
         node.replaceWith(img);
-        next.remove();
-        img.dataset.polisyncOfficialBrand = "true";
+        node.dataset.polisyncOfficialBrand = "true";
+        next.classList.add("polisync-auth-motto");
       });
     };
 
@@ -49,19 +49,45 @@ export default function OfficialBrandRepair() {
     <style jsx global>{`
       .polisync-official-auth-logo {
         display: block;
-        width: min(100%, 420px);
+        width: min(100%, 300px);
         height: auto;
-        max-height: 180px;
+        max-width: 300px;
+        max-height: 169px;
         object-fit: contain;
         object-position: center;
-        margin: 0 auto 18px;
+        image-rendering: auto;
+        filter: contrast(1.06) saturate(1.03);
+        margin: 0 auto 8px;
+      }
+
+      .polisync-auth-motto {
+        display: block !important;
+        width: 100%;
+        box-sizing: border-box;
+        margin: 2px 0 18px !important;
+        padding: 0 8px;
+        color: #b48712 !important;
+        font-size: 13px !important;
+        line-height: 1.35 !important;
+        font-weight: 800 !important;
+        letter-spacing: .20em !important;
+        text-align: center !important;
+        text-rendering: geometricPrecision;
+        -webkit-font-smoothing: antialiased;
       }
 
       @media (max-width: 600px) {
         .polisync-official-auth-logo {
-          width: min(100%, 340px);
-          max-height: 145px;
-          margin-bottom: 16px;
+          width: min(100%, 300px);
+          max-width: 300px;
+          max-height: 169px;
+          margin-bottom: 7px;
+        }
+
+        .polisync-auth-motto {
+          font-size: 12px !important;
+          letter-spacing: .16em !important;
+          margin-bottom: 16px !important;
         }
       }
     `}</style>
