@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { processCandidateFields } = require("../utils/candidateImageProcessor");
 
 const partySchema = new mongoose.Schema({
   partyId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", default: null },
@@ -35,6 +36,16 @@ const ElectionSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null, index: true },
   managedBy: { type: String, enum: ["platform", "organization"], default: "platform", index: true },
 }, { timestamps: true });
+
+ElectionSchema.pre("save", async function processCandidatePhotos(next) {
+  if (!this.isModified("candidates")) return next();
+  try {
+    await processCandidateFields(this.candidates);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 ElectionSchema.index({ organizationId: 1, year: -1, status: 1 });
 module.exports = mongoose.models.Election || mongoose.model("Election", ElectionSchema);
