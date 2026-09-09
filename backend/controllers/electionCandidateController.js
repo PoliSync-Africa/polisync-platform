@@ -31,7 +31,8 @@ function normalizePresidentialCandidates(candidates, election) {
     if (!name) continue;
     const requestedParty = String(raw?.party || "").trim();
     const party = (raw?.partyId && byId.get(String(raw.partyId))) || byName.get(requestedParty.toLowerCase());
-    const isIndependent = !party && (!requestedParty || requestedParty.toLowerCase() === "independent");
+    const canonicalPartyName = String(party?.name || requestedParty || "").trim();
+    const isIndependent = canonicalPartyName.toLowerCase() === "independent" || requestedParty.toLowerCase() === "independent";
     if (!party && !isIndependent) throw new Error(`Candidate ${name} is assigned to a party that is not participating in this election.`);
 
     const candidate = {
@@ -51,6 +52,7 @@ function normalizePresidentialCandidates(candidates, election) {
       if (independent) throw new Error("Only one Independent presidential candidate can be assigned to this election.");
       independent = candidate;
     } else {
+      if (!party?.partyId) throw new Error(`Candidate ${name} must be assigned to a participating political party.`);
       const key = String(party.partyId);
       if (assigned.has(key)) throw new Error(`Each participating political party can have only one presidential candidate. Duplicate found for ${party.name}.`);
       assigned.add(key);
@@ -119,6 +121,6 @@ exports.updateCandidates = async (req, res) => {
     const candidates = normalizePresidentialCandidates(req.body.candidates, election);
     election.candidates = candidates;
     await election.save();
-    return res.json({ success: true, election, candidates, message: "Official presidential candidates saved. Super Admin retains broader election-management control while registered parties can still update their own party information." });
+    return res.json({ success: true, election, candidates, message: "Official presidential candidates saved. Independent and political-party participants are managed uniformly, while registered parties can still maintain their own party information." });
   } catch (error) { return res.status(400).json({ success: false, message: error.message || "Unable to save the official presidential candidates." }); }
 };
