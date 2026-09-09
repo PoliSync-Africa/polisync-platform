@@ -7,6 +7,14 @@ const LOGO_SRC = "/polisync-official-logo.svg";
 export default function OfficialBrandRepair() {
   useEffect(() => {
     const apply = () => {
+      document.querySelectorAll("img").forEach((img) => {
+        const source = img.getAttribute("src") || "";
+        if (source.includes("logo.png") || source.includes("polisync-brand.svg")) {
+          img.setAttribute("src", LOGO_SRC);
+          img.removeAttribute("srcset");
+        }
+      });
+
       const candidates = Array.from(document.querySelectorAll("body *"));
       candidates.forEach((node) => {
         if (!(node instanceof HTMLElement)) return;
