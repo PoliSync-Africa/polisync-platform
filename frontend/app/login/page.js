@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -80,7 +79,10 @@ export default function LoginPage() {
   return (
     <main style={{ minHeight: "100vh", background: "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)", display: "flex", justifyContent: "center", alignItems: "center", padding: "24px 16px", boxSizing: "border-box" }}>
       <div style={{ width: "100%", maxWidth: "680px", margin: "0 auto", background: "#FFFFFF", border: "3px solid #B89A4A", borderRadius: "42px", padding: "40px 34px", boxSizing: "border-box", boxShadow: "0 12px 35px rgba(0,0,0,.08)" }}>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: "8px" }}><Image src="/IMG_9654.jpeg" alt="PoliSync Africa" width={280} height={180} priority style={{ width: "280px", height: "auto", maxWidth: "100%", objectFit: "contain" }} /></div>
+        <div style={{ textAlign: "center", marginBottom: "20px" }}>
+          <div style={{ fontSize: "28px", fontWeight: 900, letterSpacing: "0.08em", color: "#065F2B" }}>POLISYNC AFRICA</div>
+          <div style={{ marginTop: "5px", fontSize: "11px", fontWeight: 700, letterSpacing: "0.16em", color: "#C9A227" }}>POLITICAL OPERATING SYSTEM</div>
+        </div>
         <h1 style={{ textAlign: "center", fontSize: "27px", lineHeight: "1.2", fontWeight: "750", color: "#065F2B", margin: "4px 0 6px" }}>Welcome Back</h1>
         <p style={{ textAlign: "center", color: "#666", fontSize: "14px", lineHeight: "1.5", margin: "0 0 26px" }}>Sign in to your PoliSync Africa account</p>
 
