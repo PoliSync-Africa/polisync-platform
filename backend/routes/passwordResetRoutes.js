@@ -24,11 +24,11 @@ const activeToken = (userId) => VerificationToken.findOne({
 
 router.post("/forgot-password", async (req, res) => {
   try {
-    const phone = normalizeGhanaPhone(req.body?.phone);
-    if (!phone) return res.status(400).json({ success: false, message: "Enter a valid Ghana mobile number." });
+    const normalizedPhone = normalizeGhanaPhone(req.body?.phone);
+    if (!normalizedPhone) return res.status(400).json({ success: false, message: "Enter a valid Ghana mobile number." });
 
-    const user = await User.findOne({ phone });
-    // Do not reveal whether a phone number is registered.
+    const registeredPhone = `+${normalizedPhone}`;
+    const user = await User.findOne({ phone: registeredPhone });
     if (!user) {
       return res.status(200).json({ success: true, message: "If an account exists for this mobile number, a password reset code has been sent by SMS." });
     }
@@ -63,16 +63,17 @@ router.post("/forgot-password", async (req, res) => {
 
 router.post("/verify-password-reset", async (req, res) => {
   try {
-    const phone = normalizeGhanaPhone(req.body?.phone);
+    const normalizedPhone = normalizeGhanaPhone(req.body?.phone);
     const code = String(req.body?.code || "").trim();
-    if (!phone || !/^\d{6}$/.test(code)) return res.status(400).json({ success: false, message: "Mobile number and a valid 6-digit reset code are required." });
+    if (!normalizedPhone || !/^\d{6}$/.test(code)) return res.status(400).json({ success: false, message: "Mobile number and a valid 6-digit reset code are required." });
 
-    const user = await User.findOne({ phone });
+    const registeredPhone = `+${normalizedPhone}`;
+    const user = await User.findOne({ phone: registeredPhone });
     const token = user ? await activeToken(user._id) : null;
     if (!token) return res.status(400).json({ success: false, message: "Invalid or expired password reset code." });
 
     token.attempts += 1;
-    const result = await verifyOTP({ phone, code });
+    const result = await verifyOTP({ phone: registeredPhone, code });
     if (!result?.verified) {
       await token.save();
       return res.status(400).json({ success: false, message: token.attempts >= token.maxAttempts ? "Too many attempts. Request a new code." : "Invalid or expired password reset code." });
@@ -89,12 +90,13 @@ router.post("/verify-password-reset", async (req, res) => {
 
 router.post("/reset-password", async (req, res) => {
   try {
-    const phone = normalizeGhanaPhone(req.body?.phone);
+    const normalizedPhone = normalizeGhanaPhone(req.body?.phone);
     const newPassword = String(req.body?.newPassword || "");
-    if (!phone || !newPassword) return res.status(400).json({ success: false, message: "Mobile number and new password are required." });
+    if (!normalizedPhone || !newPassword) return res.status(400).json({ success: false, message: "Mobile number and new password are required." });
     if (newPassword.length < MIN_PASSWORD_LENGTH) return res.status(400).json({ success: false, message: "New password must contain at least 8 characters." });
 
-    const user = await User.findOne({ phone }).select("+password");
+    const registeredPhone = `+${normalizedPhone}`;
+    const user = await User.findOne({ phone: registeredPhone }).select("+password");
     const token = user ? await activeToken(user._id) : null;
     if (!token || !token.verifiedAt) return res.status(400).json({ success: false, message: "Verify your password reset code before creating a new password." });
 
