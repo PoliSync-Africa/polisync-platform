@@ -61,7 +61,7 @@ exports.listPlatformUsers = async (req, res) => {
     const search = String(req.query.search || "").trim();
     const status = String(req.query.status || "all").trim();
 
-    const query = {};
+    const query = { platformRole: { $ne: "super_admin" } };
 
     if (status !== "all") {
       const requestedStatus = status === "active" ? "approved" : status;
