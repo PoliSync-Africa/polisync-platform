@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
+const User = require("../models/User");
 const Organization = require("../models/Organization");
 const OrganizationMembership = require("../models/OrganizationMembership");
 const Region = require("../models/Region");
 const Constituency = require("../models/Constituency");
 const Election = require("../models/Election");
-const { synchronizeApprovedCandidate } = require("../services/candidateApprovalService");
 const getUserId = (req) => req.user?._id || req.user?.id || req.auth?.id || null;
 const isSuperAdmin = (user) => user?.platformRole === "super_admin" && user?.accountStatus === "approved";
 const MAX_LOGO_LENGTH = 2 * 1024 * 1024;
