@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import UserCard from "../../components/UserCard";
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "https://polisync-platform-1.onrender.com").replace(/\/+$/, "");
 
 function getToken() {
   if (typeof window === "undefined") return "";
