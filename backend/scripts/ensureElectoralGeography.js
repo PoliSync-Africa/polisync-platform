@@ -3,10 +3,9 @@ const path = require("path");
 const Region = require("../models/Region");
 const Constituency = require("../models/Constituency");
 const PollingStation = require("../models/PollingStation");
-const { syncPollingStationsFromEcPdf } = require("./syncPollingStationsFromEc");
+const { syncPollingStationsFromEcPdf, MIN_EXPECTED_POLLING_STATIONS, EXPECTED_TOTAL_POLLING_STATIONS } = require("./syncPollingStationsFromEc");
 
 const GEOGRAPHY_FILE = path.join(__dirname, "../data/ghana_regions_constituencies.csv");
-const MIN_EXPECTED_POLLING_STATIONS = 40000;
 let hierarchyPromise = null;
 
 function normalize(value) {
@@ -120,8 +119,13 @@ async function refreshElectoralGeography() {
     PollingStation.countDocuments({ isActive: true }),
   ]);
   if (regions < 16 || constituencies < 276) throw new Error(`Electoral geography hierarchy is incomplete after refresh (${regions} regions, ${constituencies} constituencies).`);
-  if (pollingStations < 1000) throw new Error(`Polling-station refresh produced an unsafe result (${pollingStations} active stations).`);
+  if (pollingStations < MIN_EXPECTED_POLLING_STATIONS) {
+    throw new Error(`Polling-station refresh produced an unsafe result (${pollingStations.toLocaleString()} active stations; minimum ${MIN_EXPECTED_POLLING_STATIONS.toLocaleString()}).`);
+  }
+  if (result.matchedRows !== EXPECTED_TOTAL_POLLING_STATIONS) {
+    throw new Error(`Polling-station refresh did not reconcile the complete EC register (${result.matchedRows.toLocaleString()}/${EXPECTED_TOTAL_POLLING_STATIONS.toLocaleString()}).`);
+  }
   return { regions, constituencies, pollingStations, pollingStationSync: result };
 }
 
-module.exports = { ensureElectoralGeography, refreshElectoralGeography, seedRegionsAndConstituencies, MIN_EXPECTED_POLLING_STATIONS };
+module.exports = { ensureElectoralGeography, refreshElectoralGeography, seedRegionsAndConstituencies, MIN_EXPECTED_POLLING_STATIONS, EXPECTED_TOTAL_POLLING_STATIONS };
