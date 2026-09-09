@@ -53,13 +53,26 @@ exports.getMyPartyDashboard = async (req, res) => {
   try {
     const userId = getAuthenticatedUserId(req); if (!userId) return res.status(401).json({ success: false, message: "Authentication required." });
     const context = await getPartyContext(userId); if (!context) return res.status(403).json({ success: false, message: "Your account is not attached to an approved political party organization." });
-    const { organization } = context; const organizationId = organization._id;
+    const { organization, membership } = context; const organizationId = organization._id;
     const [members, candidateCount, resultCount] = await Promise.all([OrganizationMembership.find({ organizationId, status: "approved" }).select("regionId constituencyId pollingStationId").lean(), Candidate.countDocuments({ organizationId }), Result.countDocuments({ organizationId })]);
     const regions = new Set(members.map(m => String(m.regionId || "")).filter(Boolean)).size;
     const constituencies = new Set(members.map(m => String(m.constituencyId || "")).filter(Boolean)).size;
     const pollingStations = new Set(members.map(m => String(m.pollingStationId || "")).filter(Boolean)).size;
     const pendingCandidates = await Organization.countDocuments({ organizationType: { $in: ["presidential_candidate", "parliamentary_candidate"] }, organizationStatus: "pending", candidateParty: { $in: [organization.name, organization.politicalPartyName] } });
-    return res.json({ success: true, organization: { id: organization._id, name: organization.name, logo: organization.logo || null, politicalPartyName: organization.politicalPartyName || organization.name }, metrics: { members: members.length, regions, constituencies, pollingStations, candidates: candidateCount, pendingCandidates, resultsSubmitted: resultCount } });
+    return res.json({
+      success: true,
+      organization: {
+        id: organization._id,
+        name: organization.name,
+        logo: organization.logo || null,
+        politicalPartyName: organization.politicalPartyName || organization.name,
+      },
+      membership: {
+        role: membership.role,
+        level: membership.level || "national",
+      },
+      metrics: { members: members.length, regions, constituencies, pollingStations, candidates: candidateCount, pendingCandidates, resultsSubmitted: resultCount },
+    });
   } catch (error) { console.error("Party dashboard error:", error); return res.status(500).json({ success: false, message: error.message || "Unable to load political party dashboard." }); }
 };
 
