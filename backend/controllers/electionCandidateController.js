@@ -6,12 +6,7 @@ const MAX_PHOTO_LENGTH = 3 * 1024 * 1024;
 const MAX_LOGO_LENGTH = 2 * 1024 * 1024;
 
 async function getPartyMembership(req) {
-  return OrganizationMembership.findOne({
-    userId: req.user?._id,
-    role: "national_party_admin",
-    status: "approved",
-    organizationType: "political_party",
-  }).lean();
+  return OrganizationMembership.findOne({ userId: req.user?._id, role: "national_party_admin", status: "approved", organizationType: "political_party" }).lean();
 }
 
 function participatingParty(election, partyId) {
@@ -123,7 +118,9 @@ exports.updateCandidates = async (req, res) => {
     election.parties = (election.parties || []).map((participant) => {
       const key = String(participant.partyId || participant.name || "").toLowerCase();
       const candidate = candidateByParty.get(key);
-      return candidate?.partyLogoUrl ? { ...participant.toObject?.() || participant, logoUrl: candidate.partyLogoUrl } : participant;
+      if (!candidate?.partyLogoUrl) return participant;
+      const base = typeof participant.toObject === "function" ? participant.toObject() : participant;
+      return { ...base, logoUrl: candidate.partyLogoUrl };
     });
     election.candidates = candidates;
     await election.save();
