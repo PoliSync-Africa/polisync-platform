@@ -7,6 +7,7 @@ const organizationSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     organizationType: { type: String, required: true, enum: ["political_party","observer_organization","parliamentary_candidate","presidential_candidate","research"] },
+    creatorUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null, index: true },
     researchType: { type: String, enum: ["individual_researcher","research_institution",null], default: null },
     politicalPartyName: { type: String, default: null, trim: true },
     isPermanentParty: { type: Boolean, default: false },
