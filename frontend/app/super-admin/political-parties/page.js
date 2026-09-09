@@ -56,7 +56,7 @@ export default function PoliticalPartiesPage() {
     <DashboardShell role="super_admin" navigation={superAdminNavigation} activeSection="political-parties" title="Political Parties" subtitle="Permanent registry, Independent participation and future party onboarding">
       <main className="page">
         <header className="hero">
-          <div><span>SUPER ADMIN • PARTY REGISTRY</span><h1>Political Parties</h1><p>Permanent system parties are protected in the registry. New political parties can only be added by the Super Admin.</p></div>
+          <div><span>SUPER ADMIN • PARTY REGISTRY</span><h1>Political Parties</h1><p>Super Admin controls the official election participant registry. Registered parties can still manage their own organization information from their party dashboard.</p></div>
           <button type="button" className="refresh" onClick={load} disabled={loading}>{loading ? "Loading…" : "↻ Refresh"}</button>
         </header>
 
@@ -64,7 +64,7 @@ export default function PoliticalPartiesPage() {
         {error && <div className="notice error">{error}</div>}
 
         <section className="add-card">
-          <div><span className="eyebrow">FUTURE PARTY ONBOARDING</span><h2>Add Political Party</h2><p>Adding a party here only creates the political-party registry entry. Presidential candidates for that party are created and maintained inside the party's own dashboard; they are not added here.</p></div>
+          <div><span className="eyebrow">FUTURE PARTY ONBOARDING</span><h2>Add Political Party</h2><p>Add parties that have not yet registered on PoliSync so they can still participate in official elections and receive results. Presidential candidates are maintained centrally in the Official Presidential Candidates manager, while registered parties can also maintain their own candidate and party information.</p></div>
           <form onSubmit={addParty} className="form">
             <label>Political party name<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. New Political Movement" /></label>
             <label>Party logo URL <span>(optional)</span><input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…" /></label>
@@ -73,13 +73,13 @@ export default function PoliticalPartiesPage() {
         </section>
 
         <section className="registry">
-          <div className="registry-head"><div><span className="eyebrow">SYSTEM REGISTRY</span><h2>Registered Political Parties</h2></div><strong>{parties.length}</strong></div>
+          <div className="registry-head"><div><span className="eyebrow">SYSTEM REGISTRY</span><h2>Registered Political Parties & Independent</h2></div><strong>{parties.length}</strong></div>
           {loading ? <div className="state">Loading registered political parties…</div> : parties.length === 0 ? <div className="state">No approved political parties are currently registered.</div> : <div className="grid">{parties.map((party) => {
             const fallbackLogo = getPartyLogo(party.name);
             const logo = party.logoUrl || fallbackLogo;
             return <article className="party" key={party.id}>
               <div className="logo">{logo ? <img src={logo} alt={`${party.name} logo`} /> : <span>{String(party.name || "P").slice(0, 1)}</span>}</div>
-              <div className="info"><h3>{party.name}</h3><p>{String(party.name).toLowerCase() === "independent" ? "Independent election participant" : "Approved system political party"}</p></div>
+              <div className="info"><h3>{party.name}</h3><p>{String(party.name).toLowerCase() === "independent" ? "Independent election participant • treated uniformly with parties" : "Approved system political party"}</p></div>
               <span className="status">APPROVED</span>
             </article>;
           })}</div>}
