@@ -5,6 +5,7 @@ const OrganizationMembership = require("../models/OrganizationMembership");
 const Candidate = require("../models/Candidate");
 const Result = require("../models/Result");
 const { synchronizeAllElectionParties } = require("../services/electionGeographySyncService");
+const { approveCandidate, listPartyPendingCandidates } = require("../services/candidateApprovalService");
 
 const getAuthenticatedUserId = (req) => req.user?._id || req.user?.id || req.auth?.id || null;
 
@@ -44,7 +45,8 @@ exports.getMyPartyDashboard = async (req, res) => {
     const regions = new Set(members.map(m => String(m.regionId || "")).filter(Boolean)).size;
     const constituencies = new Set(members.map(m => String(m.constituencyId || "")).filter(Boolean)).size;
     const pollingStations = new Set(members.map(m => String(m.pollingStationId || "")).filter(Boolean)).size;
-    return res.json({ success: true, organization: { id: organization._id, name: organization.name, logo: organization.logo || null, politicalPartyName: organization.politicalPartyName || organization.name }, metrics: { members: members.length, regions, constituencies, pollingStations, candidates: candidateCount, resultsSubmitted: resultCount } });
+    const pendingCandidates = await Organization.countDocuments({ organizationType: { $in: ["presidential_candidate", "parliamentary_candidate"] }, organizationStatus: "pending", candidateParty: { $in: [organization.name, organization.politicalPartyName] } });
+    return res.json({ success: true, organization: { id: organization._id, name: organization.name, logo: organization.logo || null, politicalPartyName: organization.politicalPartyName || organization.name }, metrics: { members: members.length, regions, constituencies, pollingStations, candidates: candidateCount, pendingCandidates, resultsSubmitted: resultCount } });
   } catch (error) { console.error("Party dashboard error:", error); return res.status(500).json({ success: false, message: error.message || "Unable to load political party dashboard." }); }
 };
 
@@ -61,4 +63,30 @@ exports.updateMyPartyLogo = async (req, res) => {
     await synchronizeAllElectionParties();
     return res.json({ success: true, organization: { id: organization._id, name: organization.name, politicalPartyName: organization.politicalPartyName || organization.name, logo: organization.logo }, message: "Party logo updated and synchronized across elections." });
   } catch (error) { return res.status(400).json({ success: false, message: error.message || "Unable to update party logo." }); }
+};
+
+exports.getPendingCandidateApprovals = async (req, res) => {
+  try {
+    const userId = getAuthenticatedUserId(req); if (!userId) return res.status(401).json({ success: false, message: "Authentication required." });
+    const context = await getPartyContext(userId);
+    if (!context || context.membership.role !== "national_party_admin") return res.status(403).json({ success: false, message: "Only the political party's National Admin can review candidate registrations." });
+    const candidates = await listPartyPendingCandidates(context.organization._id);
+    return res.json({ success: true, party: { id: context.organization._id, name: context.organization.politicalPartyName || context.organization.name, logo: context.organization.logo || null }, candidates });
+  } catch (error) { return res.status(400).json({ success: false, message: error.message || "Unable to load pending candidate approvals." }); }
+};
+
+exports.approveMyPartyCandidate = async (req, res) => {
+  try {
+    const userId = getAuthenticatedUserId(req); if (!userId) return res.status(401).json({ success: false, message: "Authentication required." });
+    const actor = await User.findById(userId); const context = await getPartyContext(userId);
+    if (!context || context.membership.role !== "national_party_admin") return res.status(403).json({ success: false, message: "Only the political party's National Admin can approve candidates." });
+    if (!mongoose.Types.ObjectId.isValid(req.params.candidateId)) return res.status(400).json({ success: false, message: "Invalid candidate registration ID." });
+    const candidate = await Organization.findOne({ _id: req.params.candidateId, organizationType: { $in: ["presidential_candidate", "parliamentary_candidate"] } }).lean();
+    if (!candidate) return res.status(404).json({ success: false, message: "Candidate registration not found." });
+    if (candidate.candidateIsIndependent || String(candidate.candidateParty || "").trim().toLowerCase() === "independent") return res.status(403).json({ success: false, message: "Independent candidates are approved by the Super Admin." });
+    const partyName = String(context.organization.politicalPartyName || context.organization.name).trim().toLowerCase();
+    if (String(candidate.candidateParty || "").trim().toLowerCase() !== partyName) return res.status(403).json({ success: false, message: "This candidate is not registered for your political party." });
+    const result = await approveCandidate({ candidateId: candidate._id, actor });
+    return res.json({ success: true, message: `Candidate approved and synchronized with ${result.election.name}.`, candidate: result.candidate, election: { id: result.election._id, name: result.election.name, type: result.election.type } });
+  } catch (error) { return res.status(400).json({ success: false, message: error.message || "Unable to approve candidate." }); }
 };
