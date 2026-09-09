@@ -13,6 +13,10 @@ const organizationSchema = new mongoose.Schema(
     isPermanentParty: { type: Boolean, default: false },
     isNewPartyRequest: { type: Boolean, default: false },
     partyElectionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Election" }],
+    partyAdminRequestUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    partyAdminRequestStatus: { type: String, enum: ["none", "pending", "approved", "rejected"], default: "none" },
+    partyAdminRequestElectionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Election" }],
+    partyAdminRequestAt: { type: Date, default: null },
     candidate: {
       userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
       username: { type: String, default: null, trim: true },
