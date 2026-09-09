@@ -40,8 +40,10 @@ async function parsePdf(url) {
     } catch (error) {
       console.warn(`⚠️ EC table extraction failed: ${error.message}`);
     }
-    const text = (await parser.getText())?.text || "";
-    return { tables, text };
+
+    const plainText = (await parser.getText())?.text || "";
+    const columnText = (await parser.getText({ cellSeparator: "\t", cellThreshold: 7 }))?.text || plainText;
+    return { tables, text: plainText, columnText };
   } finally {
     await parser.destroy();
   }
@@ -49,7 +51,47 @@ async function parsePdf(url) {
 
 function tableRows(tables, special) {
   const validator = special ? codeSpecial : codeOrdinary;
-  return tables.flatMap((table) => table || []).filter(Array.isArray).map((r) => r.map(normalize)).filter((r) => r.length >= 6 && validator(r[1])).map((r) => ({ code: r[1].toUpperCase(), name: r[2], constituency: r[3], district: r[4], region: r[5], stationType: special ? "special" : "ordinary" }));
+  return tables
+    .flatMap((table) => table || [])
+    .filter(Array.isArray)
+    .map((r) => r.map(normalize))
+    .filter((r) => r.length >= 6 && validator(r[1]))
+    .map((r) => ({ code: r[1].toUpperCase(), name: r[2], constituency: r[3], district: r[4], region: r[5], stationType: special ? "special" : "ordinary" }));
+}
+
+function columnRows(text, special, regions, constituencies) {
+  const validator = special ? codeSpecial : codeOrdinary;
+  const cMap = constituencyMap(constituencies);
+  const regionMap = new Map(regions.map((r) => [key(r.name), r]));
+  const rows = [];
+
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const fields = line.split("\t").map(normalize).filter(Boolean);
+    if (!fields.length) continue;
+    const codeIndex = fields.findIndex((field) => validator(field));
+    if (codeIndex < 0 || fields.length < codeIndex + 5) continue;
+
+    const code = fields[codeIndex].toUpperCase();
+    const name = fields[codeIndex + 1];
+    const sourceConstituency = fields[codeIndex + 2];
+    const district = fields[codeIndex + 3];
+    const regionName = fields[codeIndex + 4];
+    if (!name || !district || !regionName) continue;
+
+    const region = regionMap.get(key(regionName));
+    if (!region) continue;
+
+    if (!special) {
+      const constituencyNumber = Number(code.slice(1, 3));
+      const constituency = cMap.get(`${String(region._id)}::${constituencyNumber}`);
+      if (!constituency) continue;
+      rows.push({ code, name: name.toUpperCase(), constituency: constituency.name, district: constituency.district || district, region: region.name, stationType: "ordinary", sourceConstituency });
+    } else {
+      rows.push({ code, name: name.toUpperCase(), constituency: sourceConstituency, district, region: region.name, stationType: "special" });
+    }
+  }
+
+  return rows;
 }
 
 function rawRows(text, special) {
@@ -128,7 +170,7 @@ function parseOrdinaryRows(text, regions, constituencies) {
     if (!stationName) continue;
     rows.push({ code: item.item.code, name: stationName.toUpperCase(), constituency: c.name, district: c.district, region: item.region.name, stationType: "ordinary" });
   }
-  console.log(`📄 EC ordinary text rows detected: ${raw.length.toLocaleString()}; linked by EC code geography: ${rows.length.toLocaleString()}; unresolved: ${(raw.length - rows.length).toLocaleString()}.`);
+  console.log(`📄 EC ordinary fallback rows detected: ${raw.length.toLocaleString()}; linked by EC code geography: ${rows.length.toLocaleString()}; unresolved: ${(raw.length - rows.length).toLocaleString()}.`);
   return rows;
 }
 
@@ -186,13 +228,15 @@ async function syncPollingStationsFromEcPdf() {
     if (constituencies.length !== 276) throw new Error(`Expected 276 active constituencies; found ${constituencies.length}.`);
 
     const ordinaryPdf = await parsePdf(EC_POLLING_STATIONS_PDF);
-    let ordinaryRows = tableRows(ordinaryPdf.tables, false);
+    let ordinaryRows = columnRows(ordinaryPdf.columnText, false, regions, constituencies);
+    console.log(`📐 EC ordinary column rows detected: ${ordinaryRows.length.toLocaleString()}.`);
+    if (ordinaryRows.length !== EXPECTED_ORDINARY_POLLING_STATIONS) ordinaryRows = tableRows(ordinaryPdf.tables, false);
     if (ordinaryRows.length !== EXPECTED_ORDINARY_POLLING_STATIONS) ordinaryRows = parseOrdinaryRows(ordinaryPdf.text, regions, constituencies);
-    else ordinaryRows = ordinaryRows.map((r) => ({ ...r, name: normalize(r.name).toUpperCase() }));
     ordinaryRows = validate(ordinaryRows, EXPECTED_ORDINARY_POLLING_STATIONS, "ordinary");
 
     const specialPdf = await parsePdf(EC_SPECIAL_POLLING_STATIONS_PDF);
-    let specialRows = tableRows(specialPdf.tables, true);
+    let specialRows = columnRows(specialPdf.columnText, true, regions, constituencies);
+    if (specialRows.length !== EXPECTED_SPECIAL_POLLING_STATIONS) specialRows = tableRows(specialPdf.tables, true);
     if (specialRows.length !== EXPECTED_SPECIAL_POLLING_STATIONS) specialRows = parseSpecialRows(specialPdf.text, regions, constituencies);
     specialRows = validate(specialRows, EXPECTED_SPECIAL_POLLING_STATIONS, "special");
 
