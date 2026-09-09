@@ -1,5 +1,6 @@
 import "./visual-quality.css";
 import "./modern-dashboard.css";
+import "./brand-animation.css";
 import LogoutSessionBridge from "../components/security/LogoutSessionBridge";
 import RealtimeCallProvider from "../components/communications/RealtimeCallProvider";
 import MobileCallLauncher from "../components/communications/MobileCallLauncher";
@@ -12,35 +13,9 @@ import WhatsAppMessagesEnhancer from "../components/dashboard/WhatsAppMessagesEn
 import SuperAdminSessionBridge from "../components/security/SuperAdminSessionBridge";
 import OrganizationLogoManagerInjector from "../components/dashboard/OrganizationLogoManagerInjector";
 
-export const metadata = {
-  title: "PoliSync Africa",
-  description: "POLISYNC AFRICA — Technology • Power • Elections",
-};
-
-export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
-};
+export const metadata = { title: "PoliSync Africa", description: "POLISYNC AFRICA — Technology • Power • Elections" };
+export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>
-        <RealtimeCallProvider>
-          <TimeGreetingSync />
-          <DashboardEnvironmentInjector />
-          <NotesNavInjector />
-          <LogoutSessionBridge />
-          <SuperAdminSessionBridge />
-          <DashboardBackLink />
-          <WhatsAppMessagesEnhancer />
-          <OrganizationLogoManagerInjector />
-          {children}
-          <MobileCallLauncher />
-          <PoliSyncWhatsAppButton />
-        </RealtimeCallProvider>
-      </body>
-    </html>
-  );
+  return (<html lang="en"><body><RealtimeCallProvider><TimeGreetingSync /><DashboardEnvironmentInjector /><NotesNavInjector /><LogoutSessionBridge /><SuperAdminSessionBridge /><DashboardBackLink /><WhatsAppMessagesEnhancer /><OrganizationLogoManagerInjector />{children}<MobileCallLauncher /><PoliSyncWhatsAppButton /></RealtimeCallProvider></body></html>);
 }
