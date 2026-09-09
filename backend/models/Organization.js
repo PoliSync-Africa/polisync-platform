@@ -20,6 +20,8 @@ const organizationSchema = new mongoose.Schema(
     candidate: {
       userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
       username: { type: String, default: null, trim: true },
+      firstName: { type: String, default: "", trim: true },
+      surname: { type: String, default: "", trim: true },
       fullName: { type: String, default: null, trim: true },
       profilePhoto: { type: String, default: null },
       registrationSource: { type: String, enum: ["polisync_user","official_source","manual",null], default: null },
