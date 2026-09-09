@@ -10,7 +10,7 @@ const superAdminNavigation = [
     { label: "Political Parties", href: "/super-admin/political-parties", icon: "⚑", key: "political-parties" },
     { label: "Official Presidential Candidates", href: "/super-admin/elections/candidates", icon: "♛", key: "official-election-candidates" },
     { label: "Workspace Lab", href: "/super-admin/workspaces", icon: "◈", key: "workspace-lab" },
-    { label: "Candidates", href: "/super-admin/candidates", icon: "♟", key: "candidates" },
+    { label: "Candidate Registrations", href: "/super-admin/candidates", icon: "♟", key: "candidates" },
     { label: "Geographic Data", href: "/super-admin/geography", icon: "⌖", key: "geography" },
     { label: "Electoral Data Health", href: "/super-admin/electoral-data-health", icon: "♥", key: "electoral-data" },
     { label: "Regional Health Matrix", href: "/super-admin/electoral-data-health/regions", icon: "▤", key: "electoral-regions" },
