@@ -6,6 +6,7 @@ const PollingStation = require("../models/PollingStation");
 const { syncPollingStationsFromEcPdf } = require("./syncPollingStationsFromEc");
 
 const GEOGRAPHY_FILE = path.join(__dirname, "../data/ghana_regions_constituencies.csv");
+const MIN_EXPECTED_POLLING_STATIONS = 40000;
 let ensurePromise = null;
 
 function normalize(value) {
@@ -109,12 +110,15 @@ async function ensureElectoralGeography() {
       throw new Error(`Ghana geography hierarchy remains incomplete after bootstrap (${regions} regions, ${constituencies} constituencies).`);
     }
 
-    if (pollingStations === 0) {
+    if (pollingStations < MIN_EXPECTED_POLLING_STATIONS) {
+      console.log(`🗳️ Polling-station register incomplete (${pollingStations} active records). Re-synchronizing from the bundled Electoral Commission source.`);
       const result = await syncPollingStationsFromEcPdf();
       pollingStations = result.count || await PollingStation.countDocuments({ isActive: true });
     }
 
-    if (pollingStations === 0) throw new Error("Ghana polling-station register remains empty after synchronization.");
+    if (pollingStations < MIN_EXPECTED_POLLING_STATIONS) {
+      throw new Error(`Ghana polling-station register remains incomplete after synchronization (${pollingStations} active stations).`);
+    }
     console.log(`🗺️ Electoral geography ready: ${regions} regions, ${constituencies} constituencies, ${pollingStations} polling stations.`);
     return { regions, constituencies, pollingStations };
   })().finally(() => { ensurePromise = null; });
