@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -117,8 +116,9 @@ export default function ForgotPasswordPage() {
   return (
     <main style={styles.page}>
       <div style={styles.card}>
-        <div style={{ textAlign: "center", marginBottom: 8 }}>
-          <Image src="/IMG_9654.jpeg" alt="PoliSync Africa" width={240} height={150} priority style={{ width: 240, height: "auto", maxWidth: "100%", objectFit: "contain" }} />
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: "0.08em", color: "#065F2B" }}>POLISYNC AFRICA</div>
+          <div style={{ marginTop: 5, fontSize: 11, fontWeight: 700, letterSpacing: "0.16em", color: "#C9A227" }}>POLITICAL OPERATING SYSTEM</div>
         </div>
 
         {step === "email" && (
