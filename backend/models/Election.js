@@ -8,6 +8,8 @@ const partySchema = new mongoose.Schema({
 }, { _id: false });
 
 const candidateSchema = new mongoose.Schema({
+  firstName: { type: String, default: "", trim: true },
+  surname: { type: String, default: "", trim: true },
   name: { type: String, required: true, trim: true },
   partyId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", default: null },
   party: { type: String, default: "", trim: true },
