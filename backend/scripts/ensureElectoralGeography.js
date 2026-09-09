@@ -7,7 +7,7 @@ const { syncPollingStationsFromEcPdf } = require("./syncPollingStationsFromEc");
 
 const GEOGRAPHY_FILE = path.join(__dirname, "../data/ghana_regions_constituencies.csv");
 const MIN_EXPECTED_POLLING_STATIONS = 40000;
-let ensurePromise = null;
+let hierarchyPromise = null;
 
 function normalize(value) {
   return String(value || "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
@@ -25,14 +25,13 @@ function parseCSVLine(line) {
   const out = [];
   let value = "";
   let quoted = false;
-  for (let i = 0; i < line.length; i++) {
+  for (let i = 0; i < line.length; i += 1) {
     const ch = line[i];
     if (ch === '"') {
-      if (quoted && line[i + 1] === '"') { value += '"'; i++; }
+      if (quoted && line[i + 1] === '"') { value += '"'; i += 1; }
       else quoted = !quoted;
     } else if (ch === "," && !quoted) {
-      out.push(value);
-      value = "";
+      out.push(value); value = "";
     } else value += ch;
   }
   out.push(value);
@@ -47,7 +46,8 @@ function readGeographyRows() {
   for (const required of ["region_number", "region", "constituency_number_in_region", "constituency"]) {
     if (!headers.includes(required)) throw new Error(`Missing geography CSV column: ${required}`);
   }
-  return lines.slice(1).map(parseCSVLine).map(values => Object.fromEntries(headers.map((h, i) => [h, normalize(values[i])])))
+  return lines.slice(1).map(parseCSVLine)
+    .map(values => Object.fromEntries(headers.map((h, i) => [h, normalize(values[i])])))
     .filter(row => row.region && row.constituency);
 }
 
@@ -75,8 +75,7 @@ async function seedRegionsAndConstituencies() {
     const region = regionMap.get(key(row.region));
     if (!region) throw new Error(`Region not found while bootstrapping: ${row.region}`);
     const name = normalize(row.constituency);
-    const composite = `${key(row.region)}::${key(name)}`;
-    constituencyKeys.add(composite);
+    constituencyKeys.add(`${key(row.region)}::${key(name)}`);
     await Constituency.findOneAndUpdate(
       { regionId: region._id, name },
       { $set: { name, slug: slug(name), regionId: region._id, constituencyNumber: Number(row.constituency_number_in_region), isActive: true } },
@@ -85,44 +84,44 @@ async function seedRegionsAndConstituencies() {
   }
 
   if (constituencyKeys.size !== 276) throw new Error(`Expected 276 Ghana constituencies in source data; found ${constituencyKeys.size}.`);
-  console.log(`🗺️ Ghana geography hierarchy ready: ${regionMap.size} regions, ${constituencyKeys.size} constituencies.`);
+  return { regions: regionMap.size, constituencies: constituencyKeys.size };
 }
 
 async function ensureElectoralGeography() {
-  if (ensurePromise) return ensurePromise;
-  ensurePromise = (async () => {
-    let [regions, constituencies, pollingStations] = await Promise.all([
+  if (hierarchyPromise) return hierarchyPromise;
+  hierarchyPromise = (async () => {
+    let [regions, constituencies] = await Promise.all([
       Region.countDocuments({ isActive: true }),
       Constituency.countDocuments({ isActive: true }),
-      PollingStation.countDocuments({ isActive: true }),
     ]);
-
     if (regions < 16 || constituencies < 276) {
-      console.log(`🗺️ Ghana geography hierarchy incomplete (${regions}/16 regions, ${constituencies}/276 constituencies). Repairing from bundled validated source.`);
+      console.log(`🗺️ Repairing Ghana geography hierarchy (${regions}/16 regions, ${constituencies}/276 constituencies).`);
       await seedRegionsAndConstituencies();
       [regions, constituencies] = await Promise.all([
         Region.countDocuments({ isActive: true }),
         Constituency.countDocuments({ isActive: true }),
       ]);
     }
-
     if (regions < 16 || constituencies < 276) {
-      throw new Error(`Ghana geography hierarchy remains incomplete after bootstrap (${regions} regions, ${constituencies} constituencies).`);
+      throw new Error(`Ghana geography hierarchy remains incomplete (${regions} regions, ${constituencies} constituencies).`);
     }
-
-    if (pollingStations < MIN_EXPECTED_POLLING_STATIONS) {
-      console.log(`🗳️ Polling-station register incomplete (${pollingStations} active records). Re-synchronizing from the bundled Electoral Commission source.`);
-      const result = await syncPollingStationsFromEcPdf();
-      pollingStations = result.count || await PollingStation.countDocuments({ isActive: true });
-    }
-
-    if (pollingStations < MIN_EXPECTED_POLLING_STATIONS) {
-      throw new Error(`Ghana polling-station register remains incomplete after synchronization (${pollingStations} active stations).`);
-    }
-    console.log(`🗺️ Electoral geography ready: ${regions} regions, ${constituencies} constituencies, ${pollingStations} polling stations.`);
-    return { regions, constituencies, pollingStations };
-  })().finally(() => { ensurePromise = null; });
-  return ensurePromise;
+    const pollingStations = await PollingStation.countDocuments({ isActive: true });
+    return { regions, constituencies, pollingStations, pollingStationsReady: pollingStations >= MIN_EXPECTED_POLLING_STATIONS };
+  })().finally(() => { hierarchyPromise = null; });
+  return hierarchyPromise;
 }
 
-module.exports = { ensureElectoralGeography };
+async function refreshElectoralGeography() {
+  await ensureElectoralGeography();
+  const result = await syncPollingStationsFromEcPdf();
+  const [regions, constituencies, pollingStations] = await Promise.all([
+    Region.countDocuments({ isActive: true }),
+    Constituency.countDocuments({ isActive: true }),
+    PollingStation.countDocuments({ isActive: true }),
+  ]);
+  if (regions < 16 || constituencies < 276) throw new Error(`Electoral geography hierarchy is incomplete after refresh (${regions} regions, ${constituencies} constituencies).`);
+  if (pollingStations < 1000) throw new Error(`Polling-station refresh produced an unsafe result (${pollingStations} active stations).`);
+  return { regions, constituencies, pollingStations, pollingStationSync: result };
+}
+
+module.exports = { ensureElectoralGeography, refreshElectoralGeography, seedRegionsAndConstituencies, MIN_EXPECTED_POLLING_STATIONS };
