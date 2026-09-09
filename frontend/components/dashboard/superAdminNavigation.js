@@ -8,7 +8,6 @@ const superAdminNavigation = [
     { label: "Users & Accounts", href: "/super-admin/users", icon: "♙", key: "users" },
     { label: "Organizations", href: "/super-admin/organizations", icon: "▦", key: "organizations" },
     { label: "Political Parties", href: "/super-admin/political-parties", icon: "⚑", key: "political-parties" },
-    { label: "Election Candidates", href: "/super-admin/elections/candidates", icon: "♟", key: "election-candidates" },
     { label: "Workspace Lab", href: "/super-admin/workspaces", icon: "◈", key: "workspace-lab" },
     { label: "Candidates", href: "/super-admin/candidates", icon: "♟", key: "candidates" },
     { label: "Geographic Data", href: "/super-admin/geography", icon: "⌖", key: "geography" },
