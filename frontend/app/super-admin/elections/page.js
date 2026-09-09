@@ -5,50 +5,486 @@ import DashboardShell from "../../../components/dashboard/DashboardShell";
 import superAdminNavigation from "../../../components/dashboard/superAdminNavigation";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "https://polisync-platform-1.onrender.com").replace(/\/+$/, "");
-const token = () => typeof window === "undefined" ? "" : ["polisync_token", "authToken", "accessToken", "token"].map((k) => localStorage.getItem(k) || sessionStorage.getItem(k)).find(Boolean) || "";
-const pad = (n) => String(n).padStart(2, "0");
-const today = new Date();
-const todayDate = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-const EMPTY = { name: "", electionDate: todayDate, startTime: "08:00", endTime: "17:00", type: "Presidential", country: "Ghana", status: "Draft", totalPollingStations: 0, parties: [], candidates: [] };
-function headers() { const t = token(); return { "Content-Type": "application/json", Accept: "application/json", ...(t ? { Authorization: `Bearer ${t}` } : {}) }; }
-async function request(path, options = {}) { const response = await fetch(`${API_URL}${path}`, { cache: "no-store", ...options, headers: { ...headers(), ...(options.headers || {}) } }); const body = await response.json().catch(() => ({})); if (!response.ok || body.success === false) throw new Error(body.message || `Request failed (${response.status})`); return body; }
-function dateTime(date, time) { return date && time ? `${date}T${time}:00+00:00` : null; }
-function dateLabel(value) { const d = new Date(value); return Number.isNaN(d.getTime()) ? "Date not set" : new Intl.DateTimeFormat("en-GH", { year: "numeric", month: "long", day: "numeric", timeZone: "Africa/Accra" }).format(d); }
-function timeLabel(value) { const d = new Date(value); return Number.isNaN(d.getTime()) ? "" : new Intl.DateTimeFormat("en-GH", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Africa/Accra" }).format(d); }
-function formFromElection(e) { const start = e.startDateTime ? new Date(e.startDateTime) : null; const end = e.endDateTime ? new Date(e.endDateTime) : null; const localDate = start && !Number.isNaN(start.getTime()) ? new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Africa/Accra" }).format(start) : `${e.year || today.getFullYear()}-01-01`; const localTime = (d, fallback) => d && !Number.isNaN(d.getTime()) ? new Intl.DateTimeFormat("en-GH", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Africa/Accra" }).format(d) : fallback; return { ...EMPTY, name: e.name || "", electionDate: localDate, startTime: localTime(start, "08:00"), endTime: localTime(end, "17:00"), type: e.type || "Presidential", country: e.country || "Ghana", status: e.status || "Draft", totalPollingStations: e.totalPollingStations || 0, parties: Array.isArray(e.parties) ? e.parties : [], candidates: Array.isArray(e.candidates) ? e.candidates : [] }; }
-function readImage(file, maxBytes = 2 * 1024 * 1024) { return new Promise((resolve, reject) => { if (!file) return resolve(""); if (!file.type.startsWith("image/")) return reject(new Error("Please select an image file.")); if (file.size > maxBytes) return reject(new Error("Image must be 2 MB or smaller.")); const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(new Error("Unable to read the image.")); r.readAsDataURL(file); }); }
-function partyKey(p) { return String(p?.partyId || p?.id || p?.name || "").trim().toLowerCase(); }
+
+function getToken() {
+  if (typeof window === "undefined") return "";
+  return ["polisync_token", "authToken", "accessToken", "token"]
+    .map((key) => localStorage.getItem(key) || sessionStorage.getItem(key))
+    .find(Boolean) || "";
+}
+
+async function request(path, options = {}) {
+  const token = getToken();
+  const response = await fetch(`${API_URL}${path}`, {
+    cache: "no-store",
+    ...options,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.success === false) {
+    throw new Error(body.message || `Request failed (${response.status})`);
+  }
+  return body;
+}
+
+function partyId(value) {
+  return String(value?.partyId || value?.id || "");
+}
+
+function candidateForParty(candidates, party) {
+  return candidates.find(
+    (candidate) =>
+      !candidate.constituencyId &&
+      String(candidate.partyId || "") === String(party.partyId || "")
+  );
+}
+
+function formatDate(value) {
+  if (!value) return "Date not set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date not set";
+  return new Intl.DateTimeFormat("en-GH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "Africa/Accra",
+  }).format(date);
+}
+
+function formatTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GH", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Africa/Accra",
+  }).format(date);
+}
+
+function toDateInput(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Africa/Accra",
+  }).format(date);
+}
+
+function toTimeInput(value, fallback) {
+  if (!value) return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return new Intl.DateTimeFormat("en-GH", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Africa/Accra",
+  }).format(date);
+}
+
+function imageData(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve("");
+    if (!file.type.startsWith("image/")) return reject(new Error("Please select an image file."));
+    if (file.size > 2 * 1024 * 1024) return reject(new Error("Image must be 2 MB or smaller."));
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Unable to read the image."));
+    reader.readAsDataURL(file);
+  });
+}
+
+const emptyForm = () => ({
+  name: "",
+  electionDate: new Date().toISOString().slice(0, 10),
+  startTime: "08:00",
+  endTime: "17:00",
+  type: "Presidential",
+  country: "Ghana",
+  status: "Draft",
+  totalPollingStations: 0,
+  parties: [],
+  candidates: [],
+});
+
+function formFromElection(election) {
+  return {
+    ...emptyForm(),
+    name: election.name || "",
+    electionDate: toDateInput(election.startDateTime) || `${election.year || new Date().getFullYear()}-01-01`,
+    startTime: toTimeInput(election.startDateTime, "08:00"),
+    endTime: toTimeInput(election.endDateTime, "17:00"),
+    type: election.type || "Presidential",
+    country: election.country || "Ghana",
+    status: election.status || "Draft",
+    totalPollingStations: election.totalPollingStations || 0,
+    parties: Array.isArray(election.parties) ? election.parties : [],
+    candidates: Array.isArray(election.candidates) ? election.candidates : [],
+  };
+}
 
 export default function ElectionsPage() {
-  const [elections, setElections] = useState([]), [parties, setParties] = useState([]), [form, setForm] = useState(EMPTY), [editing, setEditing] = useState(null), [view, setView] = useState("all"), [geo, setGeo] = useState({ regions: 0, constituencies: 0, pollingStations: 0, ready: false }), [loading, setLoading] = useState(true), [saving, setSaving] = useState(false), [logoSaving, setLogoSaving] = useState(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
-  const load = useCallback(async () => { setLoading(true); setError(""); try { const [e, p, g] = await Promise.all([request("/api/elections"), request("/api/elections/parties"), request("/api/electoral-geography/summary")]); setElections(Array.isArray(e.elections) ? e.elections : []); setParties(Array.isArray(p.parties) ? p.parties : []); setGeo(g.data || { regions: 0, constituencies: 0, pollingStations: 0, ready: false }); } catch (err) { setError(err.message); } finally { setLoading(false); } }, []);
-  useEffect(() => { load(); }, [load]);
-  const visible = useMemo(() => view === "live" ? elections.filter((e) => e.status === "Active") : view === "history" ? elections.filter((e) => e.status === "Closed") : elections, [elections, view]);
-  const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  const selectedIds = new Set((form.parties || []).map((p) => String(p.partyId || "")));
-  const addSystemParty = (event) => { const id = event.target.value; event.target.value = ""; const party = parties.find((p) => String(p.id) === String(id)); if (!party || selectedIds.has(String(id))) return; setField("parties", [...form.parties, { partyId: party.id, name: party.name, logoUrl: party.logoUrl || "" }]); };
-  const removeParty = (id) => { setForm((current) => ({ ...current, parties: current.parties.filter((p) => String(p.partyId) !== String(id)), candidates: current.candidates.filter((c) => String(c.partyId || "") !== String(id)) })); };
-  const addCandidateForParty = (partyId) => { const party = form.parties.find((p) => String(p.partyId) === String(partyId)); if (!party) return; const exists = form.candidates.some((c) => String(c.partyId || "") === String(party.partyId) && !c.constituencyId); if (exists) { setError(`${party.name} already has a presidential candidate. Edit the existing candidate instead.`); return; } setError(""); setField("candidates", [...form.candidates, { name: "", partyId: party.partyId, party: party.name, partyLogoUrl: party.logoUrl || "", profilePictureUrl: "", constituencyId: null }]); };
-  const addIndependentCandidate = () => { const independent = parties.find((p) => String(p.name || "").trim().toLowerCase() === "independent"); if (!independent) return setError("Independent is not available in the system party registry."); const participant = form.parties.find((p) => String(p.partyId) === String(independent.id)); if (!participant) return setError("Add Independent to this election before adding an Independent candidate."); const exists = form.candidates.some((c) => String(c.partyId || "") === String(participant.partyId) && !c.constituencyId); if (exists) return setError("Independent already has a presidential candidate."); setError(""); setField("candidates", [...form.candidates, { name: "", partyId: participant.partyId, party: participant.name, partyLogoUrl: participant.logoUrl || "", profilePictureUrl: "", constituencyId: null }]); };
-  const updateCandidate = (i, key, value) => setField("candidates", form.candidates.map((c, n) => n === i ? { ...c, [key]: value } : c));
-  const removeCandidate = (i) => setField("candidates", form.candidates.filter((_, n) => n !== i));
-  const uploadCandidatePhoto = async (i, file) => { if (!file) return; try { const photo = await readImage(file); updateCandidate(i, "profilePictureUrl", photo); setNotice("Candidate photo added. Save the election to keep it."); } catch (err) { setError(err.message); } };
-  const updatePartyLogo = async (partyId, file) => { if (!file) return; try { setLogoSaving(String(partyId)); const logoUrl = await readImage(file); const result = await request(`/api/elections/parties/${partyId}/logo`, { method: "PATCH", body: JSON.stringify({ logoUrl }) }); setParties((current) => current.map((p) => String(p.id) === String(partyId) ? { ...p, logoUrl: result.party.logoUrl } : p)); setForm((current) => ({ ...current, parties: current.parties.map((p) => String(p.partyId) === String(partyId) ? { ...p, logoUrl: result.party.logoUrl } : p), candidates: current.candidates.map((c) => String(c.partyId) === String(partyId) ? { ...c, partyLogoUrl: result.party.logoUrl, party: current.parties.find((p) => String(p.partyId) === String(partyId))?.name || c.party } : c) })); setNotice("Political party logo updated in the system and this election."); } catch (err) { setError(err.message); } finally { setLogoSaving(null); } };
-  const save = async (event) => { event.preventDefault(); setSaving(true); setError(""); setNotice(""); try { if (!form.name.trim()) throw new Error("Election name is required."); if (!form.electionDate || !form.startTime || !form.endTime) throw new Error("Select the election date and voting times."); const startDateTime = dateTime(form.electionDate, form.startTime), endDateTime = dateTime(form.electionDate, form.endTime); if (new Date(endDateTime) <= new Date(startDateTime)) throw new Error("End time must be after start time."); if (form.type === "Presidential") { const participants = form.parties; const participantKeys = new Set(participants.map(partyKey)); const candidateByParty = new Map(); for (const c of form.candidates.filter((c) => !c.constituencyId)) { const key = partyKey(c); if (!key || !participantKeys.has(key)) throw new Error(`${c.name || "Candidate"} must belong to one of the participating parties.`); if (candidateByParty.has(key)) throw new Error(`Each participating party can have only one presidential candidate.`); candidateByParty.set(key, c); } if (candidateByParty.size !== participants.length) throw new Error("Add exactly one presidential candidate using the + Add Candidate button on every participating party."); } const payload = { ...form, year: Number(form.electionDate.slice(0, 4)), startDateTime, endDateTime, totalPollingStations: Number(form.totalPollingStations || geo.pollingStations || 0), parties: form.parties.map((p) => ({ partyId: p.partyId, name: p.name, logoUrl: p.logoUrl || "" })), candidates: form.candidates.map((c) => ({ name: c.name, partyId: c.partyId, party: c.party, partyLogoUrl: c.partyLogoUrl || "", profilePictureUrl: c.profilePictureUrl || "", constituencyId: c.constituencyId || null })) }; delete payload.electionDate; delete payload.startTime; delete payload.endTime; const result = await request(editing ? `/api/elections/${editing._id}` : "/api/elections/create", { method: editing ? "PATCH" : "POST", body: JSON.stringify(payload) }); setNotice(editing ? "Election updated successfully." : "Election created successfully."); setEditing(null); setForm(EMPTY); setElections((current) => editing ? current.map((e) => e._id === result.election._id ? result.election : e) : [result.election, ...current]); await load(); } catch (err) { setError(err.message); } finally { setSaving(false); } };
-  const editElection = (e) => { setEditing(e); setForm(formFromElection(e)); window.scrollTo({ top: 0, behavior: "smooth" }); };
-  const deleteElection = async (e) => { if (!window.confirm(`Delete “${e.name}”? This cannot be undone.`)) return; try { await request(`/api/elections/${e._id}`, { method: "DELETE" }); setNotice("Election deleted successfully."); await load(); } catch (err) { setError(err.message); } };
-  const candidateForParty = (party) => form.candidates.find((c) => String(c.partyId || "") === String(party.partyId) && !c.constituencyId);
-  return <DashboardShell role="super_admin" navigation={superAdminNavigation} activeSection="elections" title="Election Management" subtitle="Create and control elections using synchronized PoliSync electoral data">
-    <main className="page">
-      <section className="hero"><div><span>POLISYNC AFRICA • ELECTION CONTROL</span><h1>Election Management</h1><p>Election geography is synchronized from the PoliSync electoral registry. Regions, constituencies and polling stations are kept together for every election.</p></div><button onClick={load} className="refresh">↻ Refresh &amp; Sync</button></section>
-      {notice && <div className="notice success">✓ {notice}</div>}{error && <div className="notice error">{error}</div>}
-      <section className="geo"><div><small>GEOGRAPHY REGISTRY</small><strong>{geo.ready ? "Synchronized" : "Preparing"}</strong></div><div><span>Regions</span><b>{Number(geo.regions || 0).toLocaleString()}</b></div><div><span>Constituencies</span><b>{Number(geo.constituencies || 0).toLocaleString()}</b></div><div><span>Polling stations</span><b>{Number(geo.pollingStations || 0).toLocaleString()}</b></div></section>
-      <section className="composer"><div className="section-title"><div><h2>{editing ? "Edit Election" : "Create Election"}</h2><p>Election date and time are saved in Ghana time (GMT / Africa-Accra).</p></div>{editing && <button type="button" className="cancel" onClick={() => { setEditing(null); setForm(EMPTY); }}>Cancel</button>}</div>
-        <form onSubmit={save} className="form-grid"><label className="wide">Election name<input required value={form.name} onChange={(e) => setField("name", e.target.value)} placeholder="Ghana General Election" /></label><label>Election date<input required type="date" value={form.electionDate} onChange={(e) => setField("electionDate", e.target.value)} /></label><label>Start time<input required type="time" value={form.startTime} onChange={(e) => setField("startTime", e.target.value)} /></label><label>End time<input required type="time" value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} /></label><label>Election type<select value={form.type} onChange={(e) => setField("type", e.target.value)}><option>Presidential</option><option>Parliamentary</option><option>Local</option></select></label><label>Country<input value={form.country} onChange={(e) => setField("country", e.target.value)} /></label><label>Status<select value={form.status} onChange={(e) => setField("status", e.target.value)}><option>Draft</option><option>Active</option><option>Closed</option></select></label><div className="sync-field"><span>Election geography</span><strong>{Number(geo.regions || 0).toLocaleString()} regions · {Number(geo.constituencies || 0).toLocaleString()} constituencies · {Number(geo.pollingStations || 0).toLocaleString()} polling stations</strong><small>Automatically synchronized from the current electoral registry.</small></div><div className="submit"><button className="primary" disabled={saving}>{saving ? "Saving…" : editing ? "Save Election Changes" : "Create Election"}</button></div></form>
-      <section className="party-section"><div className="section-title"><div><h3>Participating Political Parties</h3><p>Each participating party gets its own candidate slot. Candidate affiliation is locked to that party.</p></div><select className="party-picker" defaultValue="" onChange={addSystemParty}><option value="">+ Add system political party</option>{parties.filter((p) => !selectedIds.has(String(p.id))).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div className="party-grid">{form.parties.map((party) => { const candidate = candidateForParty(party); return <article className="party-card" key={party.partyId}><div className="party-logo">{party.logoUrl ? <img src={party.logoUrl} alt="" /> : "LOGO"}</div><div className="party-info"><strong>{party.name}</strong><small>Participating party</small><label className="upload">{logoSaving === String(party.partyId) ? "Updating…" : "Upload party logo"}<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(e) => updatePartyLogo(party.partyId, e.target.files?.[0])} /></label></div><button type="button" className="remove" onClick={() => removeParty(party.partyId)}>Remove</button><div className="party-candidate"><strong>{candidate ? "Presidential Candidate" : "No Candidate Added"}</strong>{candidate ? <div className="candidate-inline"><input value={candidate.name || ""} onChange={(e) => updateCandidate(form.candidates.indexOf(candidate), "name", e.target.value)} placeholder={`Enter ${party.name} presidential candidate`} /><label className="upload">{candidate.profilePictureUrl ? "Change photo" : "Add candidate photo"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => uploadCandidatePhoto(form.candidates.indexOf(candidate), e.target.files?.[0])} /></label><button type="button" className="remove" onClick={() => removeCandidate(form.candidates.indexOf(candidate))}>Remove candidate</button></div> : <button type="button" className="add" onClick={() => addCandidateForParty(party.partyId)}>+ Add Candidate</button>}</div></article>; })}</div>{form.parties.some((p) => String(p.name || "").trim().toLowerCase() === "independent") && <div className="independent-note"><strong>Independent</strong><span>Independent uses the same participant and candidate slot. It is never inserted automatically.</span>{!candidateForParty(form.parties.find((p) => String(p.name || "").trim().toLowerCase() === "independent")) && <button type="button" className="add" onClick={addIndependentCandidate}>+ Add Candidate</button>}</div>}</section>
-      <section className="party-section"><div className="section-title"><div><h3>Other Candidates</h3><p>Use this area only for non-presidential candidates such as parliamentary or local races.</p></div></div>{form.candidates.filter((c) => c.constituencyId).map((candidate, i) => <div className="candidate" key={`${candidate.partyId}-${i}`}><input value={candidate.name || ""} onChange={(e) => updateCandidate(form.candidates.indexOf(candidate), "name", e.target.value)} placeholder="Candidate name" /><span>{candidate.party}</span></div>)}</section>
-      <section className="elections"><div className="tabs"><button type="button" className={view === "all" ? "active" : ""} onClick={() => setView("all")}>All</button><button type="button" className={view === "live" ? "active" : ""} onClick={() => setView("live")}>Active</button><button type="button" className={view === "history" ? "active" : ""} onClick={() => setView("history")}>Closed</button></div>{loading ? <div className="empty">Loading elections…</div> : visible.length === 0 ? <div className="empty">No elections found.</div> : <div className="election-list">{visible.map((e) => <article className="election-card" key={e._id}><div><span>{e.type} • {e.status}</span><h3>{e.name}</h3><p>{dateLabel(e.startDateTime)} · {timeLabel(e.startDateTime)}–{timeLabel(e.endDateTime)}</p><small>{Array.isArray(e.parties) ? e.parties.length : 0} participating parties · {Array.isArray(e.candidates) ? e.candidates.length : 0} candidates</small></div><div className="actions"><button type="button" onClick={() => editElection(e)} disabled={e.status === "Closed"}>Edit</button><button type="button" onClick={() => deleteElection(e)} disabled={e.status !== "Draft"}>Delete</button></div></article>)}</div>}</section>
-    </main>
-    <style jsx>{` .page{display:grid;gap:20px;padding:4px 0 40px}.hero,.composer,.party-section,.elections,.geo{background:var(--card,#fff);border:1px solid rgba(15,23,42,.08);border-radius:20px;padding:22px}.hero{display:flex;justify-content:space-between;gap:20px;align-items:center}.hero span,.hero small,.geo small{font-size:11px;font-weight:800;letter-spacing:.12em;color:#64748b}.hero h1{margin:5px 0;font-size:30px}.hero p,.section-title p{margin:5px 0;color:#64748b}.refresh,.cancel,.add,.primary,.remove,.party-picker,.actions button{border:1px solid #dbe2ea;border-radius:12px;padding:10px 14px;background:#fff;cursor:pointer}.primary{background:#111827;color:#fff}.add{background:#f8fafc;font-weight:700}.remove{color:#b91c1c}.geo{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:12px}.geo>div{padding:14px;border-radius:14px;background:#f8fafc}.geo strong,.geo b{display:block;margin-top:5px}.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.form-grid label{display:grid;gap:6px;font-size:13px;font-weight:700}.form-grid .wide{grid-column:1/-1}.form-grid input,.form-grid select,.candidate-inline input,.candidate input{width:100%;border:1px solid #dbe2ea;border-radius:10px;padding:11px;background:#fff}.sync-field{padding:12px;background:#f8fafc;border-radius:12px;display:grid;gap:4px}.submit{display:flex;align-items:end}.section-title{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:15px}.party-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.party-card{border:1px solid #e2e8f0;border-radius:16px;padding:14px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start}.party-logo{width:58px;height:58px;border-radius:12px;background:#f1f5f9;display:grid;place-items:center;overflow:hidden;font-size:10px;font-weight:800}.party-logo img{width:100%;height:100%;object-fit:contain}.party-info{display:grid;gap:4px}.party-info small{color:#64748b}.upload{font-size:12px;color:#475569;cursor:pointer}.upload input{display:none}.party-candidate{grid-column:1/-1;border-top:1px solid #eef2f7;padding-top:12px;display:grid;gap:10px}.candidate-inline{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}.independent-note{margin-top:14px;border:1px dashed #cbd5e1;border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.independent-note span{color:#64748b;font-size:13px}.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{border:0;background:#f1f5f9;border-radius:10px;padding:9px 13px;cursor:pointer}.tabs .active{background:#111827;color:#fff}.election-list{display:grid;gap:10px}.election-card{display:flex;justify-content:space-between;gap:15px;border:1px solid #e2e8f0;border-radius:14px;padding:15px}.election-card h3{margin:5px 0}.election-card p,.election-card small{color:#64748b}.actions{display:flex;gap:8px;align-items:center}.empty{padding:25px;text-align:center;color:#64748b}@media(max-width:800px){.hero,.section-title,.election-card{display:grid}.geo,.form-grid,.party-grid{grid-template-columns:1fr}.candidate-inline{grid-template-columns:1fr}.submit{align-items:stretch}.party-card{grid-template-columns:auto 1fr}.party-card>.remove{grid-column:2}.actions{justify-content:flex-start}}`}</style>
-  </DashboardShell>;
+  const [elections, setElections] = useState([]);
+  const [systemParties, setSystemParties] = useState([]);
+  const [form, setForm] = useState(emptyForm);
+  const [editing, setEditing] = useState(null);
+  const [view, setView] = useState("all");
+  const [geo, setGeo] = useState({ regions: 0, constituencies: 0, pollingStations: 0, ready: false });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [electionsResponse, partiesResponse, geoResponse] = await Promise.all([
+        request("/api/elections"),
+        request("/api/elections/parties"),
+        request("/api/electoral-geography/summary"),
+      ]);
+      setElections(Array.isArray(electionsResponse.elections) ? electionsResponse.elections : []);
+      setSystemParties(Array.isArray(partiesResponse.parties) ? partiesResponse.parties : []);
+      setGeo(geoResponse.data || { regions: 0, constituencies: 0, pollingStations: 0, ready: false });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const visibleElections = useMemo(() => {
+    if (view === "live") return elections.filter((election) => election.status === "Active");
+    if (view === "history") return elections.filter((election) => election.status === "Closed");
+    return elections;
+  }, [elections, view]);
+
+  const setField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const selectedPartyIds = new Set(form.parties.map((party) => partyId(party)));
+
+  const addSystemParty = (event) => {
+    const id = event.target.value;
+    event.target.value = "";
+    const party = systemParties.find((item) => String(item.id) === String(id));
+    if (!party || selectedPartyIds.has(String(party.id))) return;
+    setForm((current) => ({
+      ...current,
+      parties: [
+        ...current.parties,
+        { partyId: party.id, name: party.name, logoUrl: party.logoUrl || "" },
+      ],
+    }));
+  };
+
+  const removeParty = (id) => {
+    setForm((current) => ({
+      ...current,
+      parties: current.parties.filter((party) => String(party.partyId) !== String(id)),
+      candidates: current.candidates.filter((candidate) => String(candidate.partyId || "") !== String(id)),
+    }));
+  };
+
+  const addCandidateForParty = (party) => {
+    const exists = candidateForParty(form.candidates, party);
+    if (exists) {
+      setError(`${party.name} already has a presidential candidate.`);
+      return;
+    }
+    setError("");
+    setForm((current) => ({
+      ...current,
+      candidates: [
+        ...current.candidates,
+        {
+          name: "",
+          partyId: party.partyId,
+          party: party.name,
+          partyLogoUrl: party.logoUrl || "",
+          profilePictureUrl: "",
+          constituencyId: null,
+        },
+      ],
+    }));
+  };
+
+  const updateCandidate = (candidate, field, value) => {
+    setForm((current) => ({
+      ...current,
+      candidates: current.candidates.map((item) =>
+        item === candidate ? { ...item, [field]: value } : item
+      ),
+    }));
+  };
+
+  const removeCandidate = (candidate) => {
+    setForm((current) => ({
+      ...current,
+      candidates: current.candidates.filter((item) => item !== candidate),
+    }));
+  };
+
+  const uploadCandidatePhoto = async (candidate, file) => {
+    if (!file) return;
+    try {
+      const photo = await imageData(file);
+      updateCandidate(candidate, "profilePictureUrl", photo);
+      setNotice("Candidate photo added. Save the election to keep it.");
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const updatePartyLogo = async (party, file) => {
+    if (!file) return;
+    try {
+      const logoUrl = await imageData(file);
+      const result = await request(`/api/elections/parties/${party.partyId}/logo`, {
+        method: "PATCH",
+        body: JSON.stringify({ logoUrl }),
+      });
+      const savedLogo = result.party?.logoUrl || logoUrl;
+      setForm((current) => ({
+        ...current,
+        parties: current.parties.map((item) =>
+          String(item.partyId) === String(party.partyId) ? { ...item, logoUrl: savedLogo } : item
+        ),
+        candidates: current.candidates.map((candidate) =>
+          String(candidate.partyId) === String(party.partyId)
+            ? { ...candidate, partyLogoUrl: savedLogo }
+            : candidate
+        ),
+      }));
+      setSystemParties((current) =>
+        current.map((item) => String(item.id) === String(party.partyId) ? { ...item, logoUrl: savedLogo } : item)
+      );
+      setNotice("Party logo updated and synchronized with its candidate.");
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const saveElection = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      if (!form.name.trim()) throw new Error("Election name is required.");
+      if (!form.electionDate || !form.startTime || !form.endTime) throw new Error("Select the election date and voting times.");
+      const startDateTime = `${form.electionDate}T${form.startTime}:00+00:00`;
+      const endDateTime = `${form.electionDate}T${form.endTime}:00+00:00`;
+      if (new Date(endDateTime) <= new Date(startDateTime)) throw new Error("End time must be after start time.");
+
+      if (form.type === "Presidential") {
+        const participantIds = new Set(form.parties.map((party) => String(party.partyId)));
+        const presidentialCandidates = form.candidates.filter((candidate) => !candidate.constituencyId);
+        if (presidentialCandidates.length !== form.parties.length) {
+          throw new Error("Add exactly one presidential candidate using the + Add Candidate button on every participating party.");
+        }
+        const seen = new Set();
+        for (const candidate of presidentialCandidates) {
+          const id = String(candidate.partyId || "");
+          if (!participantIds.has(id)) throw new Error(`${candidate.name || "Candidate"} must belong to a participating party.`);
+          if (seen.has(id)) throw new Error("Each participating party can have only one presidential candidate.");
+          seen.add(id);
+          if (!String(candidate.name || "").trim()) throw new Error("Every presidential candidate must have a name.");
+        }
+        if (seen.size !== form.parties.length) throw new Error("Every participating party must have exactly one presidential candidate.");
+      }
+
+      const payload = {
+        ...form,
+        year: Number(form.electionDate.slice(0, 4)),
+        startDateTime,
+        endDateTime,
+        totalPollingStations: Number(form.totalPollingStations || geo.pollingStations || 0),
+        parties: form.parties.map((party) => ({
+          partyId: party.partyId,
+          name: party.name,
+          logoUrl: party.logoUrl || "",
+        })),
+        candidates: form.candidates.map((candidate) => ({
+          name: candidate.name,
+          partyId: candidate.partyId,
+          party: candidate.party,
+          partyLogoUrl: candidate.partyLogoUrl || "",
+          profilePictureUrl: candidate.profilePictureUrl || "",
+          constituencyId: candidate.constituencyId || null,
+        })),
+      };
+      delete payload.electionDate;
+      delete payload.startTime;
+      delete payload.endTime;
+
+      const result = await request(
+        editing ? `/api/elections/${editing._id}` : "/api/elections/create",
+        { method: editing ? "PATCH" : "POST", body: JSON.stringify(payload) }
+      );
+
+      setNotice(editing ? "Election updated successfully." : "Election created successfully.");
+      setEditing(null);
+      setForm(emptyForm());
+      if (result.election) {
+        setElections((current) => editing
+          ? current.map((item) => item._id === result.election._id ? result.election : item)
+          : [result.election, ...current]
+        );
+      }
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const editElection = (election) => {
+    setEditing(election);
+    setForm(formFromElection(election));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const deleteElection = async (election) => {
+    if (!window.confirm(`Delete “${election.name}”? This cannot be undone.`)) return;
+    try {
+      await request(`/api/elections/${election._id}`, { method: "DELETE" });
+      setNotice("Election deleted successfully.");
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <DashboardShell
+      role="super_admin"
+      navigation={superAdminNavigation}
+      activeSection="elections"
+      title="Election Management"
+      subtitle="Create and control elections using synchronized PoliSync electoral data"
+    >
+      <main className="page">
+        <section className="hero">
+          <div>
+            <span>POLISYNC AFRICA • ELECTION CONTROL</span>
+            <h1>Election Management</h1>
+            <p>Political parties are synchronized from the system registry. Each participating party receives its own presidential candidate slot.</p>
+          </div>
+          <button type="button" className="refresh" onClick={load}>↻ Refresh &amp; Sync</button>
+        </section>
+
+        {notice && <div className="notice success">✓ {notice}</div>}
+        {error && <div className="notice error">{error}</div>}
+
+        <section className="geo">
+          <div><small>GEOGRAPHY REGISTRY</small><strong>{geo.ready ? "Synchronized" : "Preparing"}</strong></div>
+          <div><span>Regions</span><b>{Number(geo.regions || 0).toLocaleString()}</b></div>
+          <div><span>Constituencies</span><b>{Number(geo.constituencies || 0).toLocaleString()}</b></div>
+          <div><span>Polling stations</span><b>{Number(geo.pollingStations || 0).toLocaleString()}</b></div>
+        </section>
+
+        <section className="composer">
+          <div className="section-title">
+            <div>
+              <h2>{editing ? "Edit Election" : "Create Election"}</h2>
+              <p>Election date and time are saved in Ghana time.</p>
+            </div>
+            {editing && <button type="button" className="cancel" onClick={() => { setEditing(null); setForm(emptyForm()); }}>Cancel</button>}
+          </div>
+
+          <form onSubmit={saveElection} className="form-grid">
+            <label className="wide">Election name<input required value={form.name} onChange={(e) => setField("name", e.target.value)} placeholder="Ghana General Election" /></label>
+            <label>Election date<input required type="date" value={form.electionDate} onChange={(e) => setField("electionDate", e.target.value)} /></label>
+            <label>Start time<input required type="time" value={form.startTime} onChange={(e) => setField("startTime", e.target.value)} /></label>
+            <label>End time<input required type="time" value={form.endTime} onChange={(e) => setField("endTime", e.target.value)} /></label>
+            <label>Election type<select value={form.type} onChange={(e) => setField("type", e.target.value)}><option>Presidential</option><option>Parliamentary</option><option>Local</option></select></label>
+            <label>Country<input value={form.country} onChange={(e) => setField("country", e.target.value)} /></label>
+            <label>Status<select value={form.status} onChange={(e) => setField("status", e.target.value)}><option>Draft</option><option>Active</option><option>Closed</option></select></label>
+            <div className="sync-field"><span>Election geography</span><strong>{Number(geo.regions || 0).toLocaleString()} regions · {Number(geo.constituencies || 0).toLocaleString()} constituencies · {Number(geo.pollingStations || 0).toLocaleString()} polling stations</strong><small>Automatically synchronized from the electoral registry.</small></div>
+            <div className="submit"><button className="primary" disabled={saving}>{saving ? "Saving…" : editing ? "Save Election Changes" : "Create Election"}</button></div>
+          </form>
+
+          <section className="party-section">
+            <div className="section-title">
+              <div><h3>Participating Political Parties</h3><p>Every participating party, including Independent when selected, uses the exact same candidate workflow.</p></div>
+              <select className="party-picker" defaultValue="" onChange={addSystemParty}>
+                <option value="">+ Add system political party</option>
+                {systemParties.filter((party) => !selectedPartyIds.has(String(party.id))).map((party) => <option key={party.id} value={party.id}>{party.name}</option>)}
+              </select>
+            </div>
+
+            <div className="party-grid">
+              {form.parties.map((party) => {
+                const candidate = candidateForParty(form.candidates, party);
+                return (
+                  <article className="party-card" key={party.partyId}>
+                    <div className="party-top">
+                      <div className="party-logo">{party.logoUrl ? <img src={party.logoUrl} alt="" /> : "LOGO"}</div>
+                      <div className="party-info"><strong>{party.name}</strong><small>Participating election party</small><label className="upload">Upload party logo<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(e) => updatePartyLogo(party, e.target.files?.[0])} /></label></div>
+                      <button type="button" className="remove" onClick={() => removeParty(party.partyId)}>Remove</button>
+                    </div>
+                    <div className="party-candidate">
+                      <div className="candidate-heading"><strong>{candidate ? "Presidential Candidate" : "No Candidate Added"}</strong><span>{candidate ? "Affiliation synchronized to this party" : "Add the candidate for this party"}</span></div>
+                      {!candidate ? (
+                        <button type="button" className="add" onClick={() => addCandidateForParty(party)}>+ Add Candidate</button>
+                      ) : (
+                        <div className="candidate-inline">
+                          <div className="candidate-photo">{candidate.profilePictureUrl ? <img src={candidate.profilePictureUrl} alt="" /> : "PHOTO"}</div>
+                          <input value={candidate.name || ""} onChange={(e) => updateCandidate(candidate, "name", e.target.value)} placeholder={`Enter ${party.name} presidential candidate`} />
+                          <label className="upload">{candidate.profilePictureUrl ? "Change photo" : "Add photo"}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => uploadCandidatePhoto(candidate, e.target.files?.[0])} /></label>
+                          <button type="button" className="remove" onClick={() => removeCandidate(candidate)}>Remove candidate</button>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </section>
+
+        <section className="elections">
+          <div className="tabs">
+            <button type="button" className={view === "all" ? "active" : ""} onClick={() => setView("all")}>All Elections <b>{elections.length}</b></button>
+            <button type="button" className={view === "live" ? "active" : ""} onClick={() => setView("live")}>Active <b>{elections.filter((e) => e.status === "Active").length}</b></button>
+            <button type="button" className={view === "history" ? "active" : ""} onClick={() => setView("history")}>Closed <b>{elections.filter((e) => e.status === "Closed").length}</b></button>
+          </div>
+          {loading ? <div className="empty">Loading elections…</div> : visibleElections.length === 0 ? <div className="empty">No elections found.</div> : (
+            <div className="election-list">
+              {visibleElections.map((election) => (
+                <article className="election-card" key={election._id}>
+                  <div><span className="status">{election.type} · {election.status}</span><h3>{election.name}</h3><p>{formatDate(election.startDateTime)} · {formatTime(election.startDateTime)}–{formatTime(election.endDateTime)}</p><small>{(election.parties || []).length} participating parties · {(election.candidates || []).length} candidates</small></div>
+                  <div className="actions"><button type="button" onClick={() => editElection(election)} disabled={election.status === "Closed"}>Edit</button><button type="button" className="delete" onClick={() => deleteElection(election)} disabled={election.status !== "Draft"}>Delete</button></div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
+
+      <style jsx>{`
+        .page{padding:clamp(14px,3vw,36px);background:#f5f8f6;color:#183d2e;min-height:100%;box-sizing:border-box}.hero,.composer,.geo,.elections,.notice{max-width:1200px;margin-left:auto;margin-right:auto}.hero{display:flex;justify-content:space-between;gap:20px;align-items:flex-end;margin-bottom:14px}.hero span{font-size:10px;font-weight:900;letter-spacing:1.8px;color:#bd941d}.hero h1{margin:7px 0;color:#075d2e;font-size:clamp(30px,5vw,50px)}.hero p{margin:0;color:#708078;max-width:820px;line-height:1.55}.refresh,.primary,.add{border:0;border-radius:10px;background:#075d2e;color:#fff;padding:11px 15px;font-weight:850;cursor:pointer}.geo{display:grid;grid-template-columns:1.3fr repeat(3,1fr);gap:10px;margin-bottom:14px}.geo>div{background:#fff;border:1px solid #dce6e0;border-radius:12px;padding:13px;display:grid;gap:4px}.geo small{font-size:9px;letter-spacing:1px;color:#8a9a91;font-weight:900}.geo strong{color:#08713a}.geo span{font-size:10px;color:#78877f}.geo b{font-size:20px;color:#174e35}.composer,.elections{background:#fff;border:1px solid #dce6e0;border-radius:18px;padding:22px;box-shadow:0 8px 25px rgba(20,60,42,.06)}.section-title{display:flex;justify-content:space-between;align-items:center;gap:16px}.section-title h2,.section-title h3{margin:0;color:#075d2e}.section-title p{margin:4px 0 0;color:#77857e;font-size:12px;line-height:1.5}.cancel,.remove,.party-picker,.actions button{border:1px solid #cedbd3;background:#fff;color:#234c39;border-radius:9px;padding:9px 12px;font-weight:800;cursor:pointer}.remove{color:#9d3434}.form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-top:20px}.form-grid label{display:grid;gap:6px;font-size:11px;font-weight:850;color:#385746}.wide{grid-column:1/-1}.form-grid input,.form-grid select,.candidate-inline input{width:100%;box-sizing:border-box;border:1px solid #d6e1db;border-radius:9px;background:#fbfdfc;color:#17392b;padding:11px 12px;font:inherit;font-size:16px}.sync-field{grid-column:1/4;border:1px solid #dbe7df;border-radius:11px;padding:11px 13px;background:#f4f9f6;display:grid;gap:3px}.sync-field span{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#075d2e;font-weight:900}.sync-field strong{font-size:12px;color:#2e5d48}.sync-field small{font-size:10px;color:#789085}.submit{grid-column:4;display:flex;align-items:end;justify-content:flex-end}.party-section{margin-top:24px;padding-top:20px;border-top:1px solid #e5ece8}.party-picker{min-width:230px}.party-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}.party-card{border:1px solid #dbe6df;border-radius:12px;padding:11px;background:#fbfdfc}.party-top{display:flex;align-items:flex-start;gap:12px}.party-logo,.candidate-photo{width:58px;height:58px;flex:0 0 58px;border-radius:10px;background:#eef4f0;display:grid;place-items:center;overflow:hidden;color:#7a8b82;font-size:9px;font-weight:900}.party-logo img,.candidate-photo img{width:100%;height:100%;object-fit:contain}.party-info{min-width:0;display:grid;gap:3px;flex:1}.party-info strong{font-size:14px;overflow-wrap:anywhere}.party-info small{font-size:9px;color:#789085}.upload{position:relative;width:max-content;padding:6px 8px;border:1px solid #cbd9d1;border-radius:7px;background:#fff;color:#17613c;font-size:9px;font-weight:900;cursor:pointer}.upload input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.party-candidate{margin-top:12px;padding-top:12px;border-top:1px solid #e5ece8}.candidate-heading{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px}.candidate-heading span{font-size:10px;color:#789085}.candidate-inline{display:grid;grid-template-columns:58px 1fr auto auto;gap:8px;align-items:center}.candidate-photo{position:relative}.tabs{display:flex;gap:7px;margin-bottom:14px;overflow:auto}.tabs button{border:1px solid #d5e0da;background:#fff;color:#52675c;padding:9px 12px;border-radius:9px;font-weight:800;white-space:nowrap;cursor:pointer}.tabs button.active{background:#075d2e;color:#fff;border-color:#075d2e}.tabs b{margin-left:5px}.election-list{display:grid;gap:10px}.election-card{display:flex;justify-content:space-between;gap:20px;align-items:center;border:1px solid #dce6e0;border-radius:14px;padding:15px}.status{font-size:10px;font-weight:900;color:#08713a}.election-card h3{margin:6px 0 3px;color:#174e35}.election-card p,.election-card small{margin:0;color:#748078;font-size:11px}.actions{display:flex;gap:6px}.actions button:disabled{opacity:.45;cursor:not-allowed}.actions .delete{color:#a33b3b}.notice{padding:11px 13px;border-radius:10px;margin-bottom:12px;font-size:12px;font-weight:800}.notice.success{background:#e9f7ee;color:#17623d}.notice.error{background:#fff0f0;color:#9d3434}.empty{padding:28px;text-align:center;color:#718078;border:1px dashed #ccd9d2;border-radius:12px}
+        @media(max-width:900px){.geo{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wide,.sync-field,.submit{grid-column:1/-1}.submit{justify-content:stretch}.submit .primary{width:100%}.party-grid{grid-template-columns:1fr}.election-card{display:grid}.actions{justify-content:flex-start}}
+        @media(max-width:620px){.page{padding:12px}.hero{display:block}.refresh{margin-top:12px;width:100%}.geo{grid-template-columns:1fr 1fr}.geo>div:first-child{grid-column:1/-1}.composer,.elections{padding:14px;border-radius:14px}.section-title{display:block}.party-picker,.cancel{margin-top:10px;width:100%;box-sizing:border-box}.form-grid{grid-template-columns:1fr}.wide,.sync-field,.submit{grid-column:1}.party-card{padding:10px}.party-top{display:grid;grid-template-columns:58px 1fr auto}.candidate-heading{display:grid}.candidate-inline{grid-template-columns:58px 1fr}.candidate-inline .upload,.candidate-inline .remove{grid-column:2}.candidate-inline .remove{width:100%}.tabs{padding-bottom:2px}}
+      `}</style>
+    </DashboardShell>
+  );
 }
