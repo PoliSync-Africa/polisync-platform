@@ -1,11 +1,13 @@
 const express = require("express");
 const { protect } = require("../middleware/auth");
-const { createPoliticalParty, getMyPartyDashboard, updateMyPartyLogo } = require("../controllers/partyOrganizationController");
+const { createPoliticalParty, getMyPartyDashboard, updateMyPartyLogo, getPendingCandidateApprovals, approveMyPartyCandidate } = require("../controllers/partyOrganizationController");
 const { createInvitation, listInvitations, revokeInvitation, getInvitation, acceptInvitation } = require("../controllers/partyDeploymentController");
 const router = express.Router();
 router.post("/", protect, createPoliticalParty);
 router.get("/me/dashboard", protect, getMyPartyDashboard);
 router.patch("/me/logo", protect, updateMyPartyLogo);
+router.get("/me/candidates/pending", protect, getPendingCandidateApprovals);
+router.patch("/me/candidates/:candidateId/approve", protect, approveMyPartyCandidate);
 router.post("/deployments/invitations", protect, createInvitation);
 router.get("/deployments/invitations", protect, listInvitations);
 router.delete("/deployments/invitations/:id", protect, revokeInvitation);
