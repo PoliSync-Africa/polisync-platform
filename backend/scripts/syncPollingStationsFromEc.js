@@ -1,4 +1,5 @@
 // Compatibility entry point retained for existing controllers, routes and jobs.
-// The primary synchronizer uses the official Ghana Electoral Commission
-// polling-station register and performs table/text extraction with validation.
-module.exports = require("./syncPollingStationsFromEcRobust");
+// The authoritative synchronizer uses EC polling-station codes to resolve
+// constituency geography, then validates the complete official registers
+// before writing anything to MongoDB.
+module.exports = require("./syncPollingStationsFromEcCodeBased");
