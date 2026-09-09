@@ -64,7 +64,7 @@ export default function PoliticalPartiesPage() {
         {error && <div className="notice error">{error}</div>}
 
         <section className="add-card">
-          <div><span className="eyebrow">FUTURE PARTY ONBOARDING</span><h2>Add Political Party</h2><p>Adding a party here immediately makes it an approved system political party. It will automatically appear in election creation and party candidate assignment.</p></div>
+          <div><span className="eyebrow">FUTURE PARTY ONBOARDING</span><h2>Add Political Party</h2><p>Adding a party here only creates the political-party registry entry. Presidential candidates for that party are created and maintained inside the party's own dashboard; they are not added here.</p></div>
           <form onSubmit={addParty} className="form">
             <label>Political party name<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. New Political Movement" /></label>
             <label>Party logo URL <span>(optional)</span><input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…" /></label>
