@@ -11,6 +11,7 @@ const organizationSchema = new mongoose.Schema(
     politicalPartyName: { type: String, default: null, trim: true },
     isPermanentParty: { type: Boolean, default: false },
     isNewPartyRequest: { type: Boolean, default: false },
+    partyElectionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Election" }],
     candidate: {
       userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
       username: { type: String, default: null, trim: true },
