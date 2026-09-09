@@ -11,6 +11,12 @@ const securityHeaders = [
 const nextConfig = {
   poweredByHeader: false,
   compress: true,
+  async rewrites() {
+    return [
+      { source: "/IMG_9654.jpeg", destination: "/polisync-official-logo.svg" },
+      { source: "/logo.png", destination: "/polisync-official-logo.svg" },
+    ];
+  },
   async headers() {
     return [
       {
