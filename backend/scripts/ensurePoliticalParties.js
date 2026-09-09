@@ -39,7 +39,6 @@ async function ensurePoliticalParties(Organization) {
           isNewPartyRequest: false,
           organizationStatus: "approved",
           approvedAt: now,
-          ...(DEFAULT_PARTY_LOGOS[name] ? { logo: DEFAULT_PARTY_LOGOS[name] } : {}),
         },
         $setOnInsert: {
           slug: slugify(name),
@@ -52,6 +51,22 @@ async function ensurePoliticalParties(Organization) {
   }));
 
   const result = await Organization.bulkWrite(operations, { ordered: false });
+
+  // Restore the bundled logos only when the organization has no logo.
+  // A logo uploaded later by a registered party remains untouched.
+  await Promise.all(
+    Object.entries(DEFAULT_PARTY_LOGOS).map(([name, logo]) =>
+      Organization.updateOne(
+        {
+          organizationType: "political_party",
+          $or: [{ name }, { politicalPartyName: name }],
+          $or: [{ logo: { $exists: false } }, { logo: "" }, { logo: null }],
+        },
+        { $set: { logo } }
+      )
+    )
+  );
+
   const created = result.upsertedCount || 0;
   console.log(`Political party registry ready. ${created} permanent entries created; ${PERMANENT_POLITICAL_PARTIES.length} permanent entries verified.`);
   return result;
