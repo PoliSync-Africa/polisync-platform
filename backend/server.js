@@ -4,7 +4,7 @@ require("dotenv").config();
 const app = require("./app");
 const Organization = require("./models/Organization");
 const { startBirthdayJob } = require("./jobs/birthdayMessages");
-const { ensureElectoralGeography } = require("./scripts/ensureElectoralGeography");
+const { ensureElectoralGeography, refreshElectoralGeography } = require("./scripts/ensureElectoralGeography");
 const { ensurePoliticalParties } = require("./scripts/ensurePoliticalParties");
 const { installCallSignaling } = require("./realtime/callSignaling");
 const { ensureSuperAdminIdentity } = require("./services/superAdminIdentityService");
@@ -42,6 +42,16 @@ async function synchronizePoliticalPartySystem() {
   return result;
 }
 
+async function bootstrapElectoralGeography() {
+  const current = await ensureElectoralGeography();
+  if (Number(current.pollingStations || 0) < 1000) {
+    console.log("🗳️ Polling-station register is empty/incomplete on startup; beginning official EC refresh in the background.");
+    return refreshElectoralGeography();
+  }
+  console.log(`🗺️ Electoral geography bootstrap ready: ${current.regions} regions, ${current.constituencies} constituencies, ${current.pollingStations} polling stations.`);
+  return current;
+}
+
 mongoose
   .connect(MONGODB_URI, {
     serverSelectionTimeoutMS: 15000,
@@ -55,8 +65,6 @@ mongoose
   .then(async () => {
     console.log("✅ MongoDB Connected");
 
-    // Start accepting requests immediately after the database connection is ready.
-    // Non-critical repair/bootstrap jobs run in the background so cold starts are faster.
     const server = app.listen(PORT, () => {
       console.log(`🚀 PoliSync Africa Backend running on port ${PORT}`);
       console.log("📊 Database: MongoDB + Mongoose");
@@ -73,13 +81,11 @@ mongoose
 
     Promise.allSettled([
       ensureSuperAdminIdentity(),
-      ensureElectoralGeography(),
+      bootstrapElectoralGeography(),
       synchronizePoliticalPartySystem(),
     ]).then((results) => {
       results.forEach((result) => {
-        if (result.status === "rejected") {
-          console.error("⚠️ Background bootstrap failed:", result.reason?.message || result.reason);
-        }
+        if (result.status === "rejected") console.error("⚠️ Background bootstrap failed:", result.reason?.message || result.reason);
       });
     });
 
