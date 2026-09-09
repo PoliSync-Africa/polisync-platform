@@ -39,7 +39,7 @@ function normalizePresidentialCandidates(candidates, election) {
       name,
       partyId: party?.partyId || null,
       party: party?.name || "Independent",
-      partyLogoUrl: party?.logoUrl || String(raw?.partyLogoUrl || "").trim(),
+      partyLogoUrl: String(raw?.partyLogoUrl || "").trim() || party?.logoUrl || "",
       profilePictureUrl: String(raw?.profilePictureUrl || "").trim(),
       constituencyId: null,
       position: "president",
@@ -119,6 +119,12 @@ exports.updateCandidates = async (req, res) => {
     if (!Array.isArray(req.body?.candidates)) return res.status(400).json({ success: false, message: "Candidate list is required." });
 
     const candidates = normalizePresidentialCandidates(req.body.candidates, election);
+    const candidateByParty = new Map(candidates.map((candidate) => [String(candidate.partyId || candidate.party || "").toLowerCase(), candidate]));
+    election.parties = (election.parties || []).map((participant) => {
+      const key = String(participant.partyId || participant.name || "").toLowerCase();
+      const candidate = candidateByParty.get(key);
+      return candidate?.partyLogoUrl ? { ...participant.toObject?.() || participant, logoUrl: candidate.partyLogoUrl } : participant;
+    });
     election.candidates = candidates;
     await election.save();
     return res.json({ success: true, election, candidates, message: "Official presidential candidates saved. Independent and political-party participants are managed uniformly, while registered parties can still maintain their own party information." });
