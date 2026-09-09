@@ -1,151 +1,17 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import {useEffect,useState} from "react";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
-
-const API = (process.env.NEXT_PUBLIC_API_URL || "https://polisync-platform-1.onrender.com").replace(/\/+$/, "");
-const partyNavigation = [
-  { section: "PARTY COMMAND", items: [
-    { label: "Dashboard", href: "/party", icon: "⌂", key: "overview" },
-    { label: "National Command", href: "/party/national", icon: "◎", key: "national" },
-    { label: "Regional Administration", href: "/party/regions", icon: "⌖", key: "regions" },
-    { label: "Constituencies", href: "/party/constituencies", icon: "▦", key: "constituencies" },
-    { label: "Polling Stations", href: "/party/polling-stations", icon: "▣", key: "polling-stations" },
-  ]},
-  { section: "PARTY OPERATIONS", items: [
-    { label: "Members", href: "/party/members", icon: "♙", key: "members" },
-    { label: "Party Administrators", href: "/party/administrators", icon: "♚", key: "administrators" },
-    { label: "Deployment Center", href: "/party/deployments", icon: "⇄", key: "deployments" },
-    { label: "Polling Agents", href: "/party/polling-agents", icon: "♟", key: "agents" },
-    { label: "Candidates", href: "/party/candidates", icon: "★", key: "candidates" },
-    { label: "Field Operations", href: "/party/field", icon: "⌁", key: "field" },
-  ]},
-  { section: "ELECTION MANAGEMENT", items: [
-    { label: "Live Results", href: "/party/results", icon: "▤", key: "results" },
-  ]},
-];
-
-function token() {
-  if (typeof window === "undefined") return "";
-  return ["polisync_token", "authToken", "accessToken", "token"].map((key) => localStorage.getItem(key) || sessionStorage.getItem(key)).find(Boolean) || "";
-}
-
-async function request(path, options = {}) {
-  const response = await fetch(`${API}${path}`, {
-    cache: "no-store",
-    ...options,
-    headers: { Accept: "application/json", "Content-Type": "application/json", ...(token() ? { Authorization: `Bearer ${token()}` } : {}), ...(options.headers || {}) },
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || body.success === false) throw new Error(body.message || `Request failed (${response.status})`);
-  return body;
-}
-
-function readImage(file) {
-  return new Promise((resolve, reject) => {
-    if (!file || !file.type.startsWith("image/")) return reject(new Error("Please select a valid candidate photo."));
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Unable to read the selected photo."));
-    reader.readAsDataURL(file);
-  });
-}
-
-async function compressPhoto(file) {
-  const source = await readImage(file);
-  const image = await new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error("Candidate photo could not be processed.")); img.src = source; });
-  const max = 1000;
-  const width = image.naturalWidth || image.width;
-  const height = image.naturalHeight || image.height;
-  const scale = Math.min(1, max / Math.max(width, height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(width * scale));
-  canvas.height = Math.max(1, Math.round(height * scale));
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Unable to prepare candidate photo.");
-  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-  let quality = 0.82;
-  let result = canvas.toDataURL("image/jpeg", quality);
-  while (result.length > 850 * 1024 * 1.37 && quality > 0.48) { quality -= 0.07; result = canvas.toDataURL("image/jpeg", quality); }
-  return result;
-}
-
-export default function PartyCandidatesPage() {
-  const [party, setParty] = useState(null);
-  const [elections, setElections] = useState([]);
-  const [submissions, setSubmissions] = useState({});
-  const [photos, setPhotos] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(null);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
-  async function load() {
-    setLoading(true); setError("");
-    try {
-      const dashboard = await request("/api/party-organization/me/dashboard");
-      setParty(dashboard.organization || null);
-      const result = await request("/api/elections");
-      const presidential = (result.elections || []).filter((election) => String(election.type || "").toLowerCase() === "presidential");
-      const data = {};
-      await Promise.all(presidential.map(async (election) => {
-        try {
-          const own = await request(`/api/elections/${election._id}/candidates/my-party`);
-          data[election._id] = own.candidate || { name: "", profilePictureUrl: "" };
-        } catch (err) {
-          data[election._id] = { name: "", profilePictureUrl: "", unavailable: err.message };
-        }
-      }));
-      setElections(presidential);
-      setSubmissions(data);
-    } catch (err) {
-      setError(err.message || "Unable to load party candidate workspace.");
-    } finally { setLoading(false); }
-  }
-
-  useEffect(() => { load(); }, []);
-
-  function update(id, value) { setSubmissions((current) => ({ ...current, [id]: { ...(current[id] || {}), name: value } })); }
-
-  async function photo(id, file) {
-    if (!file) return;
-    setError(""); setMessage("");
-    try { const value = await compressPhoto(file); setPhotos((current) => ({ ...current, [id]: value })); setSubmissions((current) => ({ ...current, [id]: { ...(current[id] || {}), profilePictureUrl: value } })); }
-    catch (err) { setError(err.message || "Unable to prepare candidate photo."); }
-  }
-
-  async function save(election) {
-    const candidate = submissions[election._id] || {};
-    if (!candidate.name?.trim()) { setError(`Enter the presidential candidate name for ${election.name}.`); return; }
-    if (!candidate.profilePictureUrl) { setError(`Upload a profile photo for the presidential candidate for ${election.name}.`); return; }
-    setSaving(election._id); setError(""); setMessage("");
-    try {
-      await request(`/api/elections/${election._id}/candidates/my-party`, { method: "PATCH", body: JSON.stringify({ name: candidate.name.trim(), profilePictureUrl: candidate.profilePictureUrl }) });
-      setMessage(`${party?.politicalPartyName || party?.name || "Your party"} candidate saved permanently for ${election.name}. It remains unchanged until your party edits it.`);
-      await load();
-    } catch (err) { setError(err.message || "Unable to save candidate."); }
-    finally { setSaving(null); }
-  }
-
-  return <DashboardShell role="national_party_admin" navigation={partyNavigation} activeSection="candidates" title="Party Candidates" subtitle="Submit your party's presidential candidate for each participating election">
-    <main className="page">
-      <header className="hero"><div><span>POLISYNC AFRICA • PARTY CANDIDATE PORTAL</span><h1>{party?.politicalPartyName || party?.name || "Political Party"}</h1><p>Each participating political party has its own presidential candidate slot. Your party controls the name and profile photo submitted for its candidate.</p></div><button onClick={load}>↻ Refresh</button></header>
-      {message && <div className="notice success">✓ {message}</div>}
-      {error && <div className="notice error">{error}</div>}
-      {loading ? <section className="card empty">Loading presidential elections…</section> : !elections.length ? <section className="card empty">No presidential elections are currently available.</section> : <section className="grid">
-        {elections.map((election) => { const candidate = submissions[election._id] || {}; return <article className="card election" key={election._id}>
-          <div className="top"><div><span className="eyebrow">PRESIDENTIAL ELECTION</span><h2>{election.name}</h2><p>{election.year} • {election.status}</p></div><span className="badge">PRESIDENT</span></div>
-          <div className="party"><div className="logo">{party?.logo ? <img src={party.logo} alt="" /> : (party?.politicalPartyName || party?.name || "PTY").slice(0,3).toUpperCase()}</div><div><b>{party?.politicalPartyName || party?.name || "Your political party"}</b><small>Participating party</small></div></div>
-          <div className="candidate"><div className="photo">{candidate.profilePictureUrl ? <img src={candidate.profilePictureUrl} alt="Presidential candidate" /> : <span>PHOTO</span>}</div><div className="fields"><label>Presidential candidate full name<input value={candidate.name || ""} onChange={(event) => update(election._id, event.target.value)} placeholder="Enter candidate full name" /></label><label className="upload">{candidate.profilePictureUrl ? "Change profile photo" : "Upload profile photo"}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => photo(election._id, event.target.files?.[0])} /></label></div></div>
-          <div className="footer"><span>{candidate.name && candidate.profilePictureUrl ? "Ready to submit" : "Name and profile photo required"}</span><button onClick={() => save(election)} disabled={saving === election._id}>{saving === election._id ? "Saving…" : candidate.name ? "Save / Update Candidate" : "Submit Candidate"}</button></div>
-        </article>; })}
-      </section>}
-    </main>
-    <style jsx>{styles}</style>
-  </DashboardShell>;
-}
-
-const styles = `
-.page{min-height:100%;padding:clamp(14px,3vw,36px);background:#f4f7f5;color:#173b2c}.hero{max-width:1180px;margin:0 auto 18px;display:flex;justify-content:space-between;gap:18px;align-items:flex-end}.hero span,.eyebrow{font-size:10px;font-weight:900;letter-spacing:1.5px;color:#a47b15}.hero h1{margin:6px 0;color:#075f31;font-size:clamp(28px,5vw,44px)}.hero p{max-width:760px;margin:0;color:#718179;line-height:1.6}.hero button,.footer button{border:0;border-radius:9px;background:#075f31;color:#fff;padding:11px 15px;font-weight:900;cursor:pointer}.card{max-width:1180px;margin:0 auto;background:#fff;border:1px solid #dce6e0;border-radius:15px;box-shadow:0 6px 20px rgba(20,60,42,.05);padding:18px;box-sizing:border-box}.notice{max-width:1180px;margin:0 auto 12px;padding:11px 14px;border-radius:10px;font-size:12px;font-weight:800}.success{background:#e8f6ed;color:#17633e}.error{background:#fff0f0;color:#a03939}.grid{max-width:1180px;margin:0 auto;display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}.top{display:flex;justify-content:space-between;gap:12px}.top h2{margin:5px 0 3px;color:#075f31;font-size:21px}.top p{margin:0;color:#7a8881;font-size:11px}.badge{height:max-content;padding:7px 9px;border-radius:8px;background:#edf6f0;color:#075f31;font-size:9px;font-weight:900}.party{display:flex;align-items:center;gap:10px;margin:18px 0;padding:10px;border:1px solid #e1e9e4;border-radius:10px;background:#fbfdfc}.logo{width:46px;height:46px;border-radius:8px;background:#eef4f0;display:grid;place-items:center;overflow:hidden;font-size:10px;font-weight:900;color:#286047}.logo img{width:100%;height:100%;object-fit:contain}.party b{display:block;font-size:12px}.party small{display:block;margin-top:3px;color:#7c8983;font-size:9px}.candidate{display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:start}.photo{width:108px;height:128px;border:1px solid #d6e1da;border-radius:9px;background:#eef4f0;display:grid;place-items:center;overflow:hidden;color:#7c8983;font-size:9px;font-weight:900}.photo img{width:100%;height:100%;object-fit:cover}.fields{display:grid;gap:10px}.fields label{display:grid;gap:6px;color:#4d6659;font-size:9px;font-weight:900}.fields input[type=text],.fields input:not([type]){border:1px solid #d2ded7;border-radius:9px;padding:11px 12px;font-size:16px;background:#fbfdfc;outline:none}.upload{position:relative;border:1px dashed #aac5b4;border-radius:9px;padding:11px;color:#17623e;text-align:center;cursor:pointer}.upload input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}.footer{border-top:1px solid #e7ece9;margin-top:16px;padding-top:12px;display:flex;justify-content:space-between;gap:10px;align-items:center}.footer span{font-size:9px;color:#77857e;font-weight:800}.footer button:disabled{opacity:.55;cursor:wait}.empty{text-align:center;color:#76847d;padding:35px}
-@media(max-width:650px){.hero{display:block}.hero button{width:100%;margin-top:12px}.grid{grid-template-columns:1fr}.candidate{grid-template-columns:1fr}.photo{width:100%;height:180px}.footer{display:block}.footer button{width:100%;margin-top:9px}}
-`;
+const API=(process.env.NEXT_PUBLIC_API_URL||"https://polisync-platform-1.onrender.com").replace(/\/+$/,'');
+const nav=[{section:"PARTY COMMAND",items:[{label:"Dashboard",href:"/party",key:"overview",icon:"⌂"},{label:"National Command",href:"/party/national",key:"national",icon:"◎"},{label:"Regional Administration",href:"/party/regions",key:"regions",icon:"⌖"},{label:"Constituencies",href:"/party/constituencies",key:"constituencies",icon:"▦"},{label:"Polling Stations",href:"/party/polling-stations",key:"polling-stations",icon:"▣"}]},{section:"PARTY OPERATIONS",items:[{label:"Members",href:"/party/members",key:"members",icon:"♙"},{label:"Party Administrators",href:"/party/administrators",key:"administrators",icon:"♚"},{label:"Deployment Center",href:"/party/deployments",key:"deployments",icon:"⇄"},{label:"Polling Agents",href:"/party/polling-agents",key:"agents",icon:"♟"},{label:"Candidates",href:"/party/candidates",key:"candidates",icon:"★"},{label:"Field Operations",href:"/party/field",key:"field",icon:"⌁"}]},{section:"ELECTION MANAGEMENT",items:[{label:"Live Results",href:"/party/results",key:"results",icon:"▤"}]}];
+const token=()=>typeof window==='undefined'?"":(["polisync_token","authToken","accessToken","token"].map(k=>localStorage.getItem(k)||sessionStorage.getItem(k)).find(Boolean)||"");
+async function request(path,options={}){const r=await fetch(`${API}${path}`,{cache:'no-store',...options,headers:{Accept:'application/json',...(options.body?{'Content-Type':'application/json'}:{}),...(token()?{Authorization:`Bearer ${token()}`}:{})}});const d=await r.json().catch(()=>({}));if(!r.ok||d.success===false)throw Error(d.message||`Request failed (${r.status})`);return d}
+function photo(file){return new Promise((resolve,reject)=>{if(!file||!file.type.startsWith('image/'))return reject(Error('Select a valid image.'));const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(Error('Unable to read image.'));r.readAsDataURL(file)})}
+export default function PartyCandidatesPage(){const[party,setParty]=useState(null),[elections,setElections]=useState([]),[submissions,setSubmissions]=useState({}),[queue,setQueue]=useState([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(null),[approving,setApproving]=useState(null),[message,setMessage]=useState(''),[error,setError]=useState('');
+const load=async()=>{setLoading(true);setError('');try{const[d,e,q]=await Promise.all([request('/api/party-organization/me/dashboard'),request('/api/elections'),request('/api/party-organization/me/candidates/pending')]);setParty(d.organization||null);setQueue(q.candidates||[]);const ps=(e.elections||[]).filter(x=>String(x.type||'').toLowerCase()==='presidential'&&['Active','Closed'].includes(x.status));setElections(ps);const data={};await Promise.all(ps.map(async x=>{try{const own=await request(`/api/elections/${x._id}/candidates/my-party`);data[x._id]=own.candidate||{name:'',profilePictureUrl:'',readOnly:own.readOnly}}catch(err){data[x._id]={name:'',profilePictureUrl:'',unavailable:err.message}}}));setSubmissions(data)}catch(e){setError(e.message)}finally{setLoading(false)}};
+useEffect(()=>{load()},[]);const update=(id,v)=>setSubmissions(c=>({...c,[id]:{...(c[id]||{}),name:v}}));const upload=async(id,file)=>{try{setError('');const v=await photo(file);setSubmissions(c=>({...c,[id]:{...(c[id]||{}),profilePictureUrl:v}}))}catch(e){setError(e.message)}};
+const save=async e=>{const c=submissions[e._id]||{};if(!c.name?.trim()||!c.profilePictureUrl)return setError(`Candidate name and profile photo are required for ${e.name}.`);setSaving(e._id);setError('');try{await request(`/api/elections/${e._id}/candidates/my-party`,{method:'PATCH',body:JSON.stringify({name:c.name.trim(),profilePictureUrl:c.profilePictureUrl})});setMessage(`Official ${party?.politicalPartyName||party?.name||'party'} candidate saved for ${e.name}.`);await load()}catch(x){setError(x.message)}finally{setSaving(null)}};
+const approve=async id=>{setApproving(id);setError('');setMessage('');try{const d=await request(`/api/party-organization/me/candidates/${id}/approve`,{method:'PATCH'});setMessage(d.message||'Candidate approved and synchronized.');await load()}catch(x){setError(x.message)}finally{setApproving(null)}};
+return <DashboardShell role="national_party_admin" navigation={nav} activeSection="candidates" title="Party Candidates" subtitle="Review candidate registrations and maintain your party's official election candidates"><main className="page"><header className="hero"><div><span>POLISYNC AFRICA • CANDIDATE APPROVAL</span><h1>{party?.politicalPartyName||party?.name||'Political Party'}</h1><p>Candidate registrations remain pending until the National Party Admin approves them. Approved candidates are synchronized into their associated election.</p></div><button onClick={load}>↻ Refresh</button></header>{message&&<div className="notice success">✓ {message}</div>}{error&&<div className="notice error">{error}</div>}
+{!loading&&<section className="card queue"><div className="sectionHead"><div><span className="eyebrow">PENDING APPROVALS</span><h2>Candidate registrations awaiting party approval</h2></div><strong>{queue.length}</strong></div>{queue.length===0?<p className="muted">No pending candidate registrations for this party.</p>:<div className="queueGrid">{queue.map(c=><article className="candidateRow" key={c._id}><div className="avatar">{c.candidate?.profilePhoto?<img src={c.candidate.profilePhoto} alt=""/>:'C'}</div><div className="details"><b>{c.candidate?.fullName||c.name}</b><span>{c.organizationType==='presidential_candidate'?'Presidential':'Parliamentary'} • {c.candidateParty}</span><span>{c.region||'National'}{c.constituency?` • ${c.constituency}`:''}</span><small>Election ID: {String(c.electionId||'Not supplied')}</small></div><button onClick={()=>approve(c._id)} disabled={approving===c._id}>{approving===c._id?'Approving…':'Approve & Publish'}</button></article>)}</div>}</section>}
+<section className="sectionTitle"><span>OFFICIAL ELECTION CANDIDATES</span><h2>Presidential candidate slots</h2></section>{loading?<section className="card empty">Loading election candidates…</section>:!elections.length?<section className="card empty">No active or closed presidential elections are available.</section>:<section className="grid">{elections.map(e=>{const c=submissions[e._id]||{};return <article className="card election" key={e._id}><div className="top"><div><span className="eyebrow">PRESIDENTIAL ELECTION</span><h2>{e.name}</h2><p>{e.year} • {e.status}</p></div><span className="badge">{e.status==='Closed'?'READ ONLY':'ACTIVE'}</span></div><div className="party"><div className="logo">{party?.logo?<img src={party.logo} alt=""/>:'PTY'}</div><div><b>{party?.politicalPartyName||party?.name||'Your party'}</b><small>Participating political party</small></div></div><div className="candidate"><div className="photo">{c.profilePictureUrl?<img src={c.profilePictureUrl} alt=""/>:<span>PHOTO</span>}</div><div className="fields"><label>Official candidate<input disabled={c.readOnly} value={c.name||''} onChange={x=>update(e._id,x.target.value)} placeholder="Candidate full name"/></label>{!c.readOnly&&<label className="upload">{c.profilePictureUrl?'Change profile photo':'Upload profile photo'}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={x=>upload(e._id,x.target.files?.[0])}/></label>}</div></div>{!c.readOnly&&<div className="footer"><span>Name and profile photo are required.</span><button onClick={()=>save(e)} disabled={saving===e._id}>{saving===e._id?'Saving…':'Save Official Candidate'}</button></div>}{c.readOnly&&<div className="readonly">This election is closed. Candidate information is read-only.</div>}</article>})}</section>}</main><style jsx>{css}</style></DashboardShell>}
+const css=`.page{min-height:100%;padding:clamp(14px,3vw,36px);background:#f4f7f5;color:#173b2c}.hero{max-width:1180px;margin:0 auto 18px;display:flex;justify-content:space-between;gap:18px;align-items:flex-end}.hero>div{min-width:0}.hero span,.eyebrow,.sectionTitle>span{font-size:10px;font-weight:900;letter-spacing:1.5px;color:#a47b15}.hero h1{margin:6px 0;color:#075f31;font-size:clamp(28px,5vw,44px)}.hero p{max-width:800px;margin:0;color:#718179;line-height:1.6;font-size:12px}.hero button{border:0;border-radius:9px;background:#075f31;color:#fff;padding:11px 15px;font-weight:900;cursor:pointer}.notice{max-width:1180px;margin:0 auto 12px;padding:11px 14px;border-radius:10px;font-size:12px;font-weight:800}.success{background:#e8f6ed;color:#17633e}.error{background:#fff0f0;color:#a03939}.card{max-width:1180px;margin:0 auto;background:#fff;border:1px solid #dce6e0;border-radius:15px;box-shadow:0 6px 20px rgba(20,60,42,.05);padding:18px;box-sizing:border-box}.queue{margin-bottom:20px}.sectionHead{display:flex;justify-content:space-between;gap:12px;align-items:center}.sectionHead h2,.sectionTitle h2{margin:5px 0 0;color:#075f31;font-size:21px}.sectionHead>strong{font-size:18px;color:#075f31;background:#edf6f0;border-radius:20px;padding:8px 13px}.muted,.empty{color:#76847d;font-size:12px}.queueGrid{display:grid;gap:9px;margin-top:14px}.candidateRow{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;border:1px solid #e0e8e3;border-radius:11px;padding:10px}.avatar{width:52px;height:52px;border-radius:9px;overflow:hidden;background:#edf4ef;display:grid;place-items:center;color:#075f31;font-weight:900}.avatar img{width:100%;height:100%;object-fit:cover}.details b,.details span,.details small{display:block}.details b{font-size:13px}.details span{font-size:10px;color:#617067;margin-top:3px}.details small{font-size:8px;color:#98a39d;margin-top:4px}.candidateRow button,.footer button{border:0;border-radius:9px;background:#075f31;color:#fff;padding:10px 12px;font-size:10px;font-weight:900}.candidateRow button:disabled,.footer button:disabled{opacity:.55}.sectionTitle{max-width:1180px;margin:20px auto 10px}.grid{max-width:1180px;margin:0 auto;display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}.top{display:flex;justify-content:space-between;gap:12px}.top h2{margin:5px 0 3px;color:#075f31;font-size:21px}.top p{margin:0;color:#7a8881;font-size:11px}.badge{height:max-content;padding:7px 9px;border-radius:8px;background:#edf6f0;color:#075f31;font-size:9px;font-weight:900}.party{display:flex;align-items:center;gap:10px;margin:18px 0;padding:10px;border:1px solid #e1e9e4;border-radius:10px;background:#fbfdfc}.logo{width:46px;height:46px;border-radius:8px;background:#eef4f0;display:grid;place-items:center;overflow:hidden;font-size:10px;font-weight:900;color:#286047}.logo img{width:100%;height:100%;object-fit:contain}.party b{display:block;font-size:12px}.party small{display:block;margin-top:3px;color:#7c8983;font-size:9px}.candidate{display:grid;grid-template-columns:110px 1fr;gap:14px}.photo{width:108px;height:128px;border:1px solid #d6e1da;border-radius:9px;background:#eef4f0;display:grid;place-items:center;overflow:hidden;color:#7c8983;font-size:9px;font-weight:900}.photo img{width:100%;height:100%;object-fit:cover}.fields{display:grid;gap:10px}.fields label{display:grid;gap:6px;color:#4d6659;font-size:9px;font-weight:900}.fields input:not([type=file]){border:1px solid #d2ded7;border-radius:9px;padding:11px 12px;font-size:15px;background:#fbfdfc}.upload{position:relative;border:1px dashed #aac5b4;border-radius:9px;padding:11px;color:#17623e;text-align:center;cursor:pointer}.upload input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}.footer{border-top:1px solid #e7ece9;margin-top:16px;padding-top:12px;display:flex;justify-content:space-between;gap:10px;align-items:center}.footer span{font-size:9px;color:#77857e;font-weight:800}.readonly{margin-top:15px;padding:10px;border-radius:9px;background:#fff8e7;color:#80621c;font-size:10px;font-weight:800}.empty{text-align:center;padding:35px}@media(max-width:650px){.hero{display:block}.hero button{width:100%;margin-top:12px}.candidateRow{grid-template-columns:44px 1fr}.candidateRow button{grid-column:1/-1;width:100%}.grid{grid-template-columns:1fr}.candidate{grid-template-columns:1fr}.photo{width:100%;height:180px}.footer{display:block}.footer button{width:100%;margin-top:9px}}`;
