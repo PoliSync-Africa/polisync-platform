@@ -19,22 +19,19 @@ function normalizePresidentialCandidates(candidates, election) {
   const byName = new Map(participants.map((p) => [String(p.name || "").trim().toLowerCase(), p]));
   const normalized = [];
   const assigned = new Set();
-  let independent = null;
 
   for (const raw of Array.isArray(candidates) ? candidates : []) {
     const name = String(raw?.name || "").trim();
     if (!name) continue;
     const requestedParty = String(raw?.party || "").trim();
     const party = (raw?.partyId && byId.get(String(raw.partyId))) || byName.get(requestedParty.toLowerCase());
-    const canonicalPartyName = String(party?.name || requestedParty || "").trim();
-    const isIndependent = canonicalPartyName.toLowerCase() === "independent" || requestedParty.toLowerCase() === "independent";
-    if (!party && !isIndependent) throw new Error(`Candidate ${name} is assigned to a party that is not participating in this election.`);
+    if (!party) throw new Error(`Candidate ${name} is assigned to a party/participant that is not participating in this election.`);
 
     const candidate = {
       name,
-      partyId: party?.partyId || null,
-      party: party?.name || "Independent",
-      partyLogoUrl: String(raw?.partyLogoUrl || "").trim() || party?.logoUrl || "",
+      partyId: party.partyId || null,
+      party: party.name,
+      partyLogoUrl: String(raw?.partyLogoUrl || "").trim() || party.logoUrl || "",
       profilePictureUrl: String(raw?.profilePictureUrl || "").trim(),
       constituencyId: null,
       position: "president",
@@ -43,22 +40,14 @@ function normalizePresidentialCandidates(candidates, election) {
     if (candidate.profilePictureUrl.length > MAX_PHOTO_LENGTH) throw new Error(`Profile picture for ${name} is too large. Use an image up to 3 MB.`);
     if (candidate.partyLogoUrl.length > MAX_LOGO_LENGTH) throw new Error(`Party logo for ${candidate.party} is too large. Use an image up to 2 MB.`);
 
-    if (isIndependent) {
-      if (independent) throw new Error("Only one Independent presidential candidate can be assigned to this election.");
-      independent = candidate;
-    } else {
-      if (!party?.partyId) throw new Error(`Candidate ${name} must be assigned to a participating political party.`);
-      const key = String(party.partyId);
-      if (assigned.has(key)) throw new Error(`Each participating political party can have only one presidential candidate. Duplicate found for ${party.name}.`);
-      assigned.add(key);
-      normalized.push(candidate);
-    }
+    const key = String(party.partyId || party.name).toLowerCase();
+    if (assigned.has(key)) throw new Error(`Each participating political party/participant can have only one presidential candidate. Duplicate found for ${party.name}.`);
+    assigned.add(key);
+    normalized.push(candidate);
   }
 
-  if (independent) normalized.push(independent);
-  const missing = participants.filter((p) => String(p.name || "").trim().toLowerCase() !== "independent" && p.partyId && !assigned.has(String(p.partyId)));
-  if (missing.length) throw new Error(`Every participating political party must have a presidential candidate. Missing: ${missing.map((p) => p.name).join(", ")}.`);
-  if (!independent) throw new Error("The Independent presidential candidate must also be added.");
+  const missing = participants.filter((p) => !assigned.has(String(p.partyId || p.name).toLowerCase()));
+  if (missing.length) throw new Error(`Every participating political party/participant must have a presidential candidate. Missing: ${missing.map((p) => p.name).join(", ")}.`);
 
   normalized.forEach((candidate, index) => { candidate.ballotNumber = index + 1; });
   return normalized;
@@ -124,6 +113,6 @@ exports.updateCandidates = async (req, res) => {
     });
     election.candidates = candidates;
     await election.save();
-    return res.json({ success: true, election, candidates, message: "Official presidential candidates saved. Independent and political-party participants are managed uniformly, while registered parties can still maintain their own party information." });
+    return res.json({ success: true, election, candidates, message: "Official presidential candidates saved. Independent and political-party participants are treated uniformly, while registered parties can still maintain their own party information and candidate." });
   } catch (error) { return res.status(400).json({ success: false, message: error.message || "Unable to save the official presidential candidates." }); }
 };
