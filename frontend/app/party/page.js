@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import DashboardShell from "../../components/dashboard/DashboardShell";
+import PartyDashboardIdentity from "../../components/dashboard/PartyDashboardIdentity";
 import WeatherCard from "../../components/dashboard/WeatherCard";
 import RemindersPanel from "../../components/dashboard/RemindersPanel";
 import AIPersonalAssistant from "../../components/dashboard/AIPersonalAssistant";
@@ -88,6 +89,7 @@ export default function PoliticalPartyDashboard() {
   return (
     <DashboardShell role="party" navigation={partyNavigation} activeSection={activeSection} onSectionChange={setActiveSection} mobileMenuOpen={mobileMenuOpen} onMobileMenuClose={() => setMobileMenuOpen(false)}>
       <main className="party-page">
+        <PartyDashboardIdentity />
         <section className="party-hero"><div className="hero-content"><span className="hero-label">POLITICAL PARTY COMMAND CENTER</span><h1>National Party<br />Operations Center</h1><p>Coordinate national, regional, constituency and polling-station operations through one secure PoliSync command center.</p><div className="hero-badges"><span>● Organization Active</span><span>16 Regions</span><span>276 Constituencies</span><span>38,622 Polling Stations</span></div></div><div className="hero-emblem"><div className="emblem-ring"><div className="emblem-inner">PS</div></div><span>POLISYNC AFRICA</span></div></section>
         <section className="metrics-grid">{partyMetrics.map(metric => <div className="metric-card" key={metric.label}><div className="metric-icon">{metric.icon}</div><div><span>{metric.label}</span><strong>{metric.value}</strong><small>↗ {metric.change}</small></div></div>)}</section>
         <section className="dashboard-grid">
