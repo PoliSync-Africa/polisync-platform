@@ -7,8 +7,26 @@ let syncInProgress = false;
 
 exports.report = async (req, res) => {
   try {
-    const report = await checkElectoralGeographyIntegrity();
     const latestSync = await ElectoralDataSyncRun.findOne({}).sort({ startedAt: -1 }).lean();
+    if (latestSync?.status === "running") {
+      const [regions, constituencies, pollingStations] = await Promise.all([
+        require("../models/Region").countDocuments({ isActive: true }),
+        require("../models/Constituency").countDocuments({ isActive: true }),
+        require("../models/PollingStation").countDocuments({ isActive: true }),
+      ]);
+      res.set("Cache-Control", "no-store, max-age=0");
+      return res.json({ success: true, data: {
+        healthy: false,
+        checkedAt: new Date().toISOString(),
+        status: "syncing",
+        counts: { regions, constituencies, pollingStations, expectedRegions: 16, expectedConstituencies: 276 },
+        coverage: { regionsComplete: regions === 16, constituencyCountComplete: constituencies === 276 },
+        issues: ["Electoral geography synchronization is currently in progress."],
+        synchronization: latestSync,
+      } });
+    }
+
+    const report = await checkElectoralGeographyIntegrity();
     res.set("Cache-Control", "no-store, max-age=0");
     return res.json({ success: true, data: { ...report, synchronization: latestSync || null } });
   } catch (error) {
@@ -30,28 +48,12 @@ async function runSynchronization(run, req) {
       modified: result.pollingStationSync?.modified || 0,
       upserted: result.pollingStationSync?.upserted || 0,
     } });
-    await AuditLog.create({
-      actor: req.user?._id,
-      action: "electoral_data_sync_completed",
-      resource: "ElectoralDataSyncRun",
-      resourceId: run._id,
-      metadata: { sourceYear: 2024, regions: result.regions, constituencies: result.constituencies, matchedRows: result.pollingStationSync?.matchedRows || 0, activePollingStations: result.pollingStations || 0, skipped: result.pollingStationSync?.skipped || 0, modified: result.pollingStationSync?.modified || 0, upserted: result.pollingStationSync?.upserted || 0 },
-      ipAddress: req.ip || null,
-      userAgent: req.get("user-agent") || null,
-    });
+    await AuditLog.create({ actor: req.user?._id, action: "electoral_data_sync_completed", resource: "ElectoralDataSyncRun", resourceId: run._id, metadata: { sourceYear: 2024, regions: result.regions, constituencies: result.constituencies, matchedRows: result.pollingStationSync?.matchedRows || 0, activePollingStations: result.pollingStations || 0, skipped: result.pollingStationSync?.skipped || 0, modified: result.pollingStationSync?.modified || 0, upserted: result.pollingStationSync?.upserted || 0 }, ipAddress: req.ip || null, userAgent: req.get("user-agent") || null });
     console.log(`✅ Electoral geography refresh completed: ${result.regions} regions, ${result.constituencies} constituencies, ${result.pollingStations} polling stations.`);
   } catch (error) {
     const completedAt = new Date();
     await ElectoralDataSyncRun.findByIdAndUpdate(run._id, { $set: { status: "failed", completedAt, errorMessage: String(error.message || "Synchronization failed.").slice(0, 1000) } });
-    await AuditLog.create({
-      actor: req.user?._id,
-      action: "electoral_data_sync_failed",
-      resource: "ElectoralDataSyncRun",
-      resourceId: run._id,
-      metadata: { sourceYear: 2024, error: String(error.message || "Synchronization failed.").slice(0, 500) },
-      ipAddress: req.ip || null,
-      userAgent: req.get("user-agent") || null,
-    }).catch((auditError) => console.error("Failed to record sync audit event:", auditError));
+    await AuditLog.create({ actor: req.user?._id, action: "electoral_data_sync_failed", resource: "ElectoralDataSyncRun", resourceId: run._id, metadata: { sourceYear: 2024, error: String(error.message || "Synchronization failed.").slice(0, 500) }, ipAddress: req.ip || null, userAgent: req.get("user-agent") || null }).catch((auditError) => console.error("Failed to record sync audit event:", auditError));
     console.error("Electoral data synchronization failed:", error);
   } finally {
     syncInProgress = false;
@@ -67,9 +69,5 @@ exports.sync = async (req, res) => {
   const run = await ElectoralDataSyncRun.create({ actor: req.user?._id || null, status: "running", startedAt: new Date(), source: "Ghana Electoral Commission 2024 Electoral Geography", sourceYear: 2024 });
   void runSynchronization(run, req);
 
-  return res.status(202).json({
-    success: true,
-    message: "Electoral geography synchronization started. The platform remains available while the official dataset is refreshed.",
-    data: { sync: run.toObject() },
-  });
+  return res.status(202).json({ success: true, message: "Electoral geography synchronization started. The platform remains available while the official dataset is refreshed.", data: { sync: run.toObject() } });
 };
