@@ -4,16 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import DashboardShell from "../../../components/dashboard/DashboardShell";
 import superAdminNavigation from "../../../components/dashboard/superAdminNavigation";
 
-// Use the Next.js same-origin API proxy so browser requests always reach the
-// backend configured by the deployed frontend. The proxy forwards the user's
-// bearer token and prevents NEXT_PUBLIC_API_URL drift from breaking geography.
+// Use the Next.js same-origin API proxy. Electoral geography is reference data,
+// so the page must not fail just because a browser token is unavailable. When a
+// token exists, it is forwarded by the proxy for deployments that still protect it.
 const apiBase = () => "";
 const getToken = () => typeof window === "undefined" ? "" : localStorage.getItem("polisync_token") || sessionStorage.getItem("polisync_token") || localStorage.getItem("token") || sessionStorage.getItem("token") || localStorage.getItem("authToken") || sessionStorage.getItem("authToken") || localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken") || "";
 
 async function request(path) {
   const token = getToken();
-  if (!token) throw new Error("Authentication required. Please log in again.");
-  const response = await fetch(`${apiBase()}${path}`, { cache: "no-store", headers: { Accept: "application/json", Authorization: `Bearer ${token}` } });
+  const headers = { Accept: "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`${apiBase()}${path}`, { cache: "no-store", headers });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.success !== true) throw new Error(data.message || `Unable to load polling station data (${response.status}).`);
   return Array.isArray(data.data) ? data.data : [];
