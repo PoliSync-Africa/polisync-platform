@@ -1,5 +1,6 @@
 import "./visual-quality.css";
 import "./modern-dashboard.css";
+import "./polisync-workspace.css";
 import "./brand-animation.css";
 import LogoutSessionBridge from "../components/security/LogoutSessionBridge";
 import RealtimeCallProvider from "../components/communications/RealtimeCallProvider";
