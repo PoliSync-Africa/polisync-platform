@@ -1,0 +1,103 @@
+/* PoliSync permanent workspace shell — BB-style hierarchy, adapted to PoliSync green/gold identity. */
+.polisync-dashboard {
+  --workspace-green:#075f2b;
+  --workspace-green-dark:#043d24;
+  --workspace-gold:#c9a227;
+  --workspace-ink:#17231d;
+  --workspace-muted:#718078;
+  --workspace-border:#dfe7e2;
+  background:#f5f8f6;
+}
+
+.polisync-dashboard .dashboard-sidebar {
+  width:264px;
+  position:fixed;
+  inset:0 auto 0 0;
+  display:flex;
+  flex-direction:column;
+  background:linear-gradient(180deg,#063f25 0%,#052f1d 100%);
+  border-right:0;
+  box-shadow:10px 0 30px rgba(2,42,24,.13);
+  overflow:hidden;
+}
+
+.polisync-dashboard .dashboard-brand {
+  min-height:88px;
+  flex:0 0 88px;
+  padding:12px 16px;
+  background:#fff;
+  border-bottom:1px solid #e5ece7;
+}
+
+.polisync-dashboard .dashboard-navigation {
+  flex:1 1 auto;
+  min-height:0;
+  padding:15px 11px 18px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(255,255,255,.2) transparent;
+}
+
+.polisync-dashboard .dashboard-nav-group + .dashboard-nav-group { margin-top:16px; }
+.polisync-dashboard .dashboard-nav-section {
+  margin:0 10px 7px;
+  color:rgba(255,255,255,.46);
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:1.45px;
+}
+
+.polisync-dashboard .dashboard-nav-item {
+  min-height:42px;
+  margin:2px 0;
+  padding:9px 11px;
+  border-radius:9px;
+  color:rgba(255,255,255,.76);
+  font-size:13px;
+  font-weight:650;
+}
+
+.polisync-dashboard .dashboard-nav-item:hover {
+  background:rgba(255,255,255,.09);
+  color:#fff;
+}
+
+.polisync-dashboard .dashboard-nav-item-active {
+  background:linear-gradient(90deg,#08713a,#0a8245);
+  color:#fff;
+  box-shadow:0 7px 18px rgba(0,0,0,.14),inset 3px 0 0 var(--workspace-gold);
+}
+
+.polisync-dashboard .dashboard-nav-icon { width:24px; flex-basis:24px; font-size:17px; }
+.polisync-dashboard .dashboard-sidebar-footer {
+  flex:0 0 auto;
+  padding:13px 14px 15px;
+  background:rgba(0,0,0,.13);
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.polisync-dashboard .dashboard-role-label { color:rgba(255,255,255,.42); }
+.polisync-dashboard .dashboard-role { color:#f0cf57; }
+.polisync-dashboard .dashboard-logout {
+  width:100%;
+  min-height:38px;
+  margin-top:8px;
+  padding:8px 10px;
+  border:0;
+  background:transparent;
+  color:rgba(255,255,255,.7);
+  text-align:left;
+}
+.polisync-dashboard .dashboard-logout:hover { background:rgba(255,255,255,.08); color:#fff; }
+.polisync-dashboard .dashboard-main { width:calc(100% - 264px); margin-left:264px; }
+.polisync-dashboard .dashboard-header { min-height:76px; padding:10px 24px; }
+.polisync-dashboard .dashboard-content-wrapper { min-height:calc(100vh - 76px); }
+
+.polisync-dashboard .dashboard-workspace-root > .dashboard-nav-group-workspace:first-child { margin-top:0; }
+.polisync-dashboard .dashboard-workspace-root > .dashboard-nav-group-workspace .dashboard-nav-section { color:rgba(255,255,255,.44); }
+
+@media (max-width:760px) {
+  .polisync-dashboard .dashboard-sidebar { width:min(286px,88vw); }
+  .polisync-dashboard .dashboard-main { width:100%; margin-left:0; }
+  .polisync-dashboard .dashboard-navigation { padding:14px 10px 20px; }
+  .polisync-dashboard .dashboard-nav-item { min-height:44px; }
+}
