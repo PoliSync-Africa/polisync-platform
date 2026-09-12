@@ -9,9 +9,11 @@ const PURPOSES = [
   { value: "journalist", title: "Journalist", text: "Reporting, source verification, fact-checking, newsroom-style research and election intelligence." },
 ];
 
+const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
+
 export default function PersonalRegistration() {
   const [purpose, setPurpose] = useState("personal_use");
-  const [form, setForm] = useState({ firstName:"", middleName:"", lastName:"", dateOfBirth:"", nationality:"Ghanaian", identificationType:"ghana_card", identificationNumber:"", email:"", phone:"", password:"", confirmPassword:"", researchFields:"", journalismBeat:"" });
+  const [form, setForm] = useState({ firstName:"", middleName:"", lastName:"", dateOfBirth:"", gender:"", nationality:"Ghanaian", identificationType:"ghana_card", identificationNumber:"", email:"", phone:"", password:"", confirmPassword:"", researchFields:"", journalismBeat:"" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -29,6 +31,7 @@ export default function PersonalRegistration() {
     event.preventDefault();
     setError("");
     setSuccess("");
+    if (!form.gender) return setError("Please select your gender.");
     if (form.password !== form.confirmPassword) return setError("Passwords do not match.");
     setBusy(true);
 
@@ -74,6 +77,11 @@ export default function PersonalRegistration() {
               <label key={key} style={label}>{labelText}<input required={key!=="middleName"} type={key.includes("password")?"password":key==="dateOfBirth"?"date":key==="email"?"email":"text"} value={form[key]} onChange={(event)=>update(key,event.target.value)} style={input}/></label>
             ))}
           </div>
+          <label style={{ ...label, marginTop:11 }}>Gender <span style={{ color:"#b00020" }}>*</span>
+            <select required value={form.gender} onChange={(event)=>update("gender",event.target.value)} style={input}>
+              <option value="">Select gender</option>{GENDERS.map((gender)=><option key={gender} value={gender}>{gender}</option>)}
+            </select>
+          </label>
           <label style={{ ...label, marginTop:11 }}>Identification type
             <select value={form.identificationType} onChange={(event)=>update("identificationType",event.target.value)} style={input}>
               <option value="ghana_card">Ghana Card</option><option value="passport">Passport</option><option value="voter_id">Voter ID</option>
