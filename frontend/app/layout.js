@@ -1,6 +1,7 @@
 import "./visual-quality.css";
 import "./modern-dashboard.css";
 import "./polisync-workspace.css";
+import "./persistent-workspace.css";
 import "./brand-animation.css";
 import LogoutSessionBridge from "../components/security/LogoutSessionBridge";
 import RealtimeCallProvider from "../components/communications/RealtimeCallProvider";
@@ -14,10 +15,11 @@ import WhatsAppMessagesEnhancer from "../components/dashboard/WhatsAppMessagesEn
 import SuperAdminSessionBridge from "../components/security/SuperAdminSessionBridge";
 import OrganizationLogoManagerInjector from "../components/dashboard/OrganizationLogoManagerInjector";
 import WorkspaceNavigationEnhancer from "../components/dashboard/WorkspaceNavigationEnhancer";
+import PersistentWorkspaceShell from "../components/dashboard/PersistentWorkspaceShell";
 
 export const metadata = { title: "PoliSync Africa", description: "POLISYNC AFRICA — Technology • Power • Elections" };
 export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }) {
-  return (<html lang="en"><body><RealtimeCallProvider><TimeGreetingSync /><DashboardEnvironmentInjector /><NotesNavInjector /><LogoutSessionBridge /><SuperAdminSessionBridge /><DashboardBackLink /><WhatsAppMessagesEnhancer /><OrganizationLogoManagerInjector /><WorkspaceNavigationEnhancer />{children}<MobileCallLauncher /><PoliSyncWhatsAppButton /></RealtimeCallProvider></body></html>);
+  return (<html lang="en"><body><RealtimeCallProvider><TimeGreetingSync /><DashboardEnvironmentInjector /><NotesNavInjector /><LogoutSessionBridge /><SuperAdminSessionBridge /><DashboardBackLink /><WhatsAppMessagesEnhancer /><OrganizationLogoManagerInjector /><WorkspaceNavigationEnhancer /><PersistentWorkspaceShell />{children}<MobileCallLauncher /><PoliSyncWhatsAppButton /></RealtimeCallProvider></body></html>);
 }
