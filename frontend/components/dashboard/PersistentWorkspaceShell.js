@@ -27,8 +27,10 @@ export default function PersistentWorkspaceShell() {
 
   useEffect(() => {
     const publicPage = pathname === "/" || PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+    const clearBodyClass = () => document.body.classList.remove("polisync-persistent-active");
     if (publicPage || !hasSession()) {
       setVisible(false);
+      clearBodyClass();
       return undefined;
     }
 
@@ -36,7 +38,10 @@ export default function PersistentWorkspaceShell() {
     const sync = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        setVisible(!document.querySelector(".dashboard-sidebar"));
+        const hasDashboardShell = Boolean(document.querySelector(".dashboard-sidebar"));
+        const nextVisible = !hasDashboardShell;
+        setVisible(nextVisible);
+        document.body.classList.toggle("polisync-persistent-active", nextVisible);
       }, 0);
     };
     sync();
@@ -45,6 +50,7 @@ export default function PersistentWorkspaceShell() {
     return () => {
       window.clearTimeout(timer);
       observer.disconnect();
+      clearBodyClass();
     };
   }, [pathname]);
 
