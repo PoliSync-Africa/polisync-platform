@@ -9,8 +9,32 @@ async function findPollingStations(filter) {
 async function findStationsForConstituencyWithLegacyAliases(constituencyId) {
   const selected = await Constituency.findOne({ _id: constituencyId, isActive: true }).lean();
   if (!selected) return [];
-  const aliases = await Constituency.find({ isActive: true, name: selected.name }).select("_id").lean();
-  return findPollingStations({ isActive: true, constituencyId: { $in: aliases.map(c => c._id) } });
+
+  // Normal path: stations reference the selected constituency document.
+  const aliases = await Constituency.find({
+    isActive: true,
+    regionId: selected.regionId,
+    name: selected.name,
+  }).select("_id").lean();
+  let data = await findPollingStations({
+    isActive: true,
+    constituencyId: { $in: aliases.map((c) => c._id) },
+  });
+  if (data.length) return data;
+
+  // Recovery path for older EC imports whose constituency references were
+  // rebuilt but whose district/region linkage remained correct.
+  const district = String(selected.district || "").trim();
+  if (district) {
+    data = await findPollingStations({
+      isActive: true,
+      regionId: selected.regionId,
+      district: { $regex: `^${district.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}$`, $options: "i" },
+    });
+    if (data.length) return data;
+  }
+
+  return [];
 }
 
 exports.regions = async (req, res) => {
