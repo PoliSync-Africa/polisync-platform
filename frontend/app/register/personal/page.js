@@ -46,7 +46,7 @@ export default function PersonalRegistration() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) throw new Error(data.message || "Registration failed.");
       localStorage.setItem("polisync_personal_purpose", purpose);
-      setSuccess("Account created successfully. Verify your phone with the Arkesel SMS code, then sign in. Email verification is not required.");
+      setSuccess(`Verify your account with the OTP SMS code sent to ${form.phone}.`);
     } catch (err) {
       setError(err.message || "Unable to complete registration.");
     } finally {
