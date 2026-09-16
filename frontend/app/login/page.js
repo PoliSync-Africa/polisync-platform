@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 const API_DEFAULT = "https://polisync-platform-1.onrender.com";
+const LOGIN_TIMEOUT_MS = 60000;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -30,7 +31,7 @@ export default function LoginPage() {
 
       for (const base of apiBases) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
+        const timeout = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS);
         try {
           response = await fetch(`${base}/api/auth/login`, {
             method: "POST",
