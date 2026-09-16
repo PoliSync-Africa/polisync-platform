@@ -78,50 +78,51 @@ export default function LoginPage() {
 
   return (
     <main style={{ minHeight: "100vh", background: "linear-gradient(135deg,#F8FAF8 0%,#EEF7F0 100%)", display: "flex", justifyContent: "center", alignItems: "center", padding: "24px 16px", boxSizing: "border-box" }}>
-      <div style={{ width: "100%", maxWidth: "680px", margin: "0 auto", background: "#FFFFFF", border: "3px solid #B89A4A", borderRadius: "42px", padding: "40px 34px", boxSizing: "border-box", boxShadow: "0 12px 35px rgba(0,0,0,.08)" }}>
+      <div style={{ width: "100%", maxWidth: "420px", margin: "0 auto", background: "#FFFFFF", border: "1px solid #D9E3DB", borderRadius: "18px", padding: "28px 28px 24px", boxSizing: "border-box", boxShadow: "0 8px 28px rgba(6,59,30,.10)" }}>
         <div style={{ textAlign: "center", marginBottom: "20px" }}>
-          <div style={{ fontSize: "28px", fontWeight: 900, letterSpacing: "0.08em", color: "#065F2B" }}>POLISYNC AFRICA</div>
-          <div style={{ marginTop: "5px", fontSize: "11px", fontWeight: 700, letterSpacing: "0.16em", color: "#C9A227" }}>POLITICAL OPERATING SYSTEM</div>
+          <div className="brand-lockup" aria-label="PoliSync Africa official logo">
+            <img src="/polisync-official-logo.svg" alt="PoliSync Africa" />
+          </div>
         </div>
-        <h1 style={{ textAlign: "center", fontSize: "27px", lineHeight: "1.2", fontWeight: "750", color: "#065F2B", margin: "4px 0 6px" }}>Welcome Back</h1>
-        <p style={{ textAlign: "center", color: "#666", fontSize: "14px", lineHeight: "1.5", margin: "0 0 26px" }}>Sign in to your PoliSync Africa account</p>
+        <h1 style={{ textAlign: "center", fontSize: "25px", lineHeight: "1.2", fontWeight: "750", color: "#065F2B", margin: "0 0 6px" }}>Welcome Back</h1>
+        <p style={{ textAlign: "center", color: "#66736B", fontSize: "14px", lineHeight: "1.5", margin: "0 0 24px" }}>Sign in to your PoliSync Africa account</p>
 
         <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: "17px" }}><label htmlFor="email" style={{ display: "block", fontWeight: "650", color: "#222", marginBottom: "8px", fontSize: "15px" }}>Email Address</label><input id="email" name="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Enter your email" disabled={loading} style={{ width: "100%", boxSizing: "border-box", padding: "15px 18px", borderRadius: "12px", border: "3px solid #B89A4A", background: loading ? "#F5F5F5" : "#FFFFFF", fontSize: "16px", outline: "none" }} /></div>
-          <div style={{ marginBottom: "12px" }}><label htmlFor="password" style={{ display: "block", fontWeight: "650", color: "#222", marginBottom: "8px", fontSize: "15px" }}>Password</label><div style={{ position: "relative", width: "100%" }}><input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" disabled={loading} style={{ width: "100%", boxSizing: "border-box", padding: "15px 70px 15px 18px", borderRadius: "999px", border: "3px solid #B89A4A", background: loading ? "#F5F5F5" : "#FFFFFF", fontSize: "16px", outline: "none" }} /><button type="button" onClick={() => setShowPassword(!showPassword)} disabled={loading} aria-label={showPassword ? "Hide password" : "Show password"} style={{ position: "absolute", right: "16px", top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "#065F2B", cursor: loading ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "14px", padding: "4px" }}>{showPassword ? "Hide" : "Show"}</button></div></div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", margin: "14px 0 24px", fontSize: "14px" }}><label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: "#333" }}><input type="checkbox" checked={remember} onChange={() => setRemember(!remember)} disabled={loading} style={{ width: "17px", height: "17px", cursor: "pointer" }} /><span>Remember Me</span></label><Link href="/forgot-password" style={{ color: "#065F2B", textDecoration: "none", fontWeight: "700", whiteSpace: "nowrap" }}>Forgot Password?</Link></div>
-          {error && <div role="alert" style={{ marginBottom: "16px", padding: "12px 14px", borderRadius: "12px", background: "#FFF3F3", border: "1px solid #F0CACA", color: "#A00000", fontSize: "14px", lineHeight: "1.4" }}>{error}</div>}
-          <button className="auth-action" type="submit" disabled={loading} aria-busy={loading} style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", background: loading ? "#7BAE8D" : "linear-gradient(90deg,#0A8F3C,#065F2B)", color: "#FFFFFF", fontSize: "17px", fontWeight: "800", cursor: loading ? "not-allowed" : "pointer", boxShadow: "0 12px 30px rgba(6,95,43,.25)", transition: "transform .16s ease, box-shadow .25s ease, filter .25s ease" }}>
+          <div style={{ marginBottom: "15px" }}><label htmlFor="email" style={{ display: "block", fontWeight: "650", color: "#222", marginBottom: "7px", fontSize: "14px" }}>Email Address</label><input id="email" name="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Enter your email" disabled={loading} style={{ width: "100%", boxSizing: "border-box", padding: "13px 15px", borderRadius: "10px", border: "1px solid #C9D4CC", background: loading ? "#F5F7F5" : "#FFFFFF", fontSize: "16px", outline: "none" }} /></div>
+          <div style={{ marginBottom: "10px" }}><label htmlFor="password" style={{ display: "block", fontWeight: "650", color: "#222", marginBottom: "7px", fontSize: "14px" }}>Password</label><div style={{ position: "relative", width: "100%" }}><input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" disabled={loading} style={{ width: "100%", boxSizing: "border-box", padding: "13px 65px 13px 15px", borderRadius: "10px", border: "1px solid #C9D4CC", background: loading ? "#F5F7F5" : "#FFFFFF", fontSize: "16px", outline: "none" }} /><button type="button" onClick={() => setShowPassword(!showPassword)} disabled={loading} aria-label={showPassword ? "Hide password" : "Show password"} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "#065F2B", cursor: loading ? "not-allowed" : "pointer", fontWeight: "700", fontSize: "13px", padding: "4px" }}>{showPassword ? "Hide" : "Show"}</button></div></div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", margin: "13px 0 20px", fontSize: "13px" }}><label style={{ display: "flex", alignItems: "center", gap: "7px", cursor: "pointer", color: "#333" }}><input type="checkbox" checked={remember} onChange={() => setRemember(!remember)} disabled={loading} style={{ width: "16px", height: "16px", cursor: "pointer" }} /><span>Remember Me</span></label><Link href="/forgot-password" style={{ color: "#065F2B", textDecoration: "none", fontWeight: "700", whiteSpace: "nowrap" }}>Forgot Password?</Link></div>
+          {error && <div role="alert" style={{ marginBottom: "14px", padding: "11px 12px", borderRadius: "10px", background: "#FFF3F3", border: "1px solid #F0CACA", color: "#A00000", fontSize: "13px", lineHeight: "1.4" }}>{error}</div>}
+          <button className="auth-action" type="submit" disabled={loading} aria-busy={loading} style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: loading ? "#7BAE8D" : "linear-gradient(90deg,#0A8F3C,#065F2B)", color: "#FFFFFF", fontSize: "16px", fontWeight: "800", cursor: loading ? "not-allowed" : "pointer", boxShadow: "0 9px 22px rgba(6,95,43,.20)", transition: "transform .16s ease, box-shadow .25s ease, filter .25s ease" }}>
             {loading ? <span className="button-content"><span className="spinner" aria-hidden="true" /> Signing In...</span> : <span className="button-content"><span>Sign In</span><span className="arrow" aria-hidden="true">→</span></span>}
           </button>
         </form>
 
-        <div style={{ textAlign: "center", marginTop: "27px", color: "#555", fontSize: "15px", lineHeight: "1.6" }}><div>Don't have an account?</div><Link className="auth-link" href="/register" style={{ display: "inline-block", marginTop: "3px", color: "#C9A227", textDecoration: "none", fontWeight: "800", fontSize: "16px" }}>Create Account</Link></div>
+        <div style={{ textAlign: "center", marginTop: "22px", color: "#555", fontSize: "14px", lineHeight: "1.6" }}><div>Don't have an account?</div><Link className="auth-link" href="/register" style={{ display: "inline-block", marginTop: "2px", color: "#B08A16", textDecoration: "none", fontWeight: "800", fontSize: "15px" }}>Create Account</Link></div>
 
-        <footer style={{ textAlign: "center", marginTop: "30px", paddingTop: "18px", borderTop: "1px solid #E8E8E8", color: "#777", fontSize: "12px", lineHeight: "1.7" }}>
-          <div style={{ fontWeight: "700", color: "#065F2B", fontSize: "12px" }}>PoliSync Africa™ is powered by SyncTech Co. Ltd.</div>
+        <footer style={{ textAlign: "center", marginTop: "24px", paddingTop: "15px", borderTop: "1px solid #E8E8E8", color: "#7A817C", fontSize: "11px", lineHeight: "1.6" }}>
+          <div style={{ fontWeight: "700", color: "#065F2B", fontSize: "11px" }}>PoliSync Africa™ is powered by SyncTech Co. Ltd.</div>
           <div>© 2026 SyncTech Co. Ltd. All rights reserved.</div>
         </footer>
       </div>
       <style jsx>{`
+        .brand-lockup { width: 240px; max-width: 72%; margin: 0 auto; }
+        .brand-lockup img { display: block; width: 100%; height: auto; max-height: 136px; object-fit: contain; }
         .auth-action { position: relative; overflow: hidden; }
         .auth-action::after { content: ""; position: absolute; inset: 0; transform: translateX(-110%); background: linear-gradient(105deg, transparent 25%, rgba(255,255,255,.24) 50%, transparent 75%); pointer-events: none; }
-        .auth-action:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(6,95,43,.34) !important; filter: brightness(1.04); }
+        .auth-action:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(6,95,43,.28) !important; filter: brightness(1.04); }
         .auth-action:not(:disabled):hover::after { animation: buttonShine .7s ease; }
-        .auth-action:not(:disabled):active { transform: scale(.975); box-shadow: 0 7px 18px rgba(6,95,43,.22) !important; }
-        .button-content { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+        .auth-action:not(:disabled):active { transform: scale(.975); }
+        .button-content { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 9px; }
         .arrow { display: inline-block; transition: transform .2s ease; }
-        .auth-action:not(:disabled):hover .arrow { transform: translateX(4px); }
-        .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.42); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+        .auth-action:not(:disabled):hover .arrow { transform: translateX(3px); }
+        .spinner { width: 17px; height: 17px; border: 2px solid rgba(255,255,255,.42); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
         .auth-link { transition: transform .18s ease, opacity .18s ease; }
         .auth-link:hover { transform: translateY(-1px); opacity: .84; }
         .auth-link:active { transform: scale(.96); }
         @keyframes buttonShine { from { transform: translateX(-110%); } to { transform: translateX(110%); } }
         @keyframes spin { to { transform: rotate(360deg); } }
-        @media (prefers-reduced-motion: reduce) {
-          .auth-action, .auth-link, .arrow { transition: none; }
-          .auth-action::after, .spinner { animation: none; }
-        }
+        @media (max-width: 520px) { .brand-lockup { width: 210px; max-width: 68%; } .brand-lockup img { max-height: 120px; } }
+        @media (prefers-reduced-motion: reduce) { .auth-action, .auth-link, .arrow { transition: none; } .auth-action::after, .spinner { animation: none; } }
       `}</style>
     </main>
   );
