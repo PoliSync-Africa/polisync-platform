@@ -2,6 +2,20 @@ name: Seed Ghana Electoral Geography
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/data/**"
+      - "backend/models/Region.js"
+      - "backend/models/Constituency.js"
+      - "backend/models/PollingStation.js"
+      - "backend/scripts/seedElectoralGeography.js"
+      - ".github/workflows/seed-ghana.yml"
+
+concurrency:
+  group: seed-ghana-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   seed-ghana:
@@ -16,10 +30,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
         working-directory: backend
-        run: npm install
+        run: npm ci
 
       - name: Validate Ghana data files
         working-directory: backend
