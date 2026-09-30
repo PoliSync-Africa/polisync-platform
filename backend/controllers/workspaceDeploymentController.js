@@ -26,10 +26,13 @@ function normalizeLocation(value) {
   };
 }
 
-async function targetExists(targetType, targetId, userId) {
+async function targetExists(targetType, targetId, userId, user) {
   if (targetType === "campaign") return PersonalCampaign.findOne({ _id: targetId, userId }).lean();
   if (targetType === "event") return PersonalEvent.findOne({ _id: targetId, userId }).lean();
-  if (targetType === "election") return Election.findById(targetId).lean();
+  if (targetType === "election") {
+    const filter = await accessibleElectionFilter(userId, user);
+    return Election.findOne({ ...filter, _id: targetId }).lean();
+  }
   return null;
 }
 
@@ -92,12 +95,12 @@ exports.create = async (req, res) => {
     if (!userId) return res.status(401).json({ success: false, message: "Authentication required." });
     if (!body.targetType || !["campaign", "event", "election"].includes(body.targetType)) return res.status(400).json({ success: false, message: "Invalid deployment target." });
     if (!mongoose.Types.ObjectId.isValid(body.targetId)) return res.status(400).json({ success: false, message: "Invalid target ID." });
-    const target = await targetExists(body.targetType, body.targetId, userId);
+    const target = await targetExists(body.targetType, body.targetId, userId, req.user);
     if (!target) return res.status(404).json({ success: false, message: "Target was not found or is not available to you." });
     const error = validateBody(body);
     if (error) return res.status(400).json({ success: false, message: error });
     const electionId = body.targetType === "election" ? body.targetId : (body.electionId && mongoose.Types.ObjectId.isValid(body.electionId) ? body.electionId : null);
-    if (electionId && !(await Election.exists({ ...electionAccessFilter, _id: electionId }))) return res.status(403).json({ success: false, message: "Selected election is not available to your account." });
+    if (electionId && !(await Election.exists({ ...(await accessibleElectionFilter(userId, req.user)), _id: electionId }))) return res.status(403).json({ success: false, message: "Selected election is not available to your account." });
     const owner = await ownerContext(userId);
     const item = await WorkspaceDeployment.create({
       targetType: body.targetType, targetId: body.targetId, electionId, ownerUserId: userId,
