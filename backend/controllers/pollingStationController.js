@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const PollingStation = require("../models/PollingStation");
 const OrganizationMembership = require("../models/OrganizationMembership");
-const { getElectionAccess } = require("../services/electionAccessService");
 const stationProfileService = require("../services/pollingStation/stationProfileService");
 
 const objectId = (value) => mongoose.Types.ObjectId.isValid(String(value || ""));
