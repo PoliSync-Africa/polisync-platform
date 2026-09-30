@@ -97,6 +97,27 @@ exports.getGeographicAssignments = async (req, res) => {
     if (constituencyId && constituencyId !== "all") stationQuery.constituencyId = constituencyId;
     if (pollingStationId && pollingStationId !== "all") stationQuery._id = pollingStationId;
 
+    if (!access.isSuperAdmin) {
+      const scoped = access.memberships.filter((m) =>
+        access.organizationIds.includes(String(m.organizationId?._id || m.organizationId)) &&
+        membershipMatchesScope(m, access, regionId, constituencyId, pollingStationId)
+      );
+      const national = scoped.some((m) => [
+        "national_party_admin", "national_observer_admin", "presidential_candidate", "parliamentary_candidate"
+      ].includes(m.role));
+      if (!national) {
+        const stationIds = scoped.map((m) => m.pollingStationId).filter(Boolean);
+        const constituencyIds = scoped.map((m) => m.constituencyId).filter(Boolean);
+        const regionIds = scoped.map((m) => m.regionId).filter(Boolean);
+        const scopeClauses = [];
+        if (stationIds.length) scopeClauses.push({ _id: { $in: stationIds } });
+        if (constituencyIds.length) scopeClauses.push({ constituencyId: { $in: constituencyIds } });
+        if (regionIds.length) scopeClauses.push({ regionId: { $in: regionIds } });
+        if (!scopeClauses.length) return res.status(403).json({ success: false, message: "You are not assigned to any polling-station geography for this organization." });
+        stationQuery.$or = scopeClauses;
+      }
+    }
+
     const stations = await PollingStation.find(stationQuery)
       .select("_id name pollingStationCode district regionId constituencyId")
       .populate("regionId", "name regionNumber")
