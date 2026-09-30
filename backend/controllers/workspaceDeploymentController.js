@@ -58,6 +58,18 @@ async function accessibleElectionFilter(userId, user) {
   return clauses.length ? { $or: clauses } : { _id: null };
 }
 
+async function canAssignPerson(personId, ownerOrganizationId, ownerUserId) {
+  if (!personId) return true;
+  if (!mongoose.Types.ObjectId.isValid(personId)) return false;
+  if (!ownerOrganizationId) return String(personId) === String(ownerUserId);
+  const membership = await OrganizationMembership.findOne({
+    userId: personId,
+    organizationId: ownerOrganizationId,
+    status: "approved",
+  }).select("_id").lean();
+  return Boolean(membership);
+}
+
 function validateBody(body) {
   if (!KINDS.includes(body.kind)) return "A deployment type is required.";
   if (!String(body.roleName || "").trim()) return "Role name is required.";
@@ -102,6 +114,9 @@ exports.create = async (req, res) => {
     const electionId = body.targetType === "election" ? body.targetId : (body.electionId && mongoose.Types.ObjectId.isValid(body.electionId) ? body.electionId : null);
     if (electionId && !(await Election.exists({ ...(await accessibleElectionFilter(userId, req.user)), _id: electionId }))) return res.status(403).json({ success: false, message: "Selected election is not available to your account." });
     const owner = await ownerContext(userId);
+    if (body.personId && !(await canAssignPerson(body.personId, owner.ownerOrganizationId, userId))) {
+      return res.status(403).json({ success: false, message: "The selected person is not authorized for this workspace." });
+    }
     const item = await WorkspaceDeployment.create({
       targetType: body.targetType, targetId: body.targetId, electionId, ownerUserId: userId,
       ...owner, kind: body.kind, roleName: String(body.roleName).trim(), roleDescription: String(body.roleDescription || "").trim(),
@@ -123,6 +138,11 @@ exports.update = async (req, res) => {
     if (error) return res.status(400).json({ success: false, message: error });
     ["kind", "roleName", "roleDescription", "personId", "personName", "responsibilities", "status"].forEach(k => { if (req.body[k] !== undefined) item[k] = k === "roleName" || k === "roleDescription" || k === "personName" || k === "responsibilities" ? String(req.body[k] || "").trim() : req.body[k]; });
     if (req.body.location !== undefined) item.location = normalizeLocation(req.body.location);
+    if (req.body.personId !== undefined) {
+      if (req.body.personId && !(await canAssignPerson(req.body.personId, item.ownerOrganizationId, userId))) {
+        return res.status(403).json({ success: false, message: "The selected person is not authorized for this workspace." });
+      }
+    }
     await item.save();
     return res.json({ success: true, data: item });
   } catch (e) { return res.status(500).json({ success: false, message: e.message || "Unable to update deployment." }); }
