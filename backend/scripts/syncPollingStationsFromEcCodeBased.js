@@ -227,17 +227,30 @@ async function syncPollingStationsFromEcPdf() {
     if (regions.length !== 16) throw new Error(`Expected 16 active regions; found ${regions.length}.`);
     if (constituencies.length !== 276) throw new Error(`Expected 276 active constituencies; found ${constituencies.length}.`);
 
+    const isCompleteRows = (rows, expected) =>
+      Array.isArray(rows) &&
+      rows.length === expected &&
+      rows.every((row) => row && row.code && row.name && row.constituency && row.district && row.region);
+
     const ordinaryPdf = await parsePdf(EC_POLLING_STATIONS_PDF);
     let ordinaryRows = columnRows(ordinaryPdf.columnText, false, regions, constituencies);
     console.log(`📐 EC ordinary column rows detected: ${ordinaryRows.length.toLocaleString()}.`);
-    if (ordinaryRows.length !== EXPECTED_ORDINARY_POLLING_STATIONS) ordinaryRows = tableRows(ordinaryPdf.tables, false);
-    if (ordinaryRows.length !== EXPECTED_ORDINARY_POLLING_STATIONS) ordinaryRows = parseOrdinaryRows(ordinaryPdf.text, regions, constituencies);
+    if (!isCompleteRows(ordinaryRows, EXPECTED_ORDINARY_POLLING_STATIONS)) {
+      ordinaryRows = tableRows(ordinaryPdf.tables, false);
+    }
+    if (!isCompleteRows(ordinaryRows, EXPECTED_ORDINARY_POLLING_STATIONS)) {
+      ordinaryRows = parseOrdinaryRows(ordinaryPdf.text, regions, constituencies);
+    }
     ordinaryRows = validate(ordinaryRows, EXPECTED_ORDINARY_POLLING_STATIONS, "ordinary");
 
     const specialPdf = await parsePdf(EC_SPECIAL_POLLING_STATIONS_PDF);
     let specialRows = columnRows(specialPdf.columnText, true, regions, constituencies);
-    if (specialRows.length !== EXPECTED_SPECIAL_POLLING_STATIONS) specialRows = tableRows(specialPdf.tables, true);
-    if (specialRows.length !== EXPECTED_SPECIAL_POLLING_STATIONS) specialRows = parseSpecialRows(specialPdf.text, regions, constituencies);
+    if (!isCompleteRows(specialRows, EXPECTED_SPECIAL_POLLING_STATIONS)) {
+      specialRows = tableRows(specialPdf.tables, true);
+    }
+    if (!isCompleteRows(specialRows, EXPECTED_SPECIAL_POLLING_STATIONS)) {
+      specialRows = parseSpecialRows(specialPdf.text, regions, constituencies);
+    }
     specialRows = validate(specialRows, EXPECTED_SPECIAL_POLLING_STATIONS, "special");
 
     const rows = [...ordinaryRows, ...specialRows];
