@@ -41,6 +41,18 @@ async function ownerContext(userId) {
   return { ownerOrganizationId: null, ownerType: "person" };
 }
 
+
+async function accessibleElectionFilter(userId, user) {
+  if (user?.platformRole === "super_admin") return {};
+  const memberships = await OrganizationMembership.find({ userId, status: "approved" }).select("organizationId role electionId").lean();
+  const organizationIds = memberships.map((m) => m.organizationId).filter(Boolean);
+  const candidateElectionIds = memberships.filter((m) => ["presidential_candidate", "parliamentary_candidate"].includes(m.role)).map((m) => m.electionId).filter(Boolean);
+  const clauses = [];
+  if (organizationIds.length) clauses.push({ organizationId: { $in: organizationIds } });
+  if (candidateElectionIds.length) clauses.push({ _id: { $in: candidateElectionIds } });
+  return clauses.length ? { $or: clauses } : { _id: null };
+}
+
 function validateBody(body) {
   if (!KINDS.includes(body.kind)) return "A deployment type is required.";
   if (!String(body.roleName || "").trim()) return "Role name is required.";
@@ -66,7 +78,7 @@ exports.list = async (req, res) => {
 
 exports.elections = async (req, res) => {
   try {
-    const data = await Election.find({}).sort({ startDateTime: 1, year: -1, createdAt: -1 }).lean();
+    const electionFilter = await accessibleElectionFilter(me(req), req.user);\n    const data = await Election.find(electionFilter).sort({ startDateTime: 1, year: -1, createdAt: -1 }).lean();
     return res.json({ success: true, data });
   } catch (e) { return res.status(500).json({ success: false, message: e.message || "Unable to load elections." }); }
 };
@@ -82,7 +94,7 @@ exports.create = async (req, res) => {
     const error = validateBody(body);
     if (error) return res.status(400).json({ success: false, message: error });
     const electionId = body.targetType === "election" ? body.targetId : (body.electionId && mongoose.Types.ObjectId.isValid(body.electionId) ? body.electionId : null);
-    if (electionId && !(await Election.exists({ _id: electionId }))) return res.status(400).json({ success: false, message: "Selected election does not exist." });
+    if (electionId && !(await Election.exists({ ...electionAccessFilter, _id: electionId }))) return res.status(403).json({ success: false, message: "Selected election is not available to your account." });
     const owner = await ownerContext(userId);
     const item = await WorkspaceDeployment.create({
       targetType: body.targetType, targetId: body.targetId, electionId, ownerUserId: userId,
