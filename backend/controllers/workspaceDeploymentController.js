@@ -4,6 +4,7 @@ const PersonalCampaign = require("../models/PersonalCampaign");
 const PersonalEvent = require("../models/PersonalEvent");
 const Election = require("../models/Election");
 const OrganizationMembership = require("../models/OrganizationMembership");
+const Candidate = require("../models/Candidate");
 
 const me = req => req.user?._id || req.user?.id;
 const LEVELS = ["national", "region", "constituency", "polling_station"];
@@ -44,9 +45,10 @@ async function ownerContext(userId) {
 
 async function accessibleElectionFilter(userId, user) {
   if (user?.platformRole === "super_admin") return {};
-  const memberships = await OrganizationMembership.find({ userId, status: "approved" }).select("organizationId role electionId").lean();
+  const memberships = await OrganizationMembership.find({ userId, status: "approved" }).select("organizationId role").lean();
   const organizationIds = memberships.map((m) => m.organizationId).filter(Boolean);
-  const candidateElectionIds = memberships.filter((m) => ["presidential_candidate", "parliamentary_candidate"].includes(m.role)).map((m) => m.electionId).filter(Boolean);
+  const candidates = await Candidate.find({ userId, isDeleted: { $ne: true }, status: { $in: ["approved", "active"] } }).select("electionId").lean();
+  const candidateElectionIds = candidates.map((c) => c.electionId).filter(Boolean);
   const clauses = [];
   if (organizationIds.length) clauses.push({ organizationId: { $in: organizationIds } });
   if (candidateElectionIds.length) clauses.push({ _id: { $in: candidateElectionIds } });
