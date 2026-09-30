@@ -80,7 +80,8 @@ exports.list = async (req, res) => {
 
 exports.elections = async (req, res) => {
   try {
-    const electionFilter = await accessibleElectionFilter(me(req), req.user);\n    const data = await Election.find(electionFilter).sort({ startDateTime: 1, year: -1, createdAt: -1 }).lean();
+    const electionFilter = await accessibleElectionFilter(me(req), req.user);
+    const data = await Election.find(electionFilter).sort({ startDateTime: 1, year: -1, createdAt: -1 }).lean();
     return res.json({ success: true, data });
   } catch (e) { return res.status(500).json({ success: false, message: e.message || "Unable to load elections." }); }
 };
