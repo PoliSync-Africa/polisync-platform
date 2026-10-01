@@ -23,13 +23,18 @@ const createLoginOtpChallenge = async (user) => {
   return challengeId;
 };
 
-const clearLoginOtpChallenge = async (user) => {
+const clearLoginOtpChallenge = async (user, expectedChallengeHash = null) => {
   if (!user) return;
-  user.loginOtpChallengeHash = null;
-  user.loginOtpExpiresAt = null;
-  user.loginOtpLastSentAt = null;
-  user.loginOtpAttempts = 0;
-  await user.save();
+  const filter = { _id: user._id };
+  if (expectedChallengeHash) filter.loginOtpChallengeHash = expectedChallengeHash;
+  await User.updateOne(filter, {
+    $set: {
+      loginOtpChallengeHash: null,
+      loginOtpExpiresAt: null,
+      loginOtpLastSentAt: null,
+      loginOtpAttempts: 0,
+    },
+  });
 };
 
 const sendLoginOtp = async (user) => {
@@ -46,7 +51,7 @@ const startLoginOtpChallenge = async (user) => {
   try {
     await sendLoginOtp(user);
   } catch (error) {
-    await clearLoginOtpChallenge(user);
+    await clearLoginOtpChallenge(user, crypto.createHash("sha256").update(String(challengeId)).digest("hex"));
     throw error;
   }
   return { success: true, code: "PHONE_OTP_REQUIRED", challengeId, expiresIn: 300, message: "A verification code has been sent to your registered phone number." };
@@ -61,11 +66,11 @@ const verifyLoginOtp = async ({ userId, challengeId, code }) => {
   const challengeHash = crypto.createHash("sha256").update(String(challengeId)).digest("hex");
   if (!user.loginOtpChallengeHash || user.loginOtpChallengeHash !== challengeHash) return { success: false, code: "INVALID_CHALLENGE", message: "The login verification challenge is invalid." };
   if (!user.loginOtpExpiresAt || user.loginOtpExpiresAt <= new Date()) {
-    await clearLoginOtpChallenge(user);
+    await clearLoginOtpChallenge(user, challengeHash);
     return { success: false, code: "PHONE_OTP_EXPIRED", message: "The verification code has expired. Please request a new code." };
   }
   if (user.loginOtpAttempts >= MAX_LOGIN_OTP_ATTEMPTS) {
-    await clearLoginOtpChallenge(user);
+    await clearLoginOtpChallenge(user, challengeHash);
     return { success: false, code: "TOO_MANY_ATTEMPTS", message: "Too many incorrect verification attempts. Please request a new code." };
   }
 
@@ -81,7 +86,7 @@ const verifyLoginOtp = async ({ userId, challengeId, code }) => {
     user.loginOtpAttempts = (user.loginOtpAttempts || 0) + 1;
     await user.save();
     if (user.loginOtpAttempts >= MAX_LOGIN_OTP_ATTEMPTS) {
-      await clearLoginOtpChallenge(user);
+      await clearLoginOtpChallenge(user, challengeHash);
       return { success: false, code: "TOO_MANY_ATTEMPTS", message: "Too many incorrect verification attempts. Please request a new code." };
     }
     return { success: false, code: "INVALID_PHONE_OTP", message: "Invalid or expired verification code.", remainingAttempts: MAX_LOGIN_OTP_ATTEMPTS - user.loginOtpAttempts };
@@ -114,10 +119,11 @@ const resendLoginOtp = async ({ userId, challengeId }) => {
     return { success: false, code: "OTP_RESEND_COOLDOWN", message: "Please wait a few seconds before requesting another code.", retryAfterSeconds: Math.ceil(cooldownRemainingMs / 1000) };
   }
   const newChallengeId = await createLoginOtpChallenge(user);
+  const newChallengeHash = crypto.createHash("sha256").update(String(newChallengeId)).digest("hex");
   try {
     await sendLoginOtp(user);
   } catch (error) {
-    await clearLoginOtpChallenge(user);
+    await clearLoginOtpChallenge(user, newChallengeHash);
     throw error;
   }
   return { success: true, code: "PHONE_OTP_RESENT", challengeId: newChallengeId, expiresIn: 300, message: "A new verification code has been sent to your registered phone number." };
