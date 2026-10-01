@@ -54,7 +54,7 @@ const startLoginOtpChallenge = async (user) => {
 
 const verifyLoginOtp = async ({ userId, challengeId, code }) => {
   if (!userId || !challengeId || !code) return { success: false, code: "INVALID_REQUEST", message: "User ID, challenge ID and OTP are required." };
-  const user = await User.findById(userId).select("+loginOtpChallengeHash +loginOtpExpiresAt");
+  const user = await User.findById(userId).select("+loginOtpChallengeHash +loginOtpExpiresAt +loginOtpLastSentAt");
   if (!user) return { success: false, code: "USER_NOT_FOUND", message: "Account not found." };
   if (["suspended", "deactivated", "rejected"].includes(user.accountStatus)) return { success: false, code: `ACCOUNT_${String(user.accountStatus).toUpperCase()}`, message: `This account has been ${user.accountStatus}.` };
 
