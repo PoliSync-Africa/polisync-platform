@@ -6,7 +6,7 @@ const SMS_SENDER_ID = process.env.SMS_SENDER_ID || "POLISYNC";
 const DEFAULT_OTP_EXPIRY = 5;
 const DEFAULT_OTP_LENGTH = 6;
 const MAX_OTP_LENGTH = 15;
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 8000;
 
 function validateConfiguration() {
   if (!ARKESEL_API_KEY) throw new Error("ARKESEL_API_KEY is not configured.");
@@ -70,17 +70,7 @@ async function generateOTP({ phone, firstName, expiry = DEFAULT_OTP_EXPIRY, leng
   if (!Number.isInteger(normalizedLength) || normalizedLength < 6 || normalizedLength > MAX_OTP_LENGTH) throw new Error(`OTP length must be between 6 and ${MAX_OTP_LENGTH} digits.`);
 
   const body = { expiry: normalizedExpiry, length: normalizedLength, medium: "sms", message: buildOTPMessage({ firstName, purpose, expiry: normalizedExpiry }), number, sender_id: SMS_SENDER_ID, type: "numeric" };
-  let result;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      result = await arkeselRequest("generate", body);
-      if (String(result.data?.code) !== "1011") break;
-    } catch (error) {
-      if (!error.retryable || attempt === 2) throw error;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
-  }
-
+  const result = await arkeselRequest("generate", body);
   const { httpStatus, ok, data } = result;
   if (ok && String(data?.code) === "1000") {
     return { success: true, provider: "arkesel", operation: "otp_generation", number, senderId: SMS_SENDER_ID, expiresInMinutes: normalizedExpiry, length: normalizedLength, response: data, httpStatus };
