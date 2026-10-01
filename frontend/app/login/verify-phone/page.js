@@ -3,30 +3,25 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const API_BASES = [
-  process.env.NEXT_PUBLIC_API_URL,
-  process.env.BACKEND_URL,
-  "https://polisync-platform.onrender.com",
-  "https://polisync-platform-1.onrender.com",
-].map((value) => String(value || "").replace(/\/+$/, "")).filter((value, index, list) => value && list.indexOf(value) === index);
+const API_BASE = String(process.env.NEXT_PUBLIC_API_URL || "https://polisync-platform-1.onrender.com").replace(/\/+$/, "");
 
 async function requestJson(path, options = {}) {
-  let lastError = null;
-  for (const base of API_BASES) {
-    try {
-      const response = await fetch(`${base}${path}`, {
-        ...options,
-        headers: { "Content-Type": "application/json", Accept: "application/json", ...(options.headers || {}) },
-      });
-      const text = await response.text();
-      let data = {};
-      try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
-      if (response.ok || response.status < 500) return { response, data };
-      lastError = new Error(data?.message || `Server returned ${response.status}.`);
-    } catch (error) { lastError = error; }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: { "Content-Type": "application/json", Accept: "application/json", ...(options.headers || {}) },
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
+    if (response.ok || response.status < 500) return { response, data };
+    throw new Error(data?.message || `Server returned ${response.status}.`);
+  } finally {
+    clearTimeout(timeout);
   }
-  throw lastError || new Error("Unable to connect to the PoliSync server.");
-}
 
 export default function VerifyPhoneLoginPage() {
   const [email, setEmail] = useState("");
