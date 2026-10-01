@@ -92,11 +92,16 @@ exports.station = async (req, res) => {
 exports.search = async (req, res) => {
   const q = String(req.query.q || "").trim();
   if (!q) return res.status(400).json({ success: false, message: "Search query is required." });
+  if (q.length > 100) return res.status(400).json({ success: false, message: "Search query is too long." });
+  const escapedQuery = q.replace(/[.*+?^${}()|[\\]\\]/g, "\\  const q = String(req.query.q || "").trim();
+  if (!q) return res.status(400).json({ success: false, message: "Search query is required." });
+  try {");
+  const searchRegex = { $regex: escapedQuery, $options: "i" };
   try {
     const [regions, constituencies, pollingStations] = await Promise.all([
-      Region.find({ isActive: true, name: { $regex: q, $options: "i" } }).limit(20).lean(),
+      Region.find({ isActive: true, name: searchRegex }).limit(20).lean(),
       Constituency.find({ isActive: true, name: { $regex: q, $options: "i" } }).limit(50).lean(),
-      PollingStation.find({ isActive: true, $or: [{ name: { $regex: q, $options: "i" } }, { pollingStationCode: { $regex: q, $options: "i" } }] }).limit(50).lean(),
+      PollingStation.find({ isActive: true, $or: [{ name: { $regex: q, $options: "i" } }, { pollingStationCode: searchRegex }] }).limit(50).lean(),
     ]);
     res.set("Cache-Control", "no-store, max-age=0");
     res.json({ success: true, data: { regions, constituencies, pollingStations } });
