@@ -189,6 +189,12 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
+    loginOtpLastSentAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+
     loginOtpAttempts: {
       type: Number,
       default: 0,
