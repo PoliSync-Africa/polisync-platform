@@ -1,11 +1,10 @@
 const express = require("express");
+const { protect } = require("../middleware/auth");
+const { getStationProfile } = require("../controllers/pollingStationController");
 
 const router = express.Router();
 
-const {
-  getStationProfile
-} = require("../controllers/pollingStationController");
-
+router.use(protect);
 router.get("/:id", getStationProfile);
 
 module.exports = router;

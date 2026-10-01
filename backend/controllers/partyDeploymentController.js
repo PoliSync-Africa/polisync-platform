@@ -119,10 +119,69 @@ exports.acceptInvitation = async (req, res) => {
     if (invitation.revokedAt || invitation.expiresAt <= new Date() || invitation.uses >= invitation.maxUses) return res.status(410).json({ success: false, message: "This invitation is no longer active." });
     const context = await getPartyContext(userId);
     if (context && String(context.organization._id) !== String(invitation.organizationId)) return res.status(403).json({ success: false, message: "Your existing party organization does not match this invitation." });
-    const existing = await OrganizationMembership.findOne({ userId, organizationId: invitation.organizationId, role: invitation.role, level: invitation.level, regionId: invitation.regionId, constituencyId: invitation.constituencyId, pollingStationId: invitation.pollingStationId, status: { $in: ["pending", "approved"] } });
+
+    const scope = await validateScope(
+      invitation.level,
+      invitation.regionId,
+      invitation.constituencyId,
+      invitation.pollingStationId
+    );
+    if (
+      String(scope.regionId || "") !== String(invitation.regionId || "") ||
+      String(scope.constituencyId || "") !== String(invitation.constituencyId || "") ||
+      String(scope.pollingStationId || "") !== String(invitation.pollingStationId || "")
+    ) {
+      return res.status(409).json({ success: false, message: "This invitation has an invalid geographic assignment." });
+    }
+
+    const existing = await OrganizationMembership.findOne({
+      userId,
+      organizationId: invitation.organizationId,
+      role: invitation.role,
+      level: invitation.level,
+      regionId: invitation.regionId,
+      constituencyId: invitation.constituencyId,
+      pollingStationId: invitation.pollingStationId,
+      status: { $in: ["pending", "approved"] },
+    });
     if (existing) return res.json({ success: true, message: "You already have this organization assignment.", membershipId: existing._id });
-    const membership = await OrganizationMembership.create({ userId, organizationId: invitation.organizationId, role: invitation.role, level: invitation.level, regionId: invitation.regionId, constituencyId: invitation.constituencyId, pollingStationId: invitation.pollingStationId, status: "pending", invitationId: invitation._id, invitedAt: new Date() });
-    invitation.uses += 1; invitation.acceptedAt = new Date(); invitation.lastAcceptedUserId = userId; await invitation.save();
-    return res.status(201).json({ success: true, message: "Invitation accepted. Your organization assignment is pending approval.", membershipId: membership._id, status: "pending" });
+
+    const claimedInvitation = await Invitation.findOneAndUpdate(
+      {
+        _id: invitation._id,
+        revokedAt: null,
+        expiresAt: { $gt: new Date() },
+        $expr: { $lt: ["$uses", "$maxUses"] },
+      },
+      {
+        $inc: { uses: 1 },
+        $set: { acceptedAt: new Date(), lastAcceptedUserId: userId },
+      },
+      { new: true }
+    );
+    if (!claimedInvitation) return res.status(410).json({ success: false, message: "This invitation is no longer active." });
+
+    try {
+      const membership = await OrganizationMembership.create({
+        userId,
+        organizationId: claimedInvitation.organizationId,
+        role: claimedInvitation.role,
+        level: claimedInvitation.level,
+        regionId: scope.regionId,
+        constituencyId: scope.constituencyId,
+        pollingStationId: scope.pollingStationId,
+        pollingStationCode: scope.pollingStationId ? undefined : null,
+        status: "pending",
+        invitationId: claimedInvitation._id,
+        invitedAt: new Date(),
+      });
+      return res.status(201).json({ success: true, message: "Invitation accepted. Your organization assignment is pending approval.", membershipId: membership._id, status: "pending" });
+    } catch (membershipError) {
+      await Invitation.updateOne(
+        { _id: claimedInvitation._id, uses: { $gt: 0 } },
+        { $inc: { uses: -1 } }
+      );
+      throw membershipError;
+    }
   } catch (error) { console.error("Accept party invitation error:", error); return res.status(500).json({ success: false, message: "Unable to accept invitation." }); }
 };
