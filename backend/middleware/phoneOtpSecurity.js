@@ -100,7 +100,7 @@ const LOGIN_OTP_RESEND_COOLDOWN_MS = 30 * 1000;
 
 const resendLoginOtp = async ({ userId, challengeId }) => {
   if (!userId || !challengeId) return { success: false, code: "INVALID_REQUEST", message: "User ID and challenge ID are required." };
-  const user = await User.findById(userId).select("+loginOtpChallengeHash +loginOtpExpiresAt");
+  const user = await User.findById(userId).select("+loginOtpChallengeHash +loginOtpExpiresAt +loginOtpLastSentAt");
   if (!user) return { success: false, code: "USER_NOT_FOUND", message: "Account not found." };
   const challengeHash = crypto.createHash("sha256").update(String(challengeId)).digest("hex");
   if (!user.loginOtpChallengeHash || user.loginOtpChallengeHash !== challengeHash) return { success: false, code: "INVALID_CHALLENGE", message: "The login verification challenge is invalid." };
