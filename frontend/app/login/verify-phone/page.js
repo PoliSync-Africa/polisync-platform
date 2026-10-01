@@ -22,6 +22,7 @@ async function requestJson(path, options = {}) {
   } finally {
     clearTimeout(timeout);
   }
+}
 
 export default function VerifyPhoneLoginPage() {
   const [email, setEmail] = useState("");
@@ -47,7 +48,7 @@ export default function VerifyPhoneLoginPage() {
     setError("");
     setSuccess("");
     const code = otp.trim();
-    if (!/^\d{4,15}$/.test(code)) return setError("Please enter a valid verification code.");
+    if (!/^\d{6,15}$/.test(code)) return setError("Please enter the 6-digit verification code.");
     if (!challengeToken) return setError("Your verification session has expired. Please sign in again.");
     setLoading(true);
     try {
