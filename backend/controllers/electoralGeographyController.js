@@ -94,7 +94,7 @@ exports.search = async (req, res) => {
   if (!q) return res.status(400).json({ success: false, message: "Search query is required." });
   if (q.length > 100) return res.status(400).json({ success: false, message: "Search query is too long." });
 
-  const escapedQuery = q.replace(/[.*+?^$\{\}()|[\\]\\]/g, "\\$&");
+  const escapedQuery = q.split("").map((char) => ".*+?^${}()|[]\\\\".includes(char) ? `\\${char}` : char).join("");
   const searchRegex = { $regex: escapedQuery, $options: "i" };
 
   try {
