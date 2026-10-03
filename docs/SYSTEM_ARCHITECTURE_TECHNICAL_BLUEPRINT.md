@@ -44,7 +44,7 @@ All applications communicate through secure APIs.
      │             │             │
      └─────────────┼─────────────┘
                    │
-             PostgreSQL
+          MongoDB Atlas
                    │
           Cloud Storage
 
@@ -66,7 +66,8 @@ All applications communicate through secure APIs.
 
 ## Database
 
-- PostgreSQL
+- MongoDB Atlas
+- Mongoose
 
 ## Mobile
 
@@ -118,7 +119,7 @@ Each service exposes secure APIs.
 
 Primary database:
 
-PostgreSQL
+MongoDB Atlas, accessed through Mongoose
 
 Future additions:
 
