@@ -168,12 +168,13 @@ Approved stack:
 - TypeScript
 - Node.js
 - Express
-- PostgreSQL
+- MongoDB Atlas
+- Mongoose
 - React Native
 
 **Reason**
 
-Modern, scalable, and widely supported technologies.
+MongoDB Atlas with Mongoose is the canonical POLISYNC persistence layer. The backend connects through `MONGODB_URI`; PostgreSQL is not part of the application runtime. This supports the platform's document-oriented data model and the existing Node.js/Express architecture.
 
 ---
 
@@ -209,6 +210,27 @@ Modules include:
 Independent modules improve scalability and maintenance.
 
 ---
+
+# Database Decisions
+
+## Decision 015 — MongoDB as Canonical Production Database
+
+**Decision**
+
+POLISYNC AFRICA will use MongoDB Atlas as its canonical application database, accessed through Mongoose.
+
+**Implementation**
+
+- Backend connection variable: `MONGODB_URI`
+- ODM: Mongoose
+- Production database: MongoDB Atlas
+- Render PostgreSQL is not an application dependency.
+- PostgreSQL references in legacy architecture documentation are retired.
+
+**Status**
+
+Approved and implemented.
+
 
 # Security Decisions
 

@@ -23,9 +23,9 @@ A secure platform for political parties, candidates, researchers, election obser
 
 Frontend: React + Next.js
 Backend: Node.js + Express
-Database: PostgreSQL
+Database: MongoDB Atlas (Mongoose)
 Mobile: React Native
-Cloud: GitHub + Vercel + Supabase
+Cloud: GitHub + Render + MongoDB Atlas + Cloud Storage
 
 ## First Milestone
 
