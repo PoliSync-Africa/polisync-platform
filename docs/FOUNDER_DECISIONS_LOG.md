@@ -211,6 +211,27 @@ Independent modules improve scalability and maintenance.
 
 ---
 
+# Database Decisions
+
+## Decision 015 — MongoDB as Canonical Production Database
+
+**Decision**
+
+POLISYNC AFRICA will use MongoDB Atlas as its canonical application database, accessed through Mongoose.
+
+**Implementation**
+
+- Backend connection variable: `MONGODB_URI`
+- ODM: Mongoose
+- Production database: MongoDB Atlas
+- Render PostgreSQL is not an application dependency.
+- PostgreSQL references in legacy architecture documentation are retired.
+
+**Status**
+
+Approved and implemented.
+
+
 # Security Decisions
 
 ## Decision 011 — Role-Based Access
