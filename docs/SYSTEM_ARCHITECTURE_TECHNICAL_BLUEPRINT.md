@@ -76,8 +76,8 @@ All applications communicate through secure APIs.
 ## Cloud
 
 - GitHub
-- Vercel
-- Supabase
+- Render
+- MongoDB Atlas
 - Cloud Storage
 
 ---
@@ -302,7 +302,7 @@ Testing
 
 ↓
 
-Vercel Deployment
+Render Deployment
 
 ↓
 
