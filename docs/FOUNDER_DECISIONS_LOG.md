@@ -168,12 +168,13 @@ Approved stack:
 - TypeScript
 - Node.js
 - Express
-- PostgreSQL
+- MongoDB Atlas
+- Mongoose
 - React Native
 
 **Reason**
 
-Modern, scalable, and widely supported technologies.
+MongoDB Atlas with Mongoose is the canonical POLISYNC persistence layer. The backend connects through `MONGODB_URI`; PostgreSQL is not part of the application runtime. This supports the platform's document-oriented data model and the existing Node.js/Express architecture.
 
 ---
 
