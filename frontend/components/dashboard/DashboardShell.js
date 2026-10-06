@@ -13,6 +13,14 @@ const UNIVERSAL_WORKSPACE_ITEMS = [
   { label: "Political Parties", href: "/party", key: "party", icon: "⚑" },
   { label: "Presidential Candidates", href: "/presidential-candidate", key: "presidential-candidate", icon: "♛" },
   { label: "Parliamentary Candidates", href: "/parliamentary-candidate", key: "parliamentary-candidate", icon: "♟" },
+  { label: "Calendar", href: "/calendar", key: "calendar", icon: "□" },
+  { label: "Personal Workspace", href: "/personal", key: "personal", icon: "◎" },
+  { label: "Weather", href: "/weather", key: "weather", icon: "☼" },
+  { label: "Messages", href: "/messages", key: "messages", icon: "✉" },
+  { label: "Notifications", href: "/notifications", key: "notifications", icon: "♧" },
+  { label: "AI Analyzer", href: "/ai-analyzer", key: "ai-analyzer", icon: "✦" },
+  { label: "Command Center", href: "/command-center", key: "command-center", icon: "⌘" },
+  { label: "War Room", href: "/war-room", key: "war-room", icon: "◈" },
 ];
 
 export default function DashboardShell({
@@ -50,8 +58,6 @@ export default function DashboardShell({
     return () => document.removeEventListener("click", close);
   }, [profileMenuOpen]);
 
-  // Location and weather are intentionally excluded: PoliSync is an election-only workspace.
-
 
   const sections = useMemo(() => {
     const supplied = Array.isArray(navigation)
@@ -65,12 +71,17 @@ export default function DashboardShell({
       items: [{ label: "Home", href: "/dashboard", key: "home", icon: "⌂" }],
     };
 
-    const workspaceSection = {
+    const electionSection = {
       section: "ELECTION PLATFORM",
-      items: UNIVERSAL_WORKSPACE_ITEMS,
+      items: UNIVERSAL_WORKSPACE_ITEMS.slice(0, 6),
     };
 
-    return [homeSection, ...supplied, workspaceSection];
+    const productSection = {
+      section: "PRODUCT MODULES",
+      items: UNIVERSAL_WORKSPACE_ITEMS.slice(6),
+    };
+
+    return [homeSection, ...supplied, electionSection, productSection];
   }, [navigation, role]);
 
   const closeSidebar = () => {
@@ -195,7 +206,7 @@ export default function DashboardShell({
           </div>
 
           <div className="dashboard-header-actions">
-            <span className="dashboard-election-mode" aria-label="Election platform mode">ELECTION MODE</span>
+            <span className="dashboard-election-mode" aria-label="Election platform mode">ELECTION CORE</span>
 
             <div className="dashboard-profile-wrap">
               <button type="button" className="dashboard-profile" title="Open profile menu" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}>
