@@ -102,7 +102,7 @@ const reminders = [
     id: "pc-reminder-1",
     title: "Constituency strategy meeting",
     description:
-      "Review campaign performance with the constituency team.",
+      "Review election results and reporting status with the constituency team.",
     date: new Date().toISOString(),
     time: "09:00 AM",
     completed: false,
