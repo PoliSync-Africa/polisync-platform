@@ -50,14 +50,14 @@ export default function Sidebar() {
 
         <nav className="polisync-sidebar-nav" aria-label="Election and product navigation">
           {menu.map((item) => (
-            <button
-              type="button"
+            <a
               className="polisync-sidebar-item"
               key={item.href}
+              href={item.href}
               onClick={() => setOpen(false)}
             >
               {item.label}
-            </button>
+            </a>
           ))}
         </nav>
       </aside>
