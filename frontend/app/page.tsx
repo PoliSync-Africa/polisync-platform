@@ -103,7 +103,7 @@ const styles:Record<string,CSSProperties>={
  grid:{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:14},
  card:{background:"#fff",border:"1px solid #dfe6ec",borderRadius:18,padding:22,textDecoration:"none",color:"#102033",minHeight:190,display:"flex",flexDirection:"column"},
  tag:{fontSize:9,fontWeight:900,letterSpacing:".13em",color:"#075f2b"},
- card h3:{},
+
  transmission:{maxWidth:1280,margin:"0 auto 70px",padding:"clamp(28px,5vw,48px) clamp(18px,4vw,42px)",boxSizing:"border-box",background:"#eaf2ed",borderTop:"1px solid #d2e0d6",borderBottom:"1px solid #d2e0d6",display:"grid",gridTemplateColumns:"minmax(0,.8fr) minmax(0,1.2fr)",gap:35,alignItems:"center"},
  steps:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10},
  step:{padding:"15px",borderRadius:13,background:"#fff",border:"1px solid #d8e4db",display:"grid",gap:8},
