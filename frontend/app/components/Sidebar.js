@@ -3,13 +3,12 @@
 import { useState } from "react";
 
 const menu = [
-  "Dashboard",
-  "Elections",
-  "Results",
-  "Campaign",
-  "Research",
-  "Support",
-  "Settings"
+  "Election Center",
+  "Transmit Results",
+  "Live Results",
+  "Political Parties",
+  "Presidential Candidates",
+  "Parliamentary Candidates"
 ];
 
 export default function Sidebar() {
