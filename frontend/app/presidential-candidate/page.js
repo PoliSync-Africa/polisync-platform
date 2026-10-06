@@ -179,7 +179,7 @@ export default function PresidentialCandidateDashboard() {
         <section className="candidate-hero">
           <div className="hero-content">
             <span className="hero-label">
-              PRESIDENTIAL CAMPAIGN COMMAND
+              PRESIDENTIAL ELECTION COMMAND
             </span>
 
             <h1>
