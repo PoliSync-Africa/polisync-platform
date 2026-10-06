@@ -12,35 +12,17 @@ import NotificationsPanel from "../../components/dashboard/NotificationsPanel";
 import PrivacySecurityPanel from "../../components/dashboard/PrivacySecurityPanel";
 
 const partyNavigation = [
-  { section: "PARTY COMMAND", items: [
-    { label: "Dashboard", href: "/party", icon: "⌂", key: "overview" },
-    { label: "National Command", href: "/party/national", icon: "◎", key: "national" },
-    { label: "Regional Administration", href: "/party/regions", icon: "⌖", key: "regions" },
-    { label: "Constituencies", href: "/party/constituencies", icon: "▦", key: "constituencies" },
-    { label: "Polling Stations", href: "/party/polling-stations", icon: "▣", key: "polling-stations" },
-  ]},
-  { section: "PARTY OPERATIONS", items: [
-    { label: "Members", href: "/party/members", icon: "♙", key: "members" },
-    { label: "Party Administrators", href: "/party/administrators", icon: "♚", key: "administrators" },
-    { label: "Deployment Center", href: "/party/deployments", icon: "⇄", key: "deployments" },
-    { label: "Polling Agents", href: "/party/polling-agents", icon: "♟", key: "agents" },
-    { label: "Candidates", href: "/party/candidates", icon: "★", key: "candidates" },
-    { label: "Field Operations", href: "/party/field", icon: "⌁", key: "field" },
-  ]},
-  { section: "ELECTION MANAGEMENT", items: [
-    { label: "Live Results", href: "/party/results", icon: "▤", key: "results" },
+  { section: "ELECTION CENTER", items: [
+    { label: "Party Election Dashboard", href: "/party", icon: "⌂", key: "overview" },
+    { label: "Election Results", href: "/party/results", icon: "↗", key: "results" },
     { label: "EC8 Results", href: "/party/ec8", icon: "✓", key: "ec8" },
-    { label: "Election Analyzer", href: "/party/ai-analyzer", icon: "✦", key: "ai-analyzer" },
-    { label: "Analytics", href: "/party/analytics", icon: "◫", key: "analytics" },
-    { label: "Reports", href: "/party/reports", icon: "▥", key: "reports" },
+    { label: "Election Analytics", href: "/party/analytics", icon: "◫", key: "analytics" },
+    { label: "Election Reports", href: "/party/reports", icon: "▥", key: "reports" },
   ]},
-  { section: "MANAGEMENT", items: [
-    { label: "Communications", href: "/party/communications", icon: "◈", key: "communications" },
-    { label: "Calendar", href: "/party/calendar", icon: "□", key: "calendar" },
-    { label: "Finance", href: "/party/finance", icon: "₵", key: "finance" },
-    { label: "Complaints", href: "/party/complaints", icon: "!", key: "complaints" },
-    { label: "Reminders", href: "/party/reminders", icon: "✓", key: "reminders" },
-    { label: "Notifications", href: "/party/notifications", icon: "♧", key: "notifications" },
+  { section: "PARTY PARTICIPATION", items: [
+    { label: "Candidates", href: "/party/candidates", icon: "★", key: "candidates" },
+    { label: "Polling Agents", href: "/party/polling-agents", icon: "♟", key: "agents" },
+    { label: "Polling Stations", href: "/party/polling-stations", icon: "▣", key: "polling-stations" },
   ]},
   { section: "ACCOUNT", items: [
     { label: "Organization Profile", href: "/party/profile", icon: "♙", key: "profile" },
