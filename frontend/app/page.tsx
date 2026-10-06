@@ -82,7 +82,7 @@ export default function Home() {
           ["/ai-analyzer","AI Analyzer","Election data and result intelligence."],
           ["/command-center","Command Center","Operational overview and live system signals."],
           ["/war-room","War Room","High-priority election operations and incidents."]
-        ].map(([href,title,text])=><a key={href} href={href} style={styles.productCard}><b>{title}</b><span>{text}</span><small>Open →</small></a>)}
+        ].map(([href,title,text])=><a key={href} href={href} style={styles.productCard}><b style={styles.productCardTitle}>{title}</b><span style={styles.productCardText}>{text}</span><small style={styles.productCardLink}>Open →</small></a>)}
       </div>
     </section>
 
