@@ -7,15 +7,12 @@ import PoliSyncBrand from "./PoliSyncBrand";
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
 const UNIVERSAL_WORKSPACE_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", key: "dashboard", icon: "⌂" },
-  { label: "Elections", href: "/elections", key: "elections", icon: "•" },
+  { label: "Election Center", href: "/elections", key: "elections", icon: "▣" },
   { label: "Transmit Result", href: "/submit-result", key: "submit-result", icon: "⇧" },
-  { label: "Live Results", href: "/results", key: "results", icon: "↗" },
-  { label: "Political Parties", href: "/party", key: "party", icon: "▣" },
-  { label: "Presidential Candidates", href: "/presidential-candidate", key: "presidential-candidate", icon: "★" },
-  { label: "Parliamentary Candidates", href: "/parliamentary-candidate", key: "parliamentary-candidate", icon: "☆" },
-  { label: "Profile", href: "/profile", key: "profile", icon: "♙" },
-  { label: "Privacy & Security", href: "/settings/security", key: "privacy-security", icon: "⚿" },
+  { label: "Live Results", href: "/results", key: "results", icon: "◉" },
+  { label: "Political Parties", href: "/party", key: "party", icon: "⚑" },
+  { label: "Presidential Candidates", href: "/presidential-candidate", key: "presidential-candidate", icon: "♛" },
+  { label: "Parliamentary Candidates", href: "/parliamentary-candidate", key: "parliamentary-candidate", icon: "♟" },
 ];
 
 export default function DashboardShell({
@@ -159,7 +156,7 @@ export default function DashboardShell({
     };
 
     const workspaceSection = {
-      section: "ALL WORKSPACES",
+      section: "ELECTION PLATFORM",
       items: UNIVERSAL_WORKSPACE_ITEMS,
     };
 
@@ -300,8 +297,7 @@ export default function DashboardShell({
               </div>
             </div>
 
-            <button type="button" className="dashboard-header-icon" aria-label="Notifications" onClick={() => { if (typeof window !== "undefined") window.location.href = "/notifications"; }}>🔔</button>
-            <button type="button" className="dashboard-header-icon" aria-label="Messages" onClick={() => { if (typeof window !== "undefined") window.location.href = "/messages"; }}>💬</button>
+            <span className="dashboard-election-mode" aria-label="Election platform mode">ELECTION MODE</span>
 
             <div className="dashboard-profile-wrap">
               <button type="button" className="dashboard-profile" title="Open profile menu" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={() => setProfileMenuOpen((open) => !open)}>
