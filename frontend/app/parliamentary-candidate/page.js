@@ -15,131 +15,21 @@ import PrivacySecurityPanel from "../../components/dashboard/PrivacySecurityPane
 ============================================================ */
 
 const parliamentaryNavigation = [
-  {
-    section: "CONSTITUENCY COMMAND",
-    items: [
-      {
-        label: "Dashboard",
-        href: "/parliamentary-candidate",
-        icon: "⌂",
-        key: "overview",
-      },
-      {
-        label: "Campaign Overview",
-        href: "/parliamentary-candidate/campaign",
-        icon: "◉",
-        key: "campaign",
-      },
-      {
-        label: "Constituency",
-        href: "/parliamentary-candidate/constituency",
-        icon: "⌖",
-        key: "constituency",
-      },
-      {
-        label: "Polling Stations",
-        href: "/parliamentary-candidate/polling-stations",
-        icon: "▣",
-        key: "polling-stations",
-      },
-      {
-        label: "Field Team",
-        href: "/parliamentary-candidate/team",
-        icon: "♙",
-        key: "team",
-      },
-    ],
-  },
-
-  {
-    section: "ELECTION INTELLIGENCE",
-    items: [
-      {
-        label: "Live Results",
-        href: "/parliamentary-candidate/results",
-        icon: "▤",
-        key: "results",
-      },
-      {
-        label: "EC8 Verification",
-        href: "/parliamentary-candidate/ec8",
-        icon: "✓",
-        key: "ec8",
-      },
-      {
-        label: "AI Election Analyzer",
-        href: "/parliamentary-candidate/ai-analyzer",
-        icon: "✦",
-        key: "ai-analyzer",
-      },
-      {
-        label: "Analytics",
-        href: "/parliamentary-candidate/analytics",
-        icon: "◫",
-        key: "analytics",
-      },
-      {
-        label: "Field Reports",
-        href: "/parliamentary-candidate/reports",
-        icon: "▤",
-        key: "reports",
-      },
-    ],
-  },
-
-  {
-    section: "CAMPAIGN MANAGEMENT",
-    items: [
-      {
-        label: "Campaign Calendar",
-        href: "/parliamentary-candidate/calendar",
-        icon: "□",
-        key: "calendar",
-      },
-      {
-        label: "Campaign Team",
-        href: "/parliamentary-candidate/team",
-        icon: "♧",
-        key: "campaign-team",
-      },
-      {
-        label: "Media & Communications",
-        href: "/parliamentary-candidate/media",
-        icon: "◈",
-        key: "media",
-      },
-      {
-        label: "Reminders",
-        href: "/parliamentary-candidate/reminders",
-        icon: "✓",
-        key: "reminders",
-      },
-      {
-        label: "Notifications",
-        href: "/parliamentary-candidate/notifications",
-        icon: "🔔",
-        key: "notifications",
-      },
-    ],
-  },
-
-  {
-    section: "ACCOUNT",
-    items: [
-      {
-        label: "Profile",
-        href: "/profile",
-        icon: "♙",
-        key: "profile",
-      },
-      {
-        label: "Privacy & Security",
-        href: "/settings/security",
-        icon: "♢",
-        key: "security",
-      },
-    ],
-  },
+  { section: "ELECTION CENTER", items: [
+    { label: "Candidate Election Dashboard", href: "/parliamentary-candidate", icon: "⌂", key: "overview" },
+    { label: "Election Results", href: "/parliamentary-candidate/results", icon: "↗", key: "results" },
+    { label: "EC8 Verification", href: "/parliamentary-candidate/ec8", icon: "✓", key: "ec8" },
+    { label: "Election Analytics", href: "/parliamentary-candidate/analytics", icon: "◫", key: "analytics" },
+    { label: "Election Reports", href: "/parliamentary-candidate/reports", icon: "▤", key: "reports" },
+  ]},
+  { section: "CONSTITUENCY", items: [
+    { label: "Constituency", href: "/parliamentary-candidate/constituency", icon: "⌖", key: "constituency" },
+    { label: "Polling Stations", href: "/parliamentary-candidate/polling-stations", icon: "▣", key: "polling-stations" },
+  ]},
+  { section: "ACCOUNT", items: [
+    { label: "Profile", href: "/profile", icon: "♙", key: "profile" },
+    { label: "Privacy & Security", href: "/settings/security", icon: "♢", key: "security" },
+  ]},
 ];
 
 /* ============================================================
