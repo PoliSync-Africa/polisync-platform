@@ -32,16 +32,6 @@ export default function DashboardShell({
   const [profilePhoto, setProfilePhoto] = useState(() => getStoredUser()?.profilePhoto || user?.profilePhoto || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [location, setLocation] = useState({
-    loading: true,
-    name: "Locating…",
-    country: "",
-    countryCode: "",
-    flag: "🌍",
-    temperature: null,
-    condition: "",
-  });
-
   useEffect(() => setSidebarOpen(Boolean(mobileMenuOpen)), [mobileMenuOpen]);
 
   useEffect(() => {
@@ -260,11 +250,10 @@ export default function DashboardShell({
         .dashboard-header-brand { width:142px; flex:0 0 142px; display:flex; align-items:center; justify-content:center; }
         .dashboard-header-brand :global(.polisync-brand-image) { max-width:138px; }
         .dashboard-header-title { min-width:0; flex:1; }
-        .dashboard-country-line { display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-bottom:3px; color:var(--light); font-size:10px; font-weight:750; }
-        .dashboard-country-flag { font-size:17px; line-height:1; }
-        .dashboard-country-name { color:#9a8250; font-weight:850; }
+        .dashboard-election-kicker { margin-bottom:3px; color:var(--gold); font-size:9px; font-weight:900; letter-spacing:1.25px; }
         .dashboard-header-title h1 { margin:0; color:var(--green); font-size:clamp(21px,2vw,29px); line-height:1.15; font-weight:850; letter-spacing:-.35px; }
         .dashboard-header-title p { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.4; }
+        .dashboard-election-mode { display:inline-flex; align-items:center; min-height:30px; padding:0 10px; border:1px solid #c9a227; border-radius:999px; background:#fff8dc; color:#6e5711; font-size:9px; font-weight:900; letter-spacing:1px; white-space:nowrap; }
         .dashboard-header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
         .dashboard-weather { display:flex; align-items:center; gap:8px; min-width:110px; padding-right:12px; border-right:1px solid #e5ece7; }
         .dashboard-weather-icon { font-size:22px; }
