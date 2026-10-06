@@ -17,8 +17,8 @@ const cards = [
 export default function WarRoom() {
   return (
     <main style={{ minHeight: "100vh", background: "#07111F", color: "white", padding: "24px" }}>
-      <h1 style={{ fontSize: "32px", marginBottom: "8px" }}>Election Command Center</h1>
-      <p style={{ color: "#BFD7EA", marginBottom: "24px" }}>Real-time political intelligence across Ghana.</p>
+      <h1 style={{ fontSize: "32px", marginBottom: "8px" }}>Election Operations War Room</h1>
+      <p style={{ color: "#BFD7EA", marginBottom: "24px" }}>Real-time election operations, result transmission and incident intelligence.</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "16px", marginBottom: "24px" }}>
         {cards.map((card) => <div key={card.title} style={{ background: card.color, borderRadius: "16px", padding: "20px" }}><div style={{ fontSize: "28px" }}>{card.icon}</div><h3 style={{ marginTop: "12px" }}>{card.title}</h3><h2>{card.value}</h2></div>)}
       </div>
