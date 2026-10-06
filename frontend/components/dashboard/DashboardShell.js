@@ -60,88 +60,8 @@ export default function DashboardShell({
     return () => document.removeEventListener("click", close);
   }, [profileMenuOpen]);
 
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocation((current) => ({ ...current, loading: false, name: "Location unavailable" }));
-      return undefined;
-    }
+  // Location and weather are intentionally excluded: PoliSync is an election-only workspace.
 
-    let cancelled = false;
-    let refreshTimer = null;
-
-    const loadLocation = async ({ coords }) => {
-      try {
-        const latitude = coords.latitude;
-        const longitude = coords.longitude;
-        const [geoResponse, weatherResponse] = await Promise.all([
-          fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&localityLanguage=en`, { cache: "no-store" }),
-          fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}&current=temperature_2m,weather_code&timezone=auto`, { cache: "no-store" }),
-        ]);
-
-        const geo = geoResponse.ok ? await geoResponse.json() : {};
-        const weather = weatherResponse.ok ? await weatherResponse.json() : {};
-        if (cancelled) return;
-
-        const countryCode = String(geo.countryCode || geo.countryCodeIso2 || "").toUpperCase();
-        const locality = geo.locality || geo.city || geo.principalSubdivision || geo.countryName || "Current location";
-        const region = geo.principalSubdivision && geo.principalSubdivision !== locality ? geo.principalSubdivision : "";
-
-        setLocation({
-          loading: false,
-          name: region ? `${locality}, ${region}` : locality,
-          country: geo.countryName || "",
-          countryCode,
-          flag: countryCodeToFlag(countryCode),
-          temperature: weather?.current?.temperature_2m ?? null,
-          condition: weatherCodeToText(weather?.current?.weather_code),
-        });
-      } catch {
-        if (!cancelled) setLocation((current) => ({ ...current, loading: false, name: "Location unavailable" }));
-      }
-    };
-
-    const handleError = (error) => {
-      if (!cancelled) {
-        setLocation((current) => ({
-          ...current,
-          loading: false,
-          name: error?.code === 1 ? "Location permission not granted" : "Location unavailable",
-        }));
-      }
-    };
-
-    const requestFreshLocation = () => {
-      navigator.geolocation.getCurrentPosition(loadLocation, handleError, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 12000,
-      });
-    };
-
-    const watchId = navigator.geolocation.watchPosition(loadLocation, handleError, {
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 12000,
-    });
-
-    requestFreshLocation();
-
-    const refreshOnReturn = () => {
-      if (document.visibilityState === "visible") requestFreshLocation();
-    };
-
-    window.addEventListener("focus", requestFreshLocation);
-    document.addEventListener("visibilitychange", refreshOnReturn);
-    refreshTimer = window.setInterval(requestFreshLocation, 2 * 60 * 1000);
-
-    return () => {
-      cancelled = true;
-      navigator.geolocation.clearWatch(watchId);
-      window.clearInterval(refreshTimer);
-      window.removeEventListener("focus", requestFreshLocation);
-      document.removeEventListener("visibilitychange", refreshOnReturn);
-    };
-  }, []);
 
   const sections = useMemo(() => {
     const supplied = Array.isArray(navigation)
@@ -279,24 +199,12 @@ export default function DashboardShell({
           <div className="dashboard-header-brand"><PoliSyncBrand compact /></div>
 
           <div className="dashboard-header-title">
-            <div className="dashboard-country-line">
-              <span className="dashboard-country-flag" aria-label={location.country || "Country"}>{location.flag}</span>
-              <span>{location.loading ? "Locating…" : location.name}</span>
-              {location.country && <span className="dashboard-country-name">{location.country}</span>}
-            </div>
-            <h1>{title || "Dashboard"}</h1>
+            <div className="dashboard-election-kicker">POLISYNC AFRICA · ELECTION TECHNOLOGY</div>
+            <h1>{title || "Election Dashboard"}</h1>
             {subtitle ? <p>{subtitle}</p> : null}
           </div>
 
           <div className="dashboard-header-actions">
-            <div className="dashboard-weather" aria-label="Live atmospheric weather">
-              <span className="dashboard-weather-icon" aria-hidden="true">{weatherToIcon(location.condition)}</span>
-              <div>
-                <strong>{location.temperature == null ? "--°C" : `${Math.round(location.temperature)}°C`}</strong>
-                <small>{location.condition || "Atmospheric temperature"}</small>
-              </div>
-            </div>
-
             <span className="dashboard-election-mode" aria-label="Election platform mode">ELECTION MODE</span>
 
             <div className="dashboard-profile-wrap">
