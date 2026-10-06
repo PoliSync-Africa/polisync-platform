@@ -11,125 +11,17 @@ import NotificationsPanel from "../../components/dashboard/NotificationsPanel";
 import PrivacySecurityPanel from "../../components/dashboard/PrivacySecurityPanel";
 
 const presidentialNavigation = [
-  {
-    section: "CAMPAIGN COMMAND",
-    items: [
-      {
-        label: "Dashboard",
-        href: "/presidential-candidate",
-        icon: "⌂",
-        key: "overview",
-      },
-      {
-        label: "Campaign Overview",
-        href: "/presidential-candidate/campaign",
-        icon: "◉",
-        key: "campaign",
-      },
-      {
-        label: "Regional Performance",
-        href: "/presidential-candidate/regions",
-        icon: "◒",
-        key: "regions",
-      },
-      {
-        label: "Field Operations",
-        href: "/presidential-candidate/field",
-        icon: "⌖",
-        key: "field",
-      },
-      {
-        label: "Campaign Team",
-        href: "/presidential-candidate/team",
-        icon: "♙",
-        key: "team",
-      },
-    ],
-  },
-
-  {
-    section: "ELECTION INTELLIGENCE",
-    items: [
-      {
-        label: "Live Results",
-        href: "/presidential-candidate/results",
-        icon: "▣",
-        key: "results",
-      },
-      {
-        label: "AI Election Analyzer",
-        href: "/presidential-candidate/ai-analyzer",
-        icon: "✦",
-        key: "ai-analyzer",
-      },
-      {
-        label: "Analytics",
-        href: "/presidential-candidate/analytics",
-        icon: "◫",
-        key: "analytics",
-      },
-      {
-        label: "Field Reports",
-        href: "/presidential-candidate/reports",
-        icon: "▤",
-        key: "reports",
-      },
-    ],
-  },
-
-  {
-    section: "CAMPAIGN MANAGEMENT",
-    items: [
-      {
-        label: "Media & Communications",
-        href: "/presidential-candidate/media",
-        icon: "◈",
-        key: "media",
-      },
-      {
-        label: "Campaign Calendar",
-        href: "/presidential-candidate/calendar",
-        icon: "□",
-        key: "calendar",
-      },
-      {
-        label: "Finance",
-        href: "/presidential-candidate/finance",
-        icon: "₵",
-        key: "finance",
-      },
-      {
-        label: "Reminders",
-        href: "/presidential-candidate/reminders",
-        icon: "✓",
-        key: "reminders",
-      },
-      {
-        label: "Notifications",
-        href: "/presidential-candidate/notifications",
-        icon: "♧",
-        key: "notifications",
-      },
-    ],
-  },
-
-  {
-    section: "ACCOUNT",
-    items: [
-      {
-        label: "Profile",
-        href: "/profile",
-        icon: "♙",
-        key: "profile",
-      },
-      {
-        label: "Privacy & Security",
-        href: "/settings/security",
-        icon: "♢",
-        key: "security",
-      },
-    ],
-  },
+  { section: "ELECTION CENTER", items: [
+    { label: "Candidate Election Dashboard", href: "/presidential-candidate", icon: "⌂", key: "overview" },
+    { label: "Election Results", href: "/presidential-candidate/results", icon: "↗", key: "results" },
+    { label: "EC8 Verification", href: "/presidential-candidate/ec8", icon: "✓", key: "ec8" },
+    { label: "Election Analytics", href: "/presidential-candidate/analytics", icon: "◫", key: "analytics" },
+    { label: "Election Reports", href: "/presidential-candidate/reports", icon: "▤", key: "reports" },
+  ]},
+  { section: "ACCOUNT", items: [
+    { label: "Profile", href: "/profile", icon: "♙", key: "profile" },
+    { label: "Privacy & Security", href: "/settings/security", icon: "♢", key: "security" },
+  ]},
 ];
 
 export default function PresidentialCandidateDashboard() {
