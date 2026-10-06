@@ -17,7 +17,7 @@ import OrganizationLogoManagerInjector from "../components/dashboard/Organizatio
 import WorkspaceNavigationEnhancer from "../components/dashboard/WorkspaceNavigationEnhancer";
 import PersistentWorkspaceShell from "../components/dashboard/PersistentWorkspaceShell";
 
-export const metadata = { title: "PoliSync Africa", description: "POLISYNC AFRICA — Technology • Power • Elections" };
+export const metadata = { title: "PoliSync Africa", description: "POLISYNC AFRICA — Election Operations & Results Transmission" };
 export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }) {
