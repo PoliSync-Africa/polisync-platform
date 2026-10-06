@@ -1,5 +1,16 @@
 import { NextResponse } from "next/server";
 
+const RETAINED_PRODUCT_ROUTES = [
+  "/calendar",
+  "/personal",
+  "/weather",
+  "/messages",
+  "/notifications",
+  "/ai-analyzer",
+  "/command-center",
+  "/war-room",
+];
+
 const ELECTION_ROUTES = [
   "/dashboard",
   "/elections",
@@ -24,21 +35,13 @@ const ELECTION_ROUTES = [
   "/policies",
 ];
 
-const NON_ELECTION_PREFIXES = [
+const BLOCKED_WORKSPACE_PREFIXES = [
   "/campaigns",
   "/research",
-  "/calendar",
   "/field-work",
-  "/personal",
   "/notes",
   "/news",
-  "/weather",
-  "/messages",
-  "/notifications",
-  "/ai-analyzer",
-  "/command-center",
-  "/war-room",
-  "/observer",
+  "/electionos",
 ];
 
 export function middleware(request) {
@@ -54,7 +57,7 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  if (NON_ELECTION_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"))) {
+  if (BLOCKED_WORKSPACE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"))) {
     const url = request.nextUrl.clone();
     url.pathname = "/elections";
     url.search = "";
@@ -63,7 +66,7 @@ export function middleware(request) {
 
   if (pathname === "/") return NextResponse.next();
 
-  if (ELECTION_ROUTES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"))) {
+  if (RETAINED_PRODUCT_ROUTES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/")) || ELECTION_ROUTES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"))) {
     return NextResponse.next();
   }
 
