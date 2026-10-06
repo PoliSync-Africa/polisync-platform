@@ -133,8 +133,8 @@ const styles:Record<string,CSSProperties>={
  productModules:{maxWidth:1280,margin:"0 auto 70px",padding:"0 clamp(18px,4vw,42px)",display:"grid",gridTemplateColumns:"minmax(0,.8fr) minmax(0,1.2fr)",gap:40,alignItems:"center",boxSizing:"border-box"},
  productGrid:{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10},
  productCard:{display:"grid",gap:5,padding:"15px",background:"#fff",border:"1px solid #dfe6ec",borderRadius:13,textDecoration:"none",color:"#102033"},
- productCard b:{fontSize:13},
- productCard span:{fontSize:11,color:"#68788a",lineHeight:1.45},
- productCard small:{fontSize:10,fontWeight:800,color:"#075f2b"},
+ productCardTitle:{fontSize:13},
+ productCardText:{fontSize:11,color:"#68788a",lineHeight:1.45},
+ productCardLink:{fontSize:10,fontWeight:800,color:"#075f2b"},
  footer:{maxWidth:1280,margin:"0 auto",padding:"24px clamp(18px,4vw,42px) 34px",display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",color:"#7a8798",fontSize:11,boxSizing:"border-box"}
 };
