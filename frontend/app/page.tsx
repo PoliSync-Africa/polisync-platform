@@ -66,6 +66,26 @@ export default function Home() {
       <div style={styles.participantLinks}><a href="/party" style={styles.participant}>Political Party <b>→</b></a><a href="/presidential-candidate" style={styles.participant}>Presidential Candidate <b>→</b></a><a href="/parliamentary-candidate" style={styles.participant}>Parliamentary Candidate <b>→</b></a></div>
     </section>
 
+    <section style={styles.productModules}>
+      <div>
+        <p style={styles.eyebrow}>RETAINED PRODUCT MODULES</p>
+        <h2 style={styles.heading}>The platform stays useful beyond the election core.</h2>
+        <p style={styles.sectionLead}>Calendar, personal workspace, weather, communications, AI analysis and operational command tools remain available as supporting product modules without changing PoliSync’s core purpose.</p>
+      </div>
+      <div style={styles.productGrid}>
+        {[
+          ["/calendar","Calendar","Meetings, deadlines and election schedules."],
+          ["/personal","Personal Workspace","Private tasks, saved work and personal operations."],
+          ["/weather","Weather","Location-aware weather and operational conditions."],
+          ["/messages","Messages","Secure workspace communication."],
+          ["/notifications","Notifications","Election, result and system alerts."],
+          ["/ai-analyzer","AI Analyzer","Election data and result intelligence."],
+          ["/command-center","Command Center","Operational overview and live system signals."],
+          ["/war-room","War Room","High-priority election operations and incidents."]
+        ].map(([href,title,text])=><a key={href} href={href} style={styles.productCard}><b>{title}</b><span>{text}</span><small>Open →</small></a>)}
+      </div>
+    </section>
+
     <footer style={styles.footer}><span>© {new Date().getFullYear()} PoliSync Africa</span><span>Election Operations & Results Transmission</span></footer>
   </main>;
 }
@@ -110,5 +130,11 @@ const styles:Record<string,CSSProperties>={
  participants:{maxWidth:1280,margin:"0 auto 70px",padding:"0 clamp(18px,4vw,42px)",display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(300px,.75fr)",gap:50,alignItems:"center",boxSizing:"border-box"},
  participantLinks:{display:"grid",gap:9},
  participant:{display:"flex",justifyContent:"space-between",padding:"17px 18px",background:"#fff",border:"1px solid #dfe6ec",borderRadius:13,textDecoration:"none",color:"#102033",fontWeight:800},
+ productModules:{maxWidth:1280,margin:"0 auto 70px",padding:"0 clamp(18px,4vw,42px)",display:"grid",gridTemplateColumns:"minmax(0,.8fr) minmax(0,1.2fr)",gap:40,alignItems:"center",boxSizing:"border-box"},
+ productGrid:{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10},
+ productCard:{display:"grid",gap:5,padding:"15px",background:"#fff",border:"1px solid #dfe6ec",borderRadius:13,textDecoration:"none",color:"#102033"},
+ productCard b:{fontSize:13},
+ productCard span:{fontSize:11,color:"#68788a",lineHeight:1.45},
+ productCard small:{fontSize:10,fontWeight:800,color:"#075f2b"},
  footer:{maxWidth:1280,margin:"0 auto",padding:"24px clamp(18px,4vw,42px) 34px",display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",color:"#7a8798",fontSize:11,boxSizing:"border-box"}
 };
