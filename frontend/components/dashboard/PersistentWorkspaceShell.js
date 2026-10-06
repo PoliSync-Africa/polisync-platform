@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const GROUPS = [
-  { label: "CORE WORKSPACE", items: [["⌂", "Home", "/dashboard"], ["◉", "Campaigns", "/campaigns"], ["⚑", "Field Work", "/field-work"], ["⌕", "Research & Surveys", "/research"], ["•", "Elections", "/elections"], ["↗", "Results", "/results"]] },
-  { label: "OPERATIONS", items: [["◌", "Ghana News & Intelligence", "/news"], ["□", "Calendar", "/calendar"], ["◯", "Messages", "/messages"], ["♧", "Notifications", "/notifications"]] },
-  { label: "INTELLIGENCE", items: [["✦", "AI Analyzer", "/ai-analyzer"]] },
+  { label: "ELECTION CENTER", items: [["⌂", "Home", "/dashboard"], ["•", "Elections", "/elections"], ["⇧", "Transmit Result", "/submit-result"], ["↗", "Live Results", "/results"]] },
+  { label: "PARTIES & CANDIDATES", items: [["▣", "Political Parties", "/party"], ["★", "Presidential Candidates", "/presidential-candidate"], ["☆", "Parliamentary Candidates", "/parliamentary-candidate"]] },
   { label: "ACCOUNT", items: [["♙", "Profile", "/profile"], ["⚿", "Privacy & Security", "/settings/security"]] },
 ];
 
@@ -59,7 +58,7 @@ export default function PersistentWorkspaceShell() {
   return (
     <div className="polisync-persistent-workspace" aria-label="PoliSync Africa workspace">
       <aside className="polisync-persistent-sidebar">
-        <div className="polisync-persistent-brand"><strong>POLISYNC AFRICA</strong><span>POLITICAL TECHNOLOGY PLATFORM</span></div>
+        <div className="polisync-persistent-brand"><strong>POLISYNC AFRICA</strong><span>ELECTION OPERATIONS & RESULTS TRANSMISSION</span></div>
         <nav>
           {GROUPS.map((group) => (
             <div className="polisync-persistent-group" key={group.label}>
