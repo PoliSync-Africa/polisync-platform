@@ -8,16 +8,12 @@ const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
 const UNIVERSAL_WORKSPACE_ITEMS = [
   { label: "Dashboard", href: "/dashboard", key: "dashboard", icon: "⌂" },
-  { label: "Campaigns", href: "/campaigns", key: "campaigns", icon: "◉" },
-  { label: "Field Work", href: "/field-work", key: "field-work", icon: "⚑" },
-  { label: "Research & Surveys", href: "/research", key: "research", icon: "⌕" },
   { label: "Elections", href: "/elections", key: "elections", icon: "•" },
-  { label: "Results", href: "/results", key: "results", icon: "↗" },
-  { label: "Ghana News & Intelligence", href: "/news", key: "news", icon: "◌" },
-  { label: "Calendar", href: "/calendar", key: "calendar", icon: "□" },
-  { label: "Messages", href: "/messages", key: "messages", icon: "◯" },
-  { label: "Notifications", href: "/notifications", key: "notifications", icon: "♧" },
-  { label: "AI Analyzer", href: "/ai-analyzer", key: "ai-analyzer", icon: "✦" },
+  { label: "Transmit Result", href: "/submit-result", key: "submit-result", icon: "⇧" },
+  { label: "Live Results", href: "/results", key: "results", icon: "↗" },
+  { label: "Political Parties", href: "/party", key: "party", icon: "▣" },
+  { label: "Presidential Candidates", href: "/presidential-candidate", key: "presidential-candidate", icon: "★" },
+  { label: "Parliamentary Candidates", href: "/parliamentary-candidate", key: "parliamentary-candidate", icon: "☆" },
   { label: "Profile", href: "/profile", key: "profile", icon: "♙" },
   { label: "Privacy & Security", href: "/settings/security", key: "privacy-security", icon: "⚿" },
 ];
