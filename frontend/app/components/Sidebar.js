@@ -3,12 +3,20 @@
 import { useState } from "react";
 
 const menu = [
-  "Election Center",
-  "Transmit Results",
-  "Live Results",
-  "Political Parties",
-  "Presidential Candidates",
-  "Parliamentary Candidates"
+  { label: "Election Center", href: "/elections" },
+  { label: "Transmit Results", href: "/submit-result" },
+  { label: "Live Results", href: "/results" },
+  { label: "Political Parties", href: "/party" },
+  { label: "Presidential Candidates", href: "/presidential-candidate" },
+  { label: "Parliamentary Candidates", href: "/parliamentary-candidate" },
+  { label: "Calendar", href: "/calendar" },
+  { label: "Personal Workspace", href: "/personal" },
+  { label: "Weather", href: "/weather" },
+  { label: "Messages", href: "/messages" },
+  { label: "Notifications", href: "/notifications" },
+  { label: "AI Analyzer", href: "/ai-analyzer" },
+  { label: "Command Center", href: "/command-center" },
+  { label: "War Room", href: "/war-room" },
 ];
 
 export default function Sidebar() {
@@ -40,15 +48,15 @@ export default function Sidebar() {
       <aside className={`polisync-sidebar${open ? " is-open" : ""}`}>
         <div className="polisync-sidebar-brand">POLISYNC</div>
 
-        <nav className="polisync-sidebar-nav" aria-label="Primary navigation">
+        <nav className="polisync-sidebar-nav" aria-label="Election and product navigation">
           {menu.map((item) => (
             <button
               type="button"
               className="polisync-sidebar-item"
-              key={item}
+              key={item.href}
               onClick={() => setOpen(false)}
             >
-              {item}
+              {item.label}
             </button>
           ))}
         </nav>
