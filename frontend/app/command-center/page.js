@@ -24,8 +24,8 @@ export default function CommandCenter() {
         <Topbar />
         <main className="command-center-content">
           <section className="command-center-hero">
-            <h1>Election Night Command Center</h1>
-            <p>Manage elections across Africa from one secure operations center.</p>
+            <h1>Election Operations Command Center</h1>
+            <p>Coordinate election operations, result transmission, verification and system alerts from one secure operations center.</p>
           </section>
           <section className="command-center-stats" aria-label="Election overview">
             <StatCard title="Reporting" value="92%" />
